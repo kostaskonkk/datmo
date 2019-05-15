@@ -1,0 +1,9 @@
+ <launch>
+
+    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find datmo)/config/datmo.rviz" /> 
+
+
+   <node pkg="datmo" type="datmo" name="datmo" />
+
+    
+</launch>
