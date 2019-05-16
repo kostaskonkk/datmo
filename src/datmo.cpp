@@ -1,5 +1,27 @@
 #include "datmo.h"
 
+void datmo::pubOdomObjects(){
+
+
+  for(unsigned int i = 0; i <clusters.size(); ++i){
+
+    odom_pub.publish(clusters[i].getOdom());
+
+  }
+
+
+}
+
+void datmo::pubFilteredOdomObjects(){
+
+  for(unsigned int i = 0; i <clusters.size(); ++i){
+
+    odom_filtered_pub.publish(clusters[i].getFilteredOdom());
+    
+  }
+
+
+}
 
 void datmo::pubPosesArrayVehicles(){
 
@@ -18,11 +40,51 @@ void datmo::pubPosesArrayVehicles(){
 
 }
 
+void datmo::pubPosesArrayVehiclesInsideBox(double halfwidth){
+
+  geometry_msgs::PoseArray poseArrayInBox;
+
+
+  for(unsigned int i = 0; i <clusters.size(); ++i){
+
+    if(abs(clusters[i].getPose().position.x)< 1 && abs(clusters[i].getPose().position.y)< 1){
+      poseArrayInBox.poses.push_back(clusters[i].getPose());
+    }
+
+  }
+
+  poseArrayInBox.header.stamp = ros::Time::now();
+  poseArrayInBox.header.frame_id = "/laser";
+
+  vehicles_InBox_pub.publish(poseArrayInBox);
+
+}
+
+
+void datmo::pubVelArrayVehicles(){
+
+  geometry_msgs::PoseArray velArray;
+
+
+  for(unsigned int i = 0; i <clusters.size(); ++i){
+    velArray.poses.push_back(clusters[i].getVel());
+
+  }
+
+  velArray.header.stamp = ros::Time::now();
+  velArray.header.frame_id = "/laser";
+
+  vel_vehicles_pub.publish(velArray);
+
+}
 
 void datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
 {
-//Clustering
 
+dt = t - (ros::Time::now().sec + ros::Time::now().nsec);
+t = ros::Time::now().sec + ros::Time::now().nsec;
+
+//Clustering
 
   if (time > ros::Time::now().sec)
   {
@@ -74,10 +136,10 @@ void datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
 
 
     for(unsigned int j=0;j<clusters.size();++j){
-      if( abs( mean_x - clusters[j].mean_x() ) < 0.25 && abs( mean_y - clusters[j].mean_y() ) < 0.25){
+      if( abs( mean_x - clusters[j].meanX() ) < 0.25 && abs( mean_y - clusters[j].meanY() ) < 0.25){
         //update Cluster
         g_matched[i] = true, c_matched[j] = true;
-        clusters[j].update(groups[i]);
+        clusters[j].update(groups[i], dt);
 
         visualization_msgs::Marker viz_line;
         visualization_msgs::Marker viz_point;
@@ -96,7 +158,10 @@ void datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
         viz_saved_cluster= clusters[j].getSavedClusterVisualisationMessage();
 
 
+        pubPosesArrayVehiclesInsideBox(1);
         pubPosesArrayVehicles();
+        pubFilteredOdomObjects();
+        pubOdomObjects();
 
         marker_pub.publish(viz_line);
         marker_pub.publish(viz_point);
@@ -128,8 +193,7 @@ void datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
   for(unsigned int i=0; i<groups.size();++i){
     if(g_matched[i] == false){
       // Construction of a new Cluster Object
-      Cluster cl(cclusters, groups[i]);
-      cl.update(groups[i]);
+      Cluster cl(cclusters, groups[i], dt);
       cclusters++;
       clusters.push_back(cl);
       // visualization_msgs::Marker new_clusters;
@@ -140,11 +204,7 @@ void datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
     } 
   }
 
-
-
-
 }
-
 
 
 void datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<pointList> &clusters)
@@ -263,12 +323,4 @@ while (j<nclus[i]+begin[i]){
   }
 
 }
-
-
-
-
-
-
-
-
 

@@ -60,6 +60,9 @@ public:
   */
   void update(const Eigen::VectorXd& y);
 
+
+  void update(const Eigen::VectorXd& y, double dt);
+
   /**
   * Update the estimated state based on measured values,
   * using the given time step and dynamics matrix.
