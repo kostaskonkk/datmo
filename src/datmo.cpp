@@ -1,5 +1,6 @@
 #include "datmo.h"
 
+
 void datmo::pubOdomObjects(){
 
 
@@ -89,6 +90,7 @@ t = ros::Time::now().sec + ros::Time::now().nsec;
   if (time > ros::Time::now().sec)
   {
     clusters.clear();
+    // filters.clear();
   }
   // time = ros::Time::now().sec;
 
@@ -141,33 +143,38 @@ t = ros::Time::now().sec + ros::Time::now().nsec;
         g_matched[i] = true, c_matched[j] = true;
         clusters[j].update(groups[i], dt);
 
-        visualization_msgs::Marker viz_line;
-        visualization_msgs::Marker viz_point;
-        // visualization_msgs::Marker viz_arrow;
-        visualization_msgs::Marker viz_cluster;
-        visualization_msgs::Marker viz_saved_cluster;
 
         // updated_clusters = clusters[j].getVisualisationMessageSavedClusters();
         // updated_clusters.ns = "updated_clusters";
         // marker_pub.publish(updated_clusters);
+ 
+        if (p_vehicles_InBox_pub){pubPosesArrayVehiclesInsideBox(1);};
+        if (p_vehicles_pub){pubPosesArrayVehicles();};
+        if (p_vel_vehicles_pub){pubVelArrayVehicles();};
+        if (p_odom_pub){pubFilteredOdomObjects();};
+        if (p_odom_filtered_pub){pubOdomObjects();};
 
-        viz_line = clusters[j].getLineVisualisationMessage();
-        viz_point= clusters[j].getPointVisualisationMessage();
-        // viz_arrow= clusters[j].getArrowVisualisationMessage();
-        viz_cluster= clusters[j].getClusterVisualisationMessage();
-        viz_saved_cluster= clusters[j].getSavedClusterVisualisationMessage();
+        if (p_marker_pub){
 
+          visualization_msgs::Marker viz_line;
+          visualization_msgs::Marker viz_point;
+          // visualization_msgs::Marker viz_arrow;
+          visualization_msgs::Marker viz_cluster;
+          visualization_msgs::Marker viz_saved_cluster;
 
-        pubPosesArrayVehiclesInsideBox(1);
-        pubPosesArrayVehicles();
-        pubFilteredOdomObjects();
-        pubOdomObjects();
+          viz_line = clusters[j].getLineVisualisationMessage();
+          viz_point= clusters[j].getPointVisualisationMessage();
+          // viz_arrow= clusters[j].getArrowVisualisationMessage();
+          viz_cluster= clusters[j].getClusterVisualisationMessage();
+          viz_saved_cluster= clusters[j].getSavedClusterVisualisationMessage();
 
-        marker_pub.publish(viz_line);
-        marker_pub.publish(viz_point);
-        // marker_pub.publish(viz_arrow);
-        marker_pub.publish(viz_cluster);
-        marker_pub.publish(viz_saved_cluster); 
+          marker_pub.publish(viz_line);
+          marker_pub.publish(viz_point);
+          // marker_pub.publish(viz_arrow);
+          marker_pub.publish(viz_cluster);
+          marker_pub.publish(viz_saved_cluster); 
+        };
+
       }
     }
   }

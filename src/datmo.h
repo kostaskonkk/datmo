@@ -29,6 +29,7 @@
 
 
 
+
 typedef std::pair<double, double> Point;
 typedef std::pair<double, double> coordinates;
 typedef std::vector<Point> pointList;
@@ -46,6 +47,21 @@ class datmo
 public:
   datmo()
   {
+    ros::NodeHandle n; 
+    ros::NodeHandle n_private("~");
+    ROS_INFO("Starting Detection And Tracking of Moving Objects");
+
+    n_private.param("pub_markers", p_marker_pub, false);
+    n_private.param("pub_vehicles_InBox", p_vehicles_InBox_pub, false);
+    n_private.param("pub_vehicles_pub", p_vehicles_pub, false);
+    n_private.param("pub_vel_vehicles_pub", p_vel_vehicles_pub, false);
+    n_private.param("pub_odom_pub", p_odom_pub, false);
+    n_private.param("pub_odom_filtered_pub", p_odom_filtered_pub, false);
+ 
+
+
+
+
     marker_pub = n.advertise<visualization_msgs::Marker>("markers", 1000);// if it is smaller some things are not published properly
     vehicles_pub = n.advertise<geometry_msgs::PoseArray>("vehicles", 100);
     vehicles_InBox_pub = n.advertise<geometry_msgs::PoseArray>("vehicles_inBox", 100);
@@ -67,10 +83,8 @@ public:
   void pubOdomObjects();
   void pubFilteredOdomObjects();
 
-
-
 private:
-  ros::NodeHandle n; 
+  
   ros::Publisher marker_pub;
   ros::Publisher vehicles_InBox_pub;
   ros::Publisher vehicles_pub;
@@ -99,5 +113,13 @@ private:
   unsigned long int cg       = 0;//group counter to be used as id for the markers
   unsigned long int cclusters= 0;//counter for the cluster objects to be used as id for the markers
 
+
+  //Parameters
+  bool p_marker_pub;
+  bool p_vehicles_InBox_pub;
+  bool p_vehicles_pub;
+  bool p_vel_vehicles_pub;
+  bool p_odom_pub;
+  bool p_odom_filtered_pub;
 
 };

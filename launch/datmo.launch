@@ -1,5 +1,12 @@
  <launch>
 
-   <node pkg="datmo" type="datmo" name="datmo" />
+ <node pkg="datmo" type="datmo" name="datmo" >
+  <param name="pub_markers" value="true" />
+  <param name="pub_vehicles_InBox" value="true" />
+  <param name="pub_vehicles_pub" value="true" />
+  <param name="pub_vel_vehicles_pub" value="false" />
+  <param name="pub_odom_pub" value="false" />
+  <param name="pub_odom_filtered_pub" value="false" />
+ </node>
     
 </launch>
