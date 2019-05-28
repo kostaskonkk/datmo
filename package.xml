@@ -2,7 +2,7 @@
 <package format="2">
   <name>datmo</name>
   <version>0.0.0</version>
-  <description>The Detection and Tracking Moving Objects package</description>
+  <description>The lidar_tracking package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
@@ -56,7 +56,8 @@
   <build_export_depend>std_msgs</build_export_depend>
   <exec_depend>roscpp</exec_depend>
   <exec_depend>std_msgs</exec_depend>
-
+  <build_depend>midi_ros</build_depend>
+  <exec_depend>midi_ros</exec_depend>
   <!-- messages added for barc support -->
 
 <!--   <build_depend>message_generation</build_depend>

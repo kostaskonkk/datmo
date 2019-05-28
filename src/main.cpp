@@ -3,9 +3,9 @@
 int main(int argc, char **argv)
 {
   //Initiate ROS
-  ros::init(argc, argv, "datmo");
+  ros::init(argc, argv, "datmo_node");
 
-  //Create an object of class datmo; 
+  //Create an object of class datmo 
   datmo  datmo_object;
 
   ros::spin();

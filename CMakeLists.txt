@@ -51,6 +51,11 @@ include_directories(
 
 
 
-add_executable(datmo src/main.cpp src/kalman-cpp/kalman.cpp src/datmo.cpp src/cluster.cpp)
+#add_executable(frames_sim src/frames_sim.cpp)
+#target_link_libraries(frames_sim ${catkin_LIBRARIES})
+#add_executable(frames_dsv src/frames_dsv.cpp)
+#target_link_libraries(frames_dsv ${catkin_LIBRARIES})
+
+add_executable(datmo src/trajectory.cpp  src/main.cpp src/kalman-cpp/kalman.cpp src/datmo.cpp src/cluster.cpp)
 add_dependencies(datmo ${catkin_EXPORTED_TARGETS})
 target_link_libraries(datmo ${catkin_LIBRARIES})

@@ -1,12 +1,15 @@
 #pragma once
 
+//#include "trajectory.h"
+#include "kalman-cpp/kalman.hpp"
 #include <vector>
 #include <random>
 #include <visualization_msgs/Marker.h>
-#include "kalman-cpp/kalman.hpp"
 #include <Eigen/Dense>
 #include <nav_msgs/Odometry.h>
-
+#include <geometry_msgs/PoseStamped.h>
+#include <nav_msgs/Path.h>
+#include "tf/transform_listener.h"
 
 using namespace std;
 using namespace Eigen;
@@ -16,8 +19,26 @@ typedef std::vector<Point> pointList;
 
 
 class Cluster {
-  
 public:
+
+  //void addPoseToTrajectory(const geometry_msgs::PoseStamped& );
+
+  //void waitForTf();
+
+//  nav_msgs::Path getTrajectory();
+  //parameters
+
+  void updateTrajectory(const tf::TransformListener& );
+  nav_msgs::Path trajectory_;
+
+  std::string p_target_frame_name_ = "map";
+  std::string p_source_frame_name_ = "laser";
+
+  double p_trajectory_update_rate_;
+  double p_trajectory_publish_rate_;
+
+  // Poses used for transformation to target_frame.
+  geometry_msgs::PoseStamped pose_source_;
 
   unsigned long int id; //identifier for the filter
 
@@ -27,15 +48,13 @@ public:
 
   visualization_msgs::Marker getPointVisualisationMessage();
 
-  visualization_msgs::Marker getSavedClustersVisualisationMessage();
-
   visualization_msgs::Marker getClusterVisualisationMessage();
 
   visualization_msgs::Marker getLineVisualisationMessage();
 
   visualization_msgs::Marker getArrowVisualisationMessage();
 
-  visualization_msgs::Marker getSavedClusterVisualisationMessage();
+  nav_msgs::Path getTrajectory();
 
   geometry_msgs::Pose getPose();
 
@@ -48,7 +67,7 @@ public:
 
   void update(const pointList& , const double);
 
-  std::pair<double, double> mean() { return mean_values; }; //Return the mean of the cluster.
+  std::pair<double, double> mean() { return mean_values; }; //Return mean of cluster.
 
   double meanX() { return mean_values.first; };
 
@@ -56,10 +75,10 @@ public:
 
   int size() { return clusters.size(); };
 
-
   // float lineSegmentExtractor(const vector<Point> &, vector<double> &, bool );
 
 private:
+  bool moving; 
 
   KalmanFilter kf;
 
