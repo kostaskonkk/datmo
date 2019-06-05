@@ -284,10 +284,7 @@ visualization_msgs::Marker Cluster::getLineVisualisationMessage() {
   line_msg.pose.orientation.w = 1.0;
   line_msg.type = visualization_msgs::Marker::LINE_STRIP;
   line_msg.id = this->id;
-  //line_msg.scale.x = 0.1; //line width
-  line_msg.scale.x = 0.1;
-  line_msg.scale.y = 0.1;
-  line_msg.scale.z = 0.1;
+  line_msg.scale.x = 0.1; //line width
   line_msg.lifetime = ros::Duration(0.09);
   line_msg.color.g = this->g;
   line_msg.color.b = this->b;
@@ -317,13 +314,39 @@ visualization_msgs::Marker Cluster::getLineVisualisationMessage() {
   if(pointListOut.size()==1){
   for(unsigned int k=0; k<pointListOut.size()-1;++k){
     l = sqrt(pow(pointListOut[k+1].first - pointListOut[k].first,2) + pow(pointListOut[k+1].second - pointListOut[k].second,2));
-  if(l>0.8){moving = false;};
+    if(l>0.8){moving = false;};
   }
   }
   return line_msg;
 
 }
 
+visualization_msgs::Marker Cluster::getBoundingBoxVisualisationMessage() {
+  
+  visualization_msgs::Marker bb_msg;
+  //if(!moving){return bb_msg;};//cluster not moving-empty msg
+
+  bb_msg.header.stamp = ros::Time::now();
+  bb_msg.header.frame_id  = "/laser";
+  bb_msg.ns = "boundind_boxes";
+  bb_msg.action = visualization_msgs::Marker::ADD;
+  bb_msg.pose.orientation.w = 1.0;
+  bb_msg.type = visualization_msgs::Marker::LINE_STRIP;
+  bb_msg.id = this->id;
+  bb_msg.scale.x = 0.1; //line width
+  bb_msg.lifetime = ros::Duration(0.09);
+  bb_msg.color.g = this->g;
+  bb_msg.color.b = this->b;
+  bb_msg.color.r = this->r;
+  bb_msg.color.a = 1.0;
+
+  geometry_msgs::Point p;
+    p.x = pointListOut[k].first;
+    p.y = pointListOut[k].second;
+    p.z = 0;
+
+    bb_msg.points.push_back(p);
+}
 void Cluster::calcMean(const pointList& c){
 
   double sum_x = 0, sum_y = 0;

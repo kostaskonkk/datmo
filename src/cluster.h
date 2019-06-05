@@ -47,12 +47,10 @@ public:
   Cluster(unsigned long int id, const pointList&, const double& );
 
   visualization_msgs::Marker getPointVisualisationMessage();
-
   visualization_msgs::Marker getClusterVisualisationMessage();
-
   visualization_msgs::Marker getLineVisualisationMessage();
-
   visualization_msgs::Marker getArrowVisualisationMessage();
+  visualization_msgs::Marker getBoundingBoxVisualisationMessage();
 
   nav_msgs::Path getTrajectory();
 

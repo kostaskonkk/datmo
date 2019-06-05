@@ -3,32 +3,24 @@
 void datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
 {
 
-dt = t - (ros::Time::now().sec + ros::Time::now().nsec);
-t = ros::Time::now().sec + ros::Time::now().nsec;
+  dt = t - (ros::Time::now().sec + ros::Time::now().nsec);
+  t = ros::Time::now().sec + ros::Time::now().nsec;
 
-
-  if (time > ros::Time::now().sec)
-  {
-    clusters.clear();
-    // filters.clear();
-  }
+  //TODO see why second line is commented out and maybe use t
+  if (time > ros::Time::now().sec){clusters.clear();}
   // time = ros::Time::now().sec;
 
-  scan = *scan_in;
-
-  // delete all the markers
+  // delete all the Markers and MarkerArrays
   //visualization_msgs::Marker marker;
-  //marker.action =3;
-  //marker_pub.publish(marker);
-
-  // delete all the markersArrays
   //visualization_msgs::MarkerArray markera;
+  //marker.action =3;
   //markera.markers.push_back(marker);
+  //marker_pub.publish(marker);
   //marker_array_pub.publish(markera);
+
 
   vector<pointList> groups;
   datmo::Clustering(scan_in, groups);
-
 
 
   // Cluster Association based on the Euclidean distance
@@ -36,51 +28,20 @@ t = ros::Time::now().sec + ros::Time::now().nsec;
 
   vector<bool> g_matched(groups.size(),false);   // The Group has been matched with a Cluster
   vector<bool> c_matched(clusters.size(),false); // The Cluster object has been matched with a group
+
+
+  //Finding mean coordinates of group and associating with cluster Objects
+  double sum_x = 0, sum_y = 0;
   double mean_x = 0, mean_y = 0;
 
-
-  //Going through all the groups and transforming into Map coordinates, finding Mean coordinates of group 
-  //and Associating with cluster Objects
-
-  tf::Pose PoseIn, PoseOut;
-
   for(unsigned int i = 0; i<groups.size();++i){
-
-    double sum_x = 0, sum_y = 0;
-
     for(unsigned int l =0; l<groups[i].size(); l++){
-
-      //Transform into map coordinates
-      // PoseIn.setOrigin( tf::Vector3(groups[i][l].first, groups[i][l].second,0) );
-      // PoseIn.setRotation( tf::Quaternion(0, 0, 0, 1));
-      // tf::Stamped<tf::Pose> sPoseIn(PoseIn, ros::Time::now(), "laser");
-
-
-      // PoseOut.setOrigin( tf::Vector3(0, 0,0) );
-      // PoseOut.setRotation( tf::Quaternion(0, 0, 0, 0));
-      // tf::Stamped<tf::Pose> sPoseOut(PoseOut, ros::Time::now(), "base_link");
-
-
-      // if(transformer.canTransform("map","laser",ros::Time::now())){
-      //   ROS_INFO_STREAM("can transform");
-
-        // transformer.waitForTransform("laser","base_link",ros::Time::now(),ros::Duration(0.1));
-        // transformer.transformPose("base_link",sPoseIn, sPoseOut);
-       
-      // Working with poses
-      // groups[i][l].first = sPoseOut.getOrigin()[0];
-      // groups[i][l].second= sPoseOut.getOrigin()[1];
-
       //Find sum of x and y
       sum_x = sum_x + groups[i][l].first;
       sum_y = sum_y + groups[i][l].second;
-      // }
-
     }
-
     mean_x = sum_x / groups[i].size();
     mean_y = sum_y / groups[i].size();
-
 
     for(unsigned int j=0;j<clusters.size();++j){
       if( abs( mean_x - clusters[j].meanX() ) < 0.25 && abs( mean_y - clusters[j].meanY() ) < 0.25){
@@ -88,41 +49,34 @@ t = ros::Time::now().sec + ros::Time::now().nsec;
         g_matched[i] = true, c_matched[j] = true;
         clusters[j].update(groups[i], dt);
         clusters[j].updateTrajectory(tf_);
-          
-
-        // updated_clusters = clusters[j].getVisualisationMessageSavedClusters();
-        // updated_clusters.ns = "updated_clusters";
-        // marker_pub.publish(updated_clusters);
- 
-        if (p_vehicles_InBox_pub){pubPosesArrayVehiclesInsideBox(1);};
-        if (p_vehicles_pub){pubPosesArrayVehicles();};
-        if (p_vel_vehicles_pub){pubVelArrayVehicles();};
-        if (p_odom_pub){pubFilteredOdomObjects();};
-        if (p_odom_filtered_pub){pubOdomObjects();};
-        if (p_trajectories_pub){pubTrajectories();};
-        
-        if (p_marker_pub){
-
-          visualization_msgs::Marker viz_line;
-          visualization_msgs::Marker viz_point;
-          // visualization_msgs::Marker viz_arrow;
-          visualization_msgs::Marker viz_cluster;
-
-          viz_line = clusters[j].getLineVisualisationMessage();
-          viz_point= clusters[j].getPointVisualisationMessage();
-          // viz_arrow= clusters[j].getArrowVisualisationMessage();
-          viz_cluster= clusters[j].getClusterVisualisationMessage();
-
-          marker_pub.publish(viz_line);
-          marker_pub.publish(viz_point);
-          // marker_pub.publish(viz_arrow);
-          marker_pub.publish(viz_cluster);
-        };
-
       }
     }
   }
 
+
+  //// Data Association based on the Mahalanobis distance
+  //// I should check first all the distances and then associate based on the closest distance
+
+   //Vector2d zD, vD, xy;
+   //vector<bool> l_matched(l_shapes.size(),false); // The L-Shape has been matched with a filter
+   //vector<bool> f_matched(filters.size(),false);  // The Filter object has been matched with an L-shape
+
+   ////Find the shortest distance
+   ////TODO Augment the shortest distance to include the other states as well
+   //for(unsigned int i=0; i<l_shapes.size();++i){
+     //zD << l_shapes[i][0], l_shapes[i][1];
+
+     //for(unsigned int j=0;j<filters.size();++j){
+       //vD = zD - filters[j].C * filters[j].state();
+       //if( abs(vD(0)) < 0.15 && abs(vD(1)) < 0.15){
+       ////update Kalman Filter
+         //l_matched[i] = true, f_matched[j] = true;
+         //filters[j].update(zD);
+         //xy = filters[j].C*filters[j].state();
+       //}
+     //}
+   //}
+ 
   // Delete not associated Clusters
   int o=0;
   unsigned int p = clusters.size();
@@ -143,30 +97,50 @@ t = ros::Time::now().sec + ros::Time::now().nsec;
   // Initialisation of new Cluster Objects
   for(unsigned int i=0; i<groups.size();++i){
     if(g_matched[i] == false){
-      // Construction of a new Cluster Object
       Cluster cl(cclusters, groups[i], dt);
       cclusters++;
       clusters.push_back(cl);
-      // visualization_msgs::Marker new_clusters;
-      // new_clusters = cl.getVisualisationMessageSavedClusters();
-      // new_clusters.ns = "new_clusters";
-
-      // marker_pub.publish(new_clusters);
     } 
   }
+  //Visualizations
+  visualization_msgs::MarkerArray marker_array;
+  for (unsigned int i =0; i<clusters.size();i++){
 
-for (unsigned int i =0; i<clusters.size();i++){
+    if (p_vehicles_InBox_pub){pubPosesArrayVehiclesInsideBox(1);};
+    if (p_vehicles_pub){pubPosesArrayVehicles();};
+    if (p_vel_vehicles_pub){pubVelArrayVehicles();};
+    if (p_odom_pub){pubFilteredOdomObjects();};
+    if (p_odom_filtered_pub){pubOdomObjects();};
+    if (p_trajectories_pub){pubTrajectories();};
+   
+    if (p_marker_pub){
+      //OLD WAY
+      //visualization_msgs::Marker viz_line;
+      //visualization_msgs::Marker viz_point;
+      //visualization_msgs::Marker viz_arrow;
+      //visualization_msgs::Marker viz_cluster;
+  
+      //viz_line = clusters[i].getLineVisualisationMessage();
+      //viz_point= clusters[i].getPointVisualisationMessage();
+      //viz_arrow= clusters[i].getArrowVisualisationMessage();
+      //viz_cluster= clusters[i].getClusterVisualisationMessage();
+  
+      //marker_pub.publish(viz_line);
+      //marker_pub.publish(viz_point);
+      //marker_pub.publish(viz_arrow);
+      //marker_pub.publish(viz_cluster);
+      marker_array.push_back(clusters[i].getLineVisualisationMessage());
+      marker_array.push_back(clusters[i].getPointVisualisationMessage());
+      marker_array.push_back(clusters[i].getArrowVisualisationMessage());
+      marker_array.push_back(clusters[i].getClusterVisualisationMessage());
+      marker_array.push_back(clusters[i].getBoundingBoxVisualisationMessage());
+    };
+  }
 
-  // visualization_msgs::Marker updated_clusters;
-  // updated_clusters = clusters[i].getVisualisationMessageSavedClusters();
-  // updated_clusters.ns = "all_clusters";
-  // marker_pub.publish(updated_clusters);
+marker_array_pub.publish(marker_array);
 
-}
-
-
+//TODO Publish in Rviz upper right corner this information
 // ROS_INFO_STREAM("Groups"<<groups.size()<< "Clusters: "<<clusters.size());
-
 // ROS_INFO_STREAM("Time"<<ros::Time::now()<<"clusters: "<<clusters.size() << "Filters: "<<filters.size());
 
 
@@ -200,10 +174,7 @@ for (unsigned int i =0; i<clusters.size();i++){
 //and the l_shape_extractor and then save them into the l_shapes vector
   // vector<l_shape> l_shapes;
 
- visualization_msgs::MarkerArray marker_array;
    for(unsigned int i=0; i<groups.size(); ++i){
-
-
     //Publishing the clusters with different colors
 
      gpoints.id = cg;
@@ -227,7 +198,6 @@ for (unsigned int i =0; i<clusters.size();i++){
      marker_array.markers.push_back(gpoints);
      gpoints.points.clear();
    }
-marker_array_pub.publish(marker_array);
   //   // Line and L-Shape Extraction
 
 
@@ -266,63 +236,6 @@ marker_array_pub.publish(marker_array);
   //   L_pub.publish(p);    
   // }
   
-
-  // Data Association based on the Mahalanobis distance
-  // I should check first all the distances and then associate based on the closest distance
-
-  // Vector2d zD, vD, xy;
-  // vector<bool> l_matched(l_shapes.size(),false); // The L-Shape has been matched with a filter
-  // vector<bool> f_matched(filters.size(),false);  // The Filter object has been matched with an L-shape
-
-  // Find the shortest distance
-  // TODO Augment the shortest distance to include the other states as well
-  // for(unsigned int i=0; i<l_shapes.size();++i){
-  //   zD << l_shapes[i][0], l_shapes[i][1];
-
-  //   for(unsigned int j=0;j<filters.size();++j){
-  //     vD = zD - filters[j].C * filters[j].state();
-  //     if( abs(vD(0)) < 0.15 && abs(vD(1)) < 0.15){
-  //     //update Kalman Filter
-  //       l_matched[i] = true, f_matched[j] = true;
-  //       filters[j].update(zD);
-  //       xy = filters[j].C*filters[j].state();
-  //     }
-  //   }
-  // }
-
-  // ROS_INFO_STREAM("associated: "<<std::accumulate(f_matched.begin(), f_matched.end(), 0)<<"/"<<std::accumulate(l_matched.begin(), l_matched.end(), 0));
-  // Delete not associated Kalman Filters
-  // unsigned int i=0;
-  // unsigned int j = filters.size();
-  // while(i<j){
-  
-
-  // j--;
-
-  //   if(f_matched[i] == false){
-  //     std::swap(filters[i], filters.back());
-  //     filters.pop_back();
-  //     std::swap(f_matched[i], f_matched.back());
-  //     f_matched.pop_back();
-  //     i--;
-  //     i--;
-  //   }
-  // i++;
-  // }
-
-
-  // if (f_matched.size()!=filters.size()){
-  // ROS_INFO_STREAM("l_shapes"<<l_shapes.size()<<"f_matched"<<f_matched.size()<<"filters.size"<<filters.size());
-  // }
-  // ROS_INFO_STREAM("associated: "<<std::accumulate(f_matched.begin(), f_matched.end(), 0)<<"/"<<std::accumulate(l_matched.begin(), l_matched.end(), 0));
-
-  // for(unsigned int i=0; i<filters.size();++i){
-  //   if(f_matched[i] == false){
-  //     filters.erase (filters.begin()+i);
-  //   }
-  // }
- 
-
       
 
  //    visualization_msgs::Marker fcorner_marker;
