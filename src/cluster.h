@@ -1,15 +1,12 @@
 #pragma once
 
-//#include "trajectory.h"
 #include "kalman-cpp/kalman.hpp"
-#include <vector>
-#include <random>
-#include <visualization_msgs/Marker.h>
 #include <Eigen/Dense>
+#include <tf/transform_listener.h>
+#include <visualization_msgs/Marker.h>
 #include <nav_msgs/Odometry.h>
-#include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Path.h>
-#include "tf/transform_listener.h"
+#include "datmo/Track.h"
 
 using namespace std;
 using namespace Eigen;
@@ -21,14 +18,8 @@ typedef std::vector<Point> pointList;
 class Cluster {
 public:
 
-  //void addPoseToTrajectory(const geometry_msgs::PoseStamped& );
+  Cluster(unsigned long int id, const pointList&, const double& );
 
-  //void waitForTf();
-
-//  nav_msgs::Path getTrajectory();
-  //parameters
-
-  void updateTrajectory(const tf::TransformListener& );
   nav_msgs::Path trajectory_;
 
   std::string p_target_frame_name_ = "map";
@@ -37,14 +28,16 @@ public:
   double p_trajectory_update_rate_;
   double p_trajectory_publish_rate_;
 
+  datmo::Track track_msg;
+
   // Poses used for transformation to target_frame.
   geometry_msgs::PoseStamped pose_source_;
 
-  unsigned long int id; //identifier for the filter
+  unsigned long int id; //identifier for the cluster 
 
   float g, r, b; //randomly assigned color to the cluster
 
-  Cluster(unsigned long int id, const pointList&, const double& );
+  void updateTrajectory(const tf::TransformListener& );
 
   visualization_msgs::Marker getPointVisualisationMessage();
   visualization_msgs::Marker getClusterVisualisationMessage();
@@ -53,13 +46,9 @@ public:
   visualization_msgs::Marker getBoundingBoxVisualisationMessage();
 
   nav_msgs::Path getTrajectory();
-
-  geometry_msgs::Pose getPose();
-
-  geometry_msgs::Pose getVel();
-
+  geometry_msgs::Pose getPose();//I should delete
+  geometry_msgs::Pose getVel();//I should delete
   nav_msgs::Odometry getOdom();
-
   nav_msgs::Odometry getFilteredOdom();
 
 
@@ -78,6 +67,7 @@ public:
 private:
   bool moving; 
 
+
   KalmanFilter kf;
 
   vector<pointList> clusters;
@@ -87,10 +77,10 @@ private:
   std::pair<double, double> previous_mean_values;
 
   double theta;
-  // Discrete time step
-  double dt;
-  // Is the filter initialized?
-  bool initialized;
+  
+  double dt; // Discrete time step
+  
+  bool initialized; // Is the filter initialized?
 
   double vx, vy;
   float Lx, Ly;

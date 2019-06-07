@@ -67,17 +67,6 @@ void Cluster::update(const pointList& new_points, const double dt_in) {
   y << meanX(), meanY(), vx, vy;
 
   kf.update(y, dt);
-
-  //Update Trajectory
-  //geometry_msgs::PoseStamped pose;
-
-  //pose.header.stamp = ros::Time::now();
-  //pose.header.frame_id = "/laser";
-  
-  //pose.pose.position.x = kf.state()[0];
-  //pose.pose.position.y = kf.state()[1];
-  
-  //addPoseToTrajectory(pose);
 }
 
 void Cluster::updateTrajectory(const tf::TransformListener& tf_listener) {
@@ -98,9 +87,12 @@ void Cluster::updateTrajectory(const tf::TransformListener& tf_listener) {
     trajectory_.header.stamp = pose_out.header.stamp;
     trajectory_.header.frame_id = pose_out.header.frame_id;
     trajectory_.poses.push_back(pose_out);
-
+    
+    track_msg.header.stamp = pose_out.header.stamp;
+    track_msg.header.frame_id = pose_out.header.frame_id;
+    track_msg.id = this->id;
+    track_msg.pose = pose_out.pose;
   } 
-  
 }
 
 nav_msgs::Path Cluster::getTrajectory(){
@@ -186,7 +178,7 @@ visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
   arrow_marker.type = visualization_msgs::Marker::ARROW;
   arrow_marker.header.frame_id = "/laser";
   arrow_marker.header.stamp = ros::Time::now();
-  arrow_marker.ns = "velocity";
+  arrow_marker.ns = "velocities";
   arrow_marker.action = visualization_msgs::Marker::ADD;
   arrow_marker.pose.orientation.w = 1.0;    
   arrow_marker.scale.x = 0.2;
@@ -248,7 +240,7 @@ visualization_msgs::Marker Cluster::getClusterVisualisationMessage() {
   cluster_vmsg.type = visualization_msgs::Marker::POINTS;
   cluster_vmsg.scale.x = 0.13;
   cluster_vmsg.scale.y = 0.13;
-  cluster_vmsg.lifetime = ros::Duration(0.09);
+  //cluster_vmsg.lifetime = ros::Duration(0.09);
   cluster_vmsg.id = this->id;
 
   cluster_vmsg.color.g = this->g;
@@ -333,20 +325,37 @@ visualization_msgs::Marker Cluster::getBoundingBoxVisualisationMessage() {
   bb_msg.pose.orientation.w = 1.0;
   bb_msg.type = visualization_msgs::Marker::LINE_STRIP;
   bb_msg.id = this->id;
-  bb_msg.scale.x = 0.1; //line width
-  bb_msg.lifetime = ros::Duration(0.09);
+  bb_msg.scale.x = 0.05; //line width
   bb_msg.color.g = this->g;
   bb_msg.color.b = this->b;
   bb_msg.color.r = this->r;
   bb_msg.color.a = 1.0;
-
+  
+  float cx = 0;
+  float cy = 0;
+  //float phi = 0;
+  float width = 0.3;
+  float length = 0.6;
+  
   geometry_msgs::Point p;
-    p.x = pointListOut[k].first;
-    p.y = pointListOut[k].second;
-    p.z = 0;
-
-    bb_msg.points.push_back(p);
+  p.x = cx + width/2;
+  p.y = cy + length/2;
+  bb_msg.points.push_back(p);
+  p.x = cx + width/2;
+  p.y = cy - length/2;
+  bb_msg.points.push_back(p);
+  p.x = cx - width/2;
+  p.y = cy - length/2;
+  bb_msg.points.push_back(p);
+  p.x = cx - width/2;
+  p.y = cy + length/2;
+  bb_msg.points.push_back(p);
+  p.x = cx + width/2;
+  p.y = cy + length/2;
+  bb_msg.points.push_back(p);
+  return bb_msg;
 }
+
 void Cluster::calcMean(const pointList& c){
 
   double sum_x = 0, sum_y = 0;
@@ -511,27 +520,4 @@ void Cluster::ramerDouglasPeucker(const vector<Point> &pointList, double epsilon
 
 //   // }
 // }
-
-//void Cluster::waitForTf(){
-  //ros::Time start = ros::Time::now();
-  ////ROS_INFO("Waiting for tf transform data between frames %s and %s to become available", p_target_frame_name_.c_str(), p_source_frame_name_.c_str() );
-
-  //bool transform_successful = false;
-
-  //while (!transform_successful){
-    //transform_successful = tf_.canTransform(p_target_frame_name_, p_source_frame_name_, ros::Time());
-    //if (transform_successful) break;
-
-    //ros::Time now = ros::Time::now();
-
-    ////if ((now-start).toSec() > 20.0){
-      ////ROS_WARN_ONCE("No transform between frames %s and %s available after %f seconds of waiting. This warning only prints once per cluster.", p_target_frame_name_.c_str(), p_source_frame_name_.c_str(), (now-start).toSec());
-    ////}
-    
-    //if (!ros::ok()) return;
-    //ros::WallDuration(1.0).sleep();
-  //}
-
-  ////ros::Time end = ros::Time::now();
-  ////ROS_INFO("Finished waiting for tf, waited %f seconds", (end-start).toSec());
 //}

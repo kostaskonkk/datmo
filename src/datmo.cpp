@@ -1,6 +1,6 @@
 #include "datmo.h"
 
-void datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
+void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
 {
 
   dt = t - (ros::Time::now().sec + ros::Time::now().nsec);
@@ -10,17 +10,16 @@ void datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
   if (time > ros::Time::now().sec){clusters.clear();}
   // time = ros::Time::now().sec;
 
-  // delete all the Markers and MarkerArrays
-  //visualization_msgs::Marker marker;
-  //visualization_msgs::MarkerArray markera;
-  //marker.action =3;
-  //markera.markers.push_back(marker);
-  //marker_pub.publish(marker);
-  //marker_array_pub.publish(markera);
+  // delete all Markers 
+  visualization_msgs::Marker marker;
+  visualization_msgs::MarkerArray markera;
+  marker.action =3;
+  markera.markers.push_back(marker);
+  marker_array_pub.publish(markera);
 
 
   vector<pointList> groups;
-  datmo::Clustering(scan_in, groups);
+  Datmo::Clustering(scan_in, groups);
 
 
   // Cluster Association based on the Euclidean distance
@@ -31,10 +30,11 @@ void datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
 
 
   //Finding mean coordinates of group and associating with cluster Objects
-  double sum_x = 0, sum_y = 0;
   double mean_x = 0, mean_y = 0;
 
   for(unsigned int i = 0; i<groups.size();++i){
+    double sum_x = 0, sum_y = 0;
+      
     for(unsigned int l =0; l<groups[i].size(); l++){
       //Find sum of x and y
       sum_x = sum_x + groups[i][l].first;
@@ -98,12 +98,14 @@ void datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
   for(unsigned int i=0; i<groups.size();++i){
     if(g_matched[i] == false){
       Cluster cl(cclusters, groups[i], dt);
+      cl.updateTrajectory(tf_);
       cclusters++;
       clusters.push_back(cl);
     } 
   }
   //Visualizations
   visualization_msgs::MarkerArray marker_array;
+  datmo::TrackArray track_array; 
   for (unsigned int i =0; i<clusters.size();i++){
 
     if (p_vehicles_InBox_pub){pubPosesArrayVehiclesInsideBox(1);};
@@ -114,31 +116,17 @@ void datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
     if (p_trajectories_pub){pubTrajectories();};
    
     if (p_marker_pub){
-      //OLD WAY
-      //visualization_msgs::Marker viz_line;
-      //visualization_msgs::Marker viz_point;
-      //visualization_msgs::Marker viz_arrow;
-      //visualization_msgs::Marker viz_cluster;
-  
-      //viz_line = clusters[i].getLineVisualisationMessage();
-      //viz_point= clusters[i].getPointVisualisationMessage();
-      //viz_arrow= clusters[i].getArrowVisualisationMessage();
-      //viz_cluster= clusters[i].getClusterVisualisationMessage();
-  
-      //marker_pub.publish(viz_line);
-      //marker_pub.publish(viz_point);
-      //marker_pub.publish(viz_arrow);
-      //marker_pub.publish(viz_cluster);
-      marker_array.push_back(clusters[i].getLineVisualisationMessage());
-      marker_array.push_back(clusters[i].getPointVisualisationMessage());
-      marker_array.push_back(clusters[i].getArrowVisualisationMessage());
-      marker_array.push_back(clusters[i].getClusterVisualisationMessage());
-      marker_array.push_back(clusters[i].getBoundingBoxVisualisationMessage());
+      marker_array.markers.push_back(clusters[i].getLineVisualisationMessage());
+      marker_array.markers.push_back(clusters[i].getPointVisualisationMessage());
+      marker_array.markers.push_back(clusters[i].getArrowVisualisationMessage());
+      marker_array.markers.push_back(clusters[i].getClusterVisualisationMessage());
+marker_array.markers.push_back(clusters[i].getBoundingBoxVisualisationMessage());
+    track_array.tracks.push_back(clusters[i].track_msg);
     };
   }
 
 marker_array_pub.publish(marker_array);
-
+tracks_pub.publish(track_array);
 //TODO Publish in Rviz upper right corner this information
 // ROS_INFO_STREAM("Groups"<<groups.size()<< "Clusters: "<<clusters.size());
 // ROS_INFO_STREAM("Time"<<ros::Time::now()<<"clusters: "<<clusters.size() << "Filters: "<<filters.size());
@@ -202,7 +190,7 @@ marker_array_pub.publish(marker_array);
 
 
   //   vector<Point> pointListOut;
-  //   datmo::RamerDouglasPeucker(groups[i], 0.1, pointListOut);
+  //   Datmo::RamerDouglasPeucker(groups[i], 0.1, pointListOut);
   //   for(unsigned int k =0 ;k<pointListOut.size();++k){
   //     geometry_msgs::Point p;
   //     p.x = pointListOut[k].first;
@@ -213,7 +201,7 @@ marker_array_pub.publish(marker_array);
   //   }
   //   if(pointListOut.size() ==3){
   //       vector<double> l_shape;
-  //       datmo::l_shape_extractor(pointListOut, l_shape, 0); // Last value is bool visualise
+  //       Datmo::l_shape_extractor(pointListOut, l_shape, 0); // Last value is bool visualise
   //       l_shapes.push_back(l_shape);
   //       ++cl;
 
@@ -275,54 +263,7 @@ marker_array_pub.publish(marker_array);
 
 }
 
-// This function expects pointLists of 3 points. The corner point is equal to the middle point. 
-// TODO calculate theta from the same axis each time
-void datmo::l_shape_extractor(const vector<Point> &pointListIn, vector<double> &l_shape, bool visualise)
-{
-
-  l_shape.push_back(pointListIn[1].first); //xcorner
-  l_shape.push_back(pointListIn[1].second);//ycorner
-  double L1,L2,theta;
-  L1 = sqrt(pow(pointListIn[1].first - pointListIn[0].first,2) + pow(pointListIn[1].second - pointListIn[0].second,2));
-  L2 = sqrt(pow(pointListIn[2].first - pointListIn[1].first,2) + pow(pointListIn[2].second - pointListIn[1].second,2));
-  l_shape.push_back(L1);
-  l_shape.push_back(L2);
-  theta = atan(pointListIn[1].second - pointListIn[0].second / pointListIn[1].first - pointListIn[0].first);//arctan(dy/dx)
-  l_shape.push_back(theta);
-
-
-  if(visualise == 1){
-
-    visualization_msgs::Marker lshapes_marker;
-    lshapes_marker.type = visualization_msgs::Marker::LINE_STRIP;
-
-    lshapes_marker.header.frame_id = "/map";
-    lshapes_marker.ns = "L-Shapes";
-    lshapes_marker.action = visualization_msgs::Marker::ADD;
-    lshapes_marker.id = cl;
-    lshapes_marker.pose.orientation.w = 1.0;    
-    lshapes_marker.header.stamp = ros::Time::now();
-    lshapes_marker.scale.x = 0.1;  //line width
-    lshapes_marker.color.g = 0.0f;
-    lshapes_marker.color.b = 0.0f;
-    lshapes_marker.color.r = 0.8f;
-    
-
-    lshapes_marker.color.a = 1.0;
-
-    geometry_msgs::Point p;
-    for(unsigned int i=0;i<3;i++){
-      p.x = pointListIn[i].first;
-      p.y = pointListIn[i].second;
-      p.z = 0;
-      lshapes_marker.points.push_back(p);
-    }
-
-    marker_pub.publish(lshapes_marker);
-  }
-}
-
-void datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<pointList> &clusters)
+void Datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<pointList> &clusters)
 {
   scan = *scan_in;
 
@@ -451,25 +392,25 @@ void datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<p
     //clusters.push_back(loner);
   //}
 
-void datmo::pubTrajectories(){
+void Datmo::pubTrajectories(){
   for(unsigned int i = 0; i <clusters.size(); ++i){
     trajectory_pub.publish(clusters[i].getTrajectory());
   }
 }
 
-void datmo::pubOdomObjects(){
+void Datmo::pubOdomObjects(){
   for(unsigned int i = 0; i <clusters.size(); ++i){
     odom_pub.publish(clusters[i].getOdom());
   }
 }
 
-void datmo::pubFilteredOdomObjects(){
+void Datmo::pubFilteredOdomObjects(){
   for(unsigned int i = 0; i <clusters.size(); ++i){
     odom_filtered_pub.publish(clusters[i].getFilteredOdom());
   }
 }
 
-void datmo::pubPosesArrayVehicles(){
+void Datmo::pubPosesArrayVehicles(){
   geometry_msgs::PoseArray poseArray;
   for(unsigned int i = 0; i <clusters.size(); ++i){
     poseArray.poses.push_back(clusters[i].getPose());
@@ -482,14 +423,14 @@ void datmo::pubPosesArrayVehicles(){
 
 }
 
-// void datmo::midi_callback(const std_msgs::Int8::ConstPtr& msg){
+// void Datmo::midi_callback(const std_msgs::Int8::ConstPtr& msg){
 
 //   tp_dth = msg->data;
 //   ROS_INFO_STREAM("Clustering_Distance = 0.25 * ("<<tp_dth<<"+1)/64 = "<<0.25 * (tp_dth+1)/64);
 // // 0.25 * (tp_dth+1)/64
 // }
 
-void datmo::pubPosesArrayVehiclesInsideBox(double halfwidth){
+void Datmo::pubPosesArrayVehiclesInsideBox(double halfwidth){
 
   geometry_msgs::PoseArray poseArrayInBox;
 
@@ -508,7 +449,7 @@ void datmo::pubPosesArrayVehiclesInsideBox(double halfwidth){
   vehicles_InBox_pub.publish(poseArrayInBox);
 }
 
-void datmo::pubVelArrayVehicles(){
+void Datmo::pubVelArrayVehicles(){
 
   geometry_msgs::PoseArray velArray;
 
