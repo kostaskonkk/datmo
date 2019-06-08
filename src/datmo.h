@@ -20,8 +20,8 @@
 #include <visualization_msgs/MarkerArray.h>
 #include <geometry_msgs/Point.h>
 #include <tf/transform_broadcaster.h>
-#include "datmo/TrackArray.h"
-#include "datmo/Track.h"
+#include <datmo/TrackArray.h>
+#include <datmo/Track.h>
 
 #include "cluster.h"
 // #include <midi_ros/midi.h> //parameter tuning through midi controller

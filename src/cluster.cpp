@@ -88,10 +88,10 @@ void Cluster::updateTrajectory(const tf::TransformListener& tf_listener) {
     trajectory_.header.frame_id = pose_out.header.frame_id;
     trajectory_.poses.push_back(pose_out);
     
-    track_msg.header.stamp = pose_out.header.stamp;
-    track_msg.header.frame_id = pose_out.header.frame_id;
     track_msg.id = this->id;
-    track_msg.pose = pose_out.pose;
+    track_msg.pose.pose = pose_out.pose;
+    track_msg.pose.header.stamp = pose_out.header.stamp;
+    track_msg.pose.header.frame_id = pose_out.header.frame_id;
   } 
 }
 
