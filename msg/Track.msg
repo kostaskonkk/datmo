@@ -1,2 +1,2 @@
-int32 id 	                    # object ID 
-geometry_msgs/PoseStamped pose       # Pose of the object
+int32 id 	               # object ID 
+nav_msgs/Odometry odom         # Pose of the object

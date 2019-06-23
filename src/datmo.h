@@ -58,61 +58,54 @@ public:
  
 
     tracks_pub = n.advertise<datmo::TrackArray>("tracks", 1);
+    filtered_tracks_pub = n.advertise<datmo::TrackArray>("filtered_tracks", 1);
     marker_array_pub = n.advertise<visualization_msgs::MarkerArray>("marker_array", 10);
     trajectory_pub = n.advertise<nav_msgs::Path>("trajectories", 1000);
-    vehicles_pub = n.advertise<geometry_msgs::PoseArray>("vehicles", 100);
-    vehicles_InBox_pub = n.advertise<geometry_msgs::PoseArray>("vehicles_inBox", 100);
-    vel_vehicles_pub = n.advertise<geometry_msgs::PoseArray>("vel_vehicles", 100);
+    //vehicles_pub = n.advertise<geometry_msgs::PoseArray>("vehicles", 100);
+    //vehicles_InBox_pub = n.advertise<geometry_msgs::PoseArray>("vehicles_inBox", 100);
+    //vel_vehicles_pub = n.advertise<geometry_msgs::PoseArray>("vel_vehicles", 100);
     sub_scan = n.subscribe("/scan", 1, &Datmo::callback, this);
     // sub_pose = n.subscribe("/mocap_pose", 1, &Datmo::tf_callback, this);
     // sub_midi = n.subscribe("/midi", 1, &datmo::midi_callback, this);
 
-    odom_pub = n.advertise<nav_msgs::Odometry>("odom_objects", 1000);
-    odom_filtered_pub = n.advertise<nav_msgs::Odometry>("odom_filtered_objects", 1000);
   }
 
   // void midi_callback(const std_msgs::Int8::ConstPtr &);
   void callback(const sensor_msgs::LaserScan::ConstPtr &);
   void Clustering(const sensor_msgs::LaserScan::ConstPtr& , vector<pointList> &);
-
-  void pubPosesArrayVehicles();
-  void pubPosesArrayVehiclesInsideBox(double halfwidth);
+  void visualiseGroupedPoints(const vector<pointList> &);
+  //void pubPosesArrayVehicles();
+  //void pubPosesArrayVehiclesInsideBox(double halfwidth);
   void pubTrajectories();
-  void pubVelArrayVehicles();
-  void pubOdomObjects();
-  void pubFilteredOdomObjects();
+  //void pubVelArrayVehicles();
 
   tf::TransformListener tf_;
 private:
   ros::Publisher trajectory_pub;  
-  ros::Publisher seg_pub_1;
+  //ros::Publisher seg_pub_1;
   ros::Publisher marker_array_pub; 
-  ros::Publisher vehicles_InBox_pub;
-  ros::Publisher vehicles_pub;
-  ros::Publisher vel_vehicles_pub;
-  ros::Publisher odom_pub;
-  ros::Publisher odom_filtered_pub;
+  //ros::Publisher vehicles_InBox_pub;
+  //ros::Publisher vehicles_pub;
+  //ros::Publisher vel_vehicles_pub;
   ros::Publisher tracks_pub;
+  ros::Publisher filtered_tracks_pub;
 
   tf::TransformBroadcaster tf_br;
   tf::Transform tf_world_base_link;
   tf::Transformer transformer;
 
-  ros::Subscriber sub_midi;
+  //ros::Subscriber sub_midi;
   ros::Subscriber sub_scan;
-  ros::Subscriber sub_pose;
+  //ros::Subscriber sub_pose;
   sensor_msgs::LaserScan scan;
 
   vector<Cluster> clusters;
 
-
   //Tuning Parameteres
   unsigned int tp_dth = 63;
-  unsigned int time;
-  double t, dt;
+  double dt;
+  ros::Time time;
 
-  unsigned long int cl       = 0;//counter for the l_shape to be used as id for the markers
-  unsigned long int cfilters = 0;//counter for the filters 
   unsigned long int cg       = 0;//group counter to be used as id for the markers
   unsigned long int cclusters= 0;//counter for the cluster objects to be used as id for the markers
 

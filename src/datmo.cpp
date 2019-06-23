@@ -3,12 +3,9 @@
 void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
 {
 
-  dt = t - (ros::Time::now().sec + ros::Time::now().nsec);
-  t = ros::Time::now().sec + ros::Time::now().nsec;
-
-  //TODO see why second line is commented out and maybe use t
-  if (time > ros::Time::now().sec){clusters.clear();}
-  // time = ros::Time::now().sec;
+  dt = (ros::Time::now() - time).toSec();
+  if (time > ros::Time::now()){clusters.clear();}
+  time = ros::Time::now();
 
   // delete all Markers 
   visualization_msgs::Marker marker;
@@ -47,8 +44,7 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
       if( abs( mean_x - clusters[j].meanX() ) < 0.25 && abs( mean_y - clusters[j].meanY() ) < 0.25){
         //update Cluster
         g_matched[i] = true, c_matched[j] = true;
-        clusters[j].update(groups[i], dt);
-        clusters[j].updateTrajectory(tf_);
+        clusters[j].update(groups[i], 0.1, tf_);
       }
     }
   }
@@ -94,11 +90,11 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
     }
   o++;
   }
+
   // Initialisation of new Cluster Objects
   for(unsigned int i=0; i<groups.size();++i){
     if(g_matched[i] == false){
-      Cluster cl(cclusters, groups[i], dt);
-      cl.updateTrajectory(tf_);
+      Cluster cl(cclusters, groups[i], dt, tf_);
       cclusters++;
       clusters.push_back(cl);
     } 
@@ -106,161 +102,84 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
   //Visualizations
   visualization_msgs::MarkerArray marker_array;
   datmo::TrackArray track_array; 
+  datmo::TrackArray filtered_track_array; 
   for (unsigned int i =0; i<clusters.size();i++){
 
-    if (p_vehicles_InBox_pub){pubPosesArrayVehiclesInsideBox(1);};
-    if (p_vehicles_pub){pubPosesArrayVehicles();};
-    if (p_vel_vehicles_pub){pubVelArrayVehicles();};
-    if (p_odom_pub){pubFilteredOdomObjects();};
-    if (p_odom_filtered_pub){pubOdomObjects();};
+
+    //ROS_INFO_STREAM("vx="<<clusters[i].map_kf.state()[2]<< "vy="<<clusters[i].map_kf.state()[3]); 
+    //ROS_INFO_STREAM("avx="<<clusters[i].avx<<"avy="<<clusters[i].avy); 
+    track_array.tracks.push_back(clusters[i].track_msg);
+    filtered_track_array.tracks.push_back(clusters[i].filtered_track_msg);
+    //if (p_vehicles_InBox_pub){pubPosesArrayVehiclesInsideBox(1);};
+    //if (p_vehicles_pub){pubPosesArrayVehicles();};
+    //if (p_vel_vehicles_pub){pubVelArrayVehicles();};
     if (p_trajectories_pub){pubTrajectories();};
    
     if (p_marker_pub){
-      marker_array.markers.push_back(clusters[i].getLineVisualisationMessage());
-      marker_array.markers.push_back(clusters[i].getPointVisualisationMessage());
+      //marker_array.markers.push_back(clusters[i].getLineVisualisationMessage());
+      //marker_array.markers.push_back(clusters[i].getCenterVisualisationMessage());
       marker_array.markers.push_back(clusters[i].getArrowVisualisationMessage());
       marker_array.markers.push_back(clusters[i].getClusterVisualisationMessage());
-marker_array.markers.push_back(clusters[i].getBoundingBoxVisualisationMessage());
-    track_array.tracks.push_back(clusters[i].track_msg);
+      marker_array.markers.push_back(clusters[i].getBoundingBoxVisualisationMessage());
     };
   }
 
-marker_array_pub.publish(marker_array);
-tracks_pub.publish(track_array);
-//TODO Publish in Rviz upper right corner this information
-// ROS_INFO_STREAM("Groups"<<groups.size()<< "Clusters: "<<clusters.size());
-// ROS_INFO_STREAM("Time"<<ros::Time::now()<<"clusters: "<<clusters.size() << "Filters: "<<filters.size());
-
-
-//Populate line strip and grouped points message
-   visualization_msgs::Marker gpoints, line_strip;
-   gpoints.header.frame_id = line_strip.header.frame_id = "/laser";
-
-   gpoints.header.stamp = line_strip.header.stamp = ros::Time::now();
-   line_strip.ns = "extracted_lines";
-   gpoints.ns = "clustered_points";
-
-   gpoints.action = line_strip.action = visualization_msgs::Marker::ADD;
-   gpoints.pose.orientation.w = line_strip.pose.orientation.w = 1.0;
-
-   gpoints.type = visualization_msgs::Marker::POINTS;
-   line_strip.type = visualization_msgs::Marker::LINE_STRIP;
-   // POINTS markers use x and y scale for width/height respectively
-   gpoints.scale.x = 0.13;
-   gpoints.scale.y = 0.13;
-   // Corner points are green
-   gpoints.color.g = 1.0f;
-   gpoints.color.a = 1.0;
-   line_strip.scale.x = 0.1; //line width
-   // Line strip is blue
-   line_strip.color.b = 1.0;
-   line_strip.color.a = 1.0;
-
-
+  marker_array_pub.publish(marker_array);
+  tracks_pub.publish(track_array);
+  filtered_tracks_pub.publish(filtered_track_array);
+  //visualiseGroupedPoints(groups);
   
-//Feed the clusters into the Iterative End-Point Fit Function
-//and the l_shape_extractor and then save them into the l_shapes vector
-  // vector<l_shape> l_shapes;
+  //TODO Publish in Rviz upper right corner this information
+  // ROS_INFO_STREAM("Groups"<<groups.size()<< "Clusters: "<<clusters.size());
+  // ROS_INFO_STREAM("Time"<<ros::Time::now()<<"clusters: "<<clusters.size() << "Filters: "<<filters.size());
 
-   for(unsigned int i=0; i<groups.size(); ++i){
-    //Publishing the clusters with different colors
+}
 
-     gpoints.id = cg;
-     cg++;
+void Datmo::visualiseGroupedPoints(const vector<pointList>& groups){
+  //Publishing the clusters with different colors
+  visualization_msgs::MarkerArray marker_array;
+  //Populate grouped points message
+  visualization_msgs::Marker gpoints;
+  gpoints.header.frame_id = "/laser";
+  gpoints.header.stamp = ros::Time::now();
+  gpoints.ns = "clustered_points";
+  gpoints.action = visualization_msgs::Marker::ADD;
+  gpoints.pose.orientation.w = 1.0;
+  gpoints.type = visualization_msgs::Marker::POINTS;
+  // POINTS markers use x and y scale for width/height respectively
+  gpoints.scale.x = 0.13;
+  gpoints.scale.y = 0.13;
+  for(unsigned int i=0; i<groups.size(); ++i){
 
-     float randomg = rand() / double(RAND_MAX);
-     float randomb = rand() / double(RAND_MAX);
-     float randomr = rand() / double(RAND_MAX);
-     gpoints.color.g = randomg;
-     gpoints.color.b = randomb;
-     gpoints.color.r = randomr;
-     gpoints.color.a = 1.0;
-     gpoints.lifetime = ros::Duration(0.08);
-     for(unsigned int j=0; j<groups[i].size(); ++j){
-       geometry_msgs::Point p;
-       p.x = groups[i][j].first;
-       p.y = groups[i][j].second;
-       p.z = 0;
-       gpoints.points.push_back(p);
-     }
-     marker_array.markers.push_back(gpoints);
-     gpoints.points.clear();
-   }
-  //   // Line and L-Shape Extraction
+    gpoints.id = cg;
+    cg++;
 
+    float randomg = rand() / double(RAND_MAX);
+    float randomb = rand() / double(RAND_MAX);
+    float randomr = rand() / double(RAND_MAX);
+    gpoints.color.g = randomg;
+    gpoints.color.b = randomb;
+    gpoints.color.r = randomr;
+    gpoints.color.a = 1.0;
+    gpoints.lifetime = ros::Duration(0.08);
+    for(unsigned int j=0; j<groups[i].size(); ++j){
+      geometry_msgs::Point p;
+      p.x = groups[i][j].first;
+      p.y = groups[i][j].second;
+      p.z = 0;
+      gpoints.points.push_back(p);
+    }
+    marker_array.markers.push_back(gpoints);
+    gpoints.points.clear();
+  }
+  marker_array_pub.publish(marker_array);
 
-  //   vector<Point> pointListOut;
-  //   Datmo::RamerDouglasPeucker(groups[i], 0.1, pointListOut);
-  //   for(unsigned int k =0 ;k<pointListOut.size();++k){
-  //     geometry_msgs::Point p;
-  //     p.x = pointListOut[k].first;
-  //     p.y = pointListOut[k].second;
-  //     p.z = 0;
+}
 
-  //     line_strip.points.push_back(p);
-  //   }
-  //   if(pointListOut.size() ==3){
-  //       vector<double> l_shape;
-  //       Datmo::l_shape_extractor(pointListOut, l_shape, 0); // Last value is bool visualise
-  //       l_shapes.push_back(l_shape);
-  //       ++cl;
-
-  //       geometry_msgs::Point p;
-  //       p.x = l_shape[0];
-  //       p.y = l_shape[1];
-  //       p.z = 0;
-  //       // corner.points.push_back(p);
-  //     }
-  //   line_strip.id = cg;
-  //   marker_pub.publish(line_strip);
-  //   line_strip.points.clear();
-  // }
-
-  // for(unsigned int i=0; i<l_shapes.size();++i){
-  //   geometry_msgs::Point p;
-  //   p.x = l_shapes[i][0];
-  //   p.y = l_shapes[i][1];
-  //   p.z = 0;
-  //   L_pub.publish(p);    
-  // }
-  
-      
-
- //    visualization_msgs::Marker fcorner_marker;
- //    fcorner_marker.type = visualization_msgs::Marker::POINTS;
-
- //    fcorner_marker.header.frame_id = "/odom";
- //    fcorner_marker.ns = "filter_corner";
- //    fcorner_marker.action = visualization_msgs::Marker::ADD;
- //    fcorner_marker.pose.orientation.w = 1.0;    
- //    fcorner_marker.header.stamp = ros::Time::now();
- //    fcorner_marker.scale.x = 0.4;
- //    fcorner_marker.scale.y = 0.4;  
- //    fcorner_marker.color.a = 1.0;
- // //Visualisation of corner point of Kalman Filters
- // for(unsigned int i=0;i<filters.size();++i){
- //        xy = filters[i].C*filters[i].state();
- //        geometry_msgs::Point p;
- //        p.x = xy(0);
- //        p.y = xy(1);
- //        p.z = 0;
-
- //        fcorner_marker.id = filters[i].id; 
-
- //        fcorner_marker.color.r = filters[i].r;
- //        fcorner_marker.color.g = filters[i].g;
- //        fcorner_marker.color.b = filters[i].b;
-
- //        fcorner_marker.points.push_back(p);
- //        marker_pub.publish(fcorner_marker);
- //        fcorner_marker.points.clear();
-
- //  }
-
-// ROS_INFO_STREAM("Kf: "<<filters.size()<<"ls: "<<l_shapes.size());
-
-
-
+void Datmo::pubTrajectories(){
+  for(unsigned int i = 0; i <clusters.size(); ++i){
+    trajectory_pub.publish(clusters[i].getTrajectory());
+  }
 }
 
 void Datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<pointList> &clusters)
@@ -379,89 +298,5 @@ void Datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<p
   }
 
 }
-  //for (unsigned int i=0; i < c_points ; ++i){
-
-    //pointList loner;
-
-    //double x,y;
-    //if(clustered1[i] == false && clustered2[i] == false){
-      //x = polar[i][0] * cos(polar[i][1]); //x = r × cos( θ )
-      //y = polar[i][0] * sin(polar[i][1]); //y = r × sin( θ )
-      //loner.push_back(Point(x, y));
-    //}
-    //clusters.push_back(loner);
-  //}
-
-void Datmo::pubTrajectories(){
-  for(unsigned int i = 0; i <clusters.size(); ++i){
-    trajectory_pub.publish(clusters[i].getTrajectory());
-  }
-}
-
-void Datmo::pubOdomObjects(){
-  for(unsigned int i = 0; i <clusters.size(); ++i){
-    odom_pub.publish(clusters[i].getOdom());
-  }
-}
-
-void Datmo::pubFilteredOdomObjects(){
-  for(unsigned int i = 0; i <clusters.size(); ++i){
-    odom_filtered_pub.publish(clusters[i].getFilteredOdom());
-  }
-}
-
-void Datmo::pubPosesArrayVehicles(){
-  geometry_msgs::PoseArray poseArray;
-  for(unsigned int i = 0; i <clusters.size(); ++i){
-    poseArray.poses.push_back(clusters[i].getPose());
-  }
-
-  poseArray.header.stamp = ros::Time::now();
-  poseArray.header.frame_id = "/laser";
-
-  vehicles_pub.publish(poseArray);
-
-}
-
-// void Datmo::midi_callback(const std_msgs::Int8::ConstPtr& msg){
-
-//   tp_dth = msg->data;
-//   ROS_INFO_STREAM("Clustering_Distance = 0.25 * ("<<tp_dth<<"+1)/64 = "<<0.25 * (tp_dth+1)/64);
-// // 0.25 * (tp_dth+1)/64
-// }
-
-void Datmo::pubPosesArrayVehiclesInsideBox(double halfwidth){
-
-  geometry_msgs::PoseArray poseArrayInBox;
 
 
-  for(unsigned int i = 0; i <clusters.size(); ++i){
-
-    if(abs(clusters[i].getPose().position.x)< 1 && abs(clusters[i].getPose().position.y)< 1){
-      poseArrayInBox.poses.push_back(clusters[i].getPose());
-    }
-
-  }
-
-  poseArrayInBox.header.stamp = ros::Time::now();
-  poseArrayInBox.header.frame_id = "/laser";
-
-  vehicles_InBox_pub.publish(poseArrayInBox);
-}
-
-void Datmo::pubVelArrayVehicles(){
-
-  geometry_msgs::PoseArray velArray;
-
-
-  for(unsigned int i = 0; i <clusters.size(); ++i){
-    velArray.poses.push_back(clusters[i].getVel());
-
-  }
-
-  velArray.header.stamp = ros::Time::now();
-  velArray.header.frame_id = "/laser";
-
-  vel_vehicles_pub.publish(velArray);
-
-}

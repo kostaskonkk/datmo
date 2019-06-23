@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
   tf
+  nav_msgs
   sensor_msgs
   cmake_modules REQUIRED
   message_generation
@@ -26,7 +27,7 @@ add_message_files(
 
 generate_messages(
   DEPENDENCIES
-  geometry_msgs
+  nav_msgs
   std_msgs
 )
 

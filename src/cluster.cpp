@@ -8,13 +8,13 @@
 #include "cluster.h"
 
 
-Cluster::Cluster(unsigned long int id, const pointList& new_points, const double& dt ){
+Cluster::Cluster(unsigned long int id, const pointList& new_points, const double& dt, const tf::TransformListener& tf_listener){
 
   this->id = id;
   this->r = rand() / double(RAND_MAX);
   this->g = rand() / double(RAND_MAX);
   this->b = rand() / double(RAND_MAX);
-  this->moving = true; //all clusters at the beginning are init moving
+  this->moving = true; //all clusters at the beginning are initialised as moving
 
   // Initialization of Kalman Filter
   int n = 4; // Number of states
@@ -42,57 +42,151 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
 
   KalmanFilter kalman_filter(dt, A, C, Q, R, P); // Constructor for the filter
   this->kf = kalman_filter;
+  this->map_kf = kalman_filter;
+
+  clusters.push_back(new_points);
+  Cluster::calcMean(new_points);
 
   VectorXd x0(n);
-
-  clusters.push_back(new_points);
-  Cluster::calcMean(new_points);
   x0 << Cluster::meanX(), Cluster::meanY(), 0, 0;
   kf.init(0,x0, this->id);
-
-  
-}
-
-void Cluster::update(const pointList& new_points, const double dt_in) {
-
-  previous_mean_values = mean_values;
-
-  clusters.push_back(new_points);
-  Cluster::calcMean(new_points);
-  this->dt = dt_in;
-  calcRelativeVelocity();
-
-  // Update Kalman Filter
-  VectorXd y(4);
-  y << meanX(), meanY(), vx, vy;
-
-  kf.update(y, dt);
-}
-
-void Cluster::updateTrajectory(const tf::TransformListener& tf_listener) {
 
   if(tf_listener.canTransform(p_target_frame_name_, p_source_frame_name_, ros::Time())){
 
     pose_source_.header.stamp = ros::Time(0);
     pose_source_.pose.orientation.w = 1.0;
     pose_source_.header.frame_id = p_source_frame_name_;
-    pose_source_.pose.position.x = kf.state()[0];
-    pose_source_.pose.position.y = kf.state()[1];
+    pose_source_.pose.position.x = meanX();
+    pose_source_.pose.position.y = meanY();
     pose_source_.pose.orientation.w = 1; 
 
     geometry_msgs::PoseStamped pose_out;
 
-    tf_listener.transformPose("map", pose_source_, pose_out);
+    tf_listener.transformPose(p_target_frame_name_, pose_source_, pose_out);
+
+    abs_mean_values.first = pose_out.pose.position.x;
+    abs_mean_values.second = pose_out.pose.position.y;
+    abs_previous_mean_values = abs_mean_values;
 
     trajectory_.header.stamp = pose_out.header.stamp;
     trajectory_.header.frame_id = pose_out.header.frame_id;
     trajectory_.poses.push_back(pose_out);
     
     track_msg.id = this->id;
-    track_msg.pose.pose = pose_out.pose;
-    track_msg.pose.header.stamp = pose_out.header.stamp;
-    track_msg.pose.header.frame_id = pose_out.header.frame_id;
+    track_msg.odom.header.stamp = pose_out.header.stamp;
+    track_msg.odom.header.frame_id = pose_out.header.frame_id;
+    track_msg.odom.pose.pose = pose_out.pose;
+
+    //Initialise Kalman filter on Map coordinates
+    x0 << pose_out.pose.position.x, pose_out.pose.position.y, 0, 0;
+    map_kf.init(0,x0, this->id);
+  }
+
+  else{ //If the tf is not possible init all states at 0
+    x0 << 0, 0, 0, 0;
+    map_kf.init(0,x0,this->id);
+  };
+
+  //Populate filtered track msg
+  filtered_track_msg.id = this->id;
+  filtered_track_msg.odom.header.stamp = ros::Time(0);
+  filtered_track_msg.odom.header.frame_id = p_target_frame_name_;
+  filtered_track_msg.odom.pose.pose.position.x = map_kf.state()[0];
+  filtered_track_msg.odom.pose.pose.position.y = map_kf.state()[1];
+  filtered_track_msg.odom.twist.twist.linear.x = map_kf.state()[2];
+  filtered_track_msg.odom.twist.twist.linear.y = map_kf.state()[3];
+  
+}
+
+void Cluster::update(const pointList& new_points, const double dt_in, const tf::TransformListener& tf_listener) {
+
+  previous_mean_values = mean_values;
+  abs_previous_mean_values = abs_mean_values;
+
+  clusters.push_back(new_points);
+  Cluster::calcMean(new_points);
+  this->dt = dt_in;
+
+  // Update Kalman Filter
+  VectorXd y(4);
+  double vx, vy;
+  vx = (mean_values.first - previous_mean_values.first)/dt;
+  vy = (mean_values.second - previous_mean_values.second)/dt;
+
+  y << meanX(), meanY(), vx, vy;
+  kf.update(y, dt);
+
+  if(tf_listener.canTransform(p_target_frame_name_, p_source_frame_name_, ros::Time())){
+
+    pose_source_.header.stamp = ros::Time(0);
+    pose_source_.pose.orientation.w = 1.0;
+    pose_source_.header.frame_id = p_source_frame_name_;
+    pose_source_.pose.position.x = meanX();
+    pose_source_.pose.position.y = meanY();
+    pose_source_.pose.orientation.w = 1; 
+
+    geometry_msgs::PoseStamped pose_out;
+
+    tf_listener.transformPose(p_target_frame_name_, pose_source_, pose_out);
+
+    abs_mean_values.first = pose_out.pose.position.x;
+    abs_mean_values.second = pose_out.pose.position.y;
+
+    trajectory_.header.stamp = pose_out.header.stamp;
+    trajectory_.header.frame_id = pose_out.header.frame_id;
+    trajectory_.poses.push_back(pose_out);
+    
+    track_msg.id = this->id;
+    track_msg.odom.header.stamp = pose_out.header.stamp;
+    track_msg.odom.header.frame_id = pose_out.header.frame_id;
+    track_msg.odom.pose.pose = pose_out.pose;
+
+    //Update Kalman filter on Map coordinates
+    //double avx, avy;
+    avx = (abs_mean_values.first - abs_previous_mean_values.first)/dt;
+    avy = (abs_mean_values.second - abs_previous_mean_values.second)/dt;
+    y << pose_out.pose.position.x, pose_out.pose.position.y, avx, avy;
+    map_kf.update(y, dt);
+
+    //Populate filtered track msg
+    filtered_track_msg.id = this->id;
+    filtered_track_msg.odom.header.stamp = ros::Time(0);
+    filtered_track_msg.odom.header.frame_id = p_target_frame_name_;
+    filtered_track_msg.odom.pose.pose.position.x = map_kf.state()[0];
+    filtered_track_msg.odom.pose.pose.position.y = map_kf.state()[1];
+    filtered_track_msg.odom.twist.twist.linear.x = map_kf.state()[2];
+    filtered_track_msg.odom.twist.twist.linear.y = map_kf.state()[3];
   } 
+}
+
+visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
+
+  visualization_msgs::Marker arrow_marker;
+  arrow_marker.type = visualization_msgs::Marker::ARROW;
+  arrow_marker.header.frame_id = p_target_frame_name_;
+  arrow_marker.header.stamp = ros::Time::now();
+  arrow_marker.ns = "velocities";
+  arrow_marker.action = visualization_msgs::Marker::ADD;
+  arrow_marker.pose.orientation.w = 1.0;    
+  arrow_marker.scale.x = 0.05;
+  arrow_marker.scale.y = 0.1;  
+  arrow_marker.color.a = 1.0;
+  arrow_marker.color.g = this->g;
+  arrow_marker.color.b = this->b;
+  arrow_marker.color.r = this->r;
+  arrow_marker.id = this->id;
+ 
+  geometry_msgs::Point p;
+  p.x = map_kf.state()[0]; 
+  p.y = map_kf.state()[1]; 
+  p.z = 0;
+  arrow_marker.points.push_back(p);
+
+  p.x = map_kf.state()[0] + map_kf.state()[2]; 
+  p.y = map_kf.state()[1] + map_kf.state()[3]; 
+  p.z = 0;
+  arrow_marker.points.push_back(p);
+  return arrow_marker;
 }
 
 nav_msgs::Path Cluster::getTrajectory(){
@@ -102,110 +196,45 @@ nav_msgs::Path Cluster::getTrajectory(){
 }  
 
 
-nav_msgs::Odometry Cluster::getOdom() {
+//nav_msgs::Odometry Cluster::getOdom() {
 
-  nav_msgs::Odometry odom;
+  //nav_msgs::Odometry odom;
 
-  odom.header.stamp = ros::Time::now();
-  odom.header.frame_id = "/laser";
+  //odom.header.stamp = ros::Time::now();
+  //odom.header.frame_id = "/laser";
   
-  odom.pose.pose.position.x = meanX();
-  odom.pose.pose.position.y = meanY();
+  //odom.pose.pose.position.x = meanX();
+  //odom.pose.pose.position.y = meanY();
 
-  odom.twist.twist.linear.x = vx;
-  odom.twist.twist.linear.y = vy;
-
-
-  return odom;
-}
-
-nav_msgs::Odometry Cluster::getFilteredOdom() {
-
-  nav_msgs::Odometry odom;
+  //odom.twist.twist.linear.x = vx;
+  //odom.twist.twist.linear.y = vy;
 
 
-  odom.header.stamp = ros::Time::now();
-  odom.header.frame_id = "/laser";
+  //return odom;
+//}
+
+//nav_msgs::Odometry Cluster::getFilteredOdom() {
+
+  //nav_msgs::Odometry odom;
+
+  //odom.header.stamp = ros::Time::now();
+  //odom.header.frame_id = "/laser";
   
-  odom.pose.pose.position.x = kf.state()[0];
-  odom.pose.pose.position.y = kf.state()[1];
+  //odom.pose.pose.position.x = kf.state()[0];
+  //odom.pose.pose.position.y = kf.state()[1];
 
-  odom.twist.twist.linear.x = kf.state()[2];
-  odom.twist.twist.linear.y = kf.state()[3];
-
-
-  return odom;
-}
-
-geometry_msgs::Pose Cluster::getPose() {
-
-  geometry_msgs::Pose pose;
-
-  pose.position.x = meanX();
-  pose.position.y = meanY();
-  pose.position.z = 0;
+  //odom.twist.twist.linear.x = kf.state()[2];
+  //odom.twist.twist.linear.y = kf.state()[3];
 
 
-  pose.orientation.x = 0;
-  pose.orientation.y = 0;
-  pose.orientation.z = 0;
-  pose.orientation.w = 0;
-
-  return pose;
-}
-
-geometry_msgs::Pose Cluster::getVel() {
-
-  geometry_msgs::Pose vel;
-
-  vel.position.x = vx;
-  vel.position.y = vy;
-  vel.position.z = 0;
+  //return odom;
+//}
 
 
-  vel.orientation.x = 0;
-  vel.orientation.y = 0;
-  vel.orientation.z = 0;
-  vel.orientation.w = 0;
 
-  return vel;
-}
-
-visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
-
-  visualization_msgs::Marker arrow_marker;
- 
-  arrow_marker.type = visualization_msgs::Marker::ARROW;
-  arrow_marker.header.frame_id = "/laser";
-  arrow_marker.header.stamp = ros::Time::now();
-  arrow_marker.ns = "velocities";
-  arrow_marker.action = visualization_msgs::Marker::ADD;
-  arrow_marker.pose.orientation.w = 1.0;    
-  arrow_marker.scale.x = 0.2;
-  arrow_marker.scale.y = 0.2;  
-  arrow_marker.color.a = 1.0;
-  arrow_marker.color.g = this->g;
-  arrow_marker.color.b = this->b;
-  arrow_marker.color.r = this->r;
-  arrow_marker.id = this->id;
- 
-  geometry_msgs::Point p;
-  p.x = meanX(); 
-  p.y = meanY(); 
-  p.z = 0;
-  arrow_marker.points.push_back(p);
-
-  p.x = meanX()+1; 
-  p.y = meanY()+1; 
-  p.z = 0;
-  arrow_marker.points.push_back(p);
-  return arrow_marker;
-}
-
- visualization_msgs::Marker Cluster::getPointVisualisationMessage() {
+ visualization_msgs::Marker Cluster::getCenterVisualisationMessage() {
 
   visualization_msgs::Marker fcorner_marker;
-
   fcorner_marker.type = visualization_msgs::Marker::POINTS;
   fcorner_marker.header.frame_id = "/laser";
   fcorner_marker.header.stamp = ros::Time::now();
@@ -368,14 +397,6 @@ void Cluster::calcMean(const pointList& c){
 
     this->mean_values.first = sum_x / c.size();
     this->mean_values.second= sum_y / c.size();
-}
-
-void Cluster::calcRelativeVelocity(){
-
-  this->vx = (mean_values.first - previous_mean_values.second)/dt;
-
-  this->vy = (mean_values.first - previous_mean_values.second)/dt;
-
 }
 
 void Cluster::calcTheta(){
