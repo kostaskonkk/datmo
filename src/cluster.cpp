@@ -89,7 +89,7 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
 
   //Populate filtered track msg
   filtered_track_msg.id = this->id;
-  filtered_track_msg.odom.header.stamp = ros::Time(0);
+  filtered_track_msg.odom.header.stamp = ros::Time::now();
   filtered_track_msg.odom.header.frame_id = p_target_frame_name_;
   filtered_track_msg.odom.pose.pose.position.x = map_kf.state()[0];
   filtered_track_msg.odom.pose.pose.position.y = map_kf.state()[1];
@@ -150,7 +150,7 @@ void Cluster::update(const pointList& new_points, const double dt_in, const tf::
 
     //Populate filtered track msg
     filtered_track_msg.id = this->id;
-    filtered_track_msg.odom.header.stamp = ros::Time(0);
+    filtered_track_msg.odom.header.stamp = ros::Time::now();
     filtered_track_msg.odom.header.frame_id = p_target_frame_name_;
     filtered_track_msg.odom.pose.pose.position.x = map_kf.state()[0];
     filtered_track_msg.odom.pose.pose.position.y = map_kf.state()[1];
@@ -159,6 +159,65 @@ void Cluster::update(const pointList& new_points, const double dt_in, const tf::
   } 
 }
 
+visualization_msgs::Marker Cluster::getBoundingBoxVisualisationMessage() {
+  
+  visualization_msgs::Marker bb_msg;
+  //if(!moving){return bb_msg;};//cluster not moving-empty msg
+
+  bb_msg.header.stamp = ros::Time::now();
+  bb_msg.header.frame_id  = "/laser";
+  bb_msg.ns = "boundind_boxes";
+  bb_msg.action = visualization_msgs::Marker::ADD;
+  bb_msg.pose.orientation.w = 1.0;
+  bb_msg.type = visualization_msgs::Marker::LINE_STRIP;
+  bb_msg.id = this->id;
+  bb_msg.scale.x = 0.05; //line width
+  bb_msg.color.g = this->g;
+  bb_msg.color.b = this->b;
+  bb_msg.color.r = this->r;
+  bb_msg.color.a = 1.0;
+  
+  float cx = 0;
+  float cy = 0;
+  //float phi = 0;
+  float width = 0.3;
+  float length = 0.6;
+
+  geometry_msgs::Point p;
+  p.x = cx + width/2;
+  p.y = cy + length/2;
+  bb_msg.points.push_back(p);
+  p.x = cx + width/2;
+  p.y = cy - length/2;
+  bb_msg.points.push_back(p);
+  p.x = cx - width/2;
+  p.y = cy - length/2;
+  bb_msg.points.push_back(p);
+  p.x = cx - width/2;
+  p.y = cy + length/2;
+  bb_msg.points.push_back(p);
+  p.x = cx + width/2;
+  p.y = cy + length/2;
+  bb_msg.points.push_back(p);
+  
+  //geometry_msgs::Point p;
+  //p.x = cx + width/2;
+  //p.y = cy + length/2;
+  //bb_msg.points.push_back(p);
+  //p.x = cx + width/2;
+  //p.y = cy - length/2;
+  //bb_msg.points.push_back(p);
+  //p.x = cx - width/2;
+  //p.y = cy - length/2;
+  //bb_msg.points.push_back(p);
+  //p.x = cx - width/2;
+  //p.y = cy + length/2;
+  //bb_msg.points.push_back(p);
+  //p.x = cx + width/2;
+  //p.y = cy + length/2;
+  //bb_msg.points.push_back(p);
+  return bb_msg;
+}
 visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
 
   visualization_msgs::Marker arrow_marker;
@@ -342,48 +401,6 @@ visualization_msgs::Marker Cluster::getLineVisualisationMessage() {
 
 }
 
-visualization_msgs::Marker Cluster::getBoundingBoxVisualisationMessage() {
-  
-  visualization_msgs::Marker bb_msg;
-  //if(!moving){return bb_msg;};//cluster not moving-empty msg
-
-  bb_msg.header.stamp = ros::Time::now();
-  bb_msg.header.frame_id  = "/laser";
-  bb_msg.ns = "boundind_boxes";
-  bb_msg.action = visualization_msgs::Marker::ADD;
-  bb_msg.pose.orientation.w = 1.0;
-  bb_msg.type = visualization_msgs::Marker::LINE_STRIP;
-  bb_msg.id = this->id;
-  bb_msg.scale.x = 0.05; //line width
-  bb_msg.color.g = this->g;
-  bb_msg.color.b = this->b;
-  bb_msg.color.r = this->r;
-  bb_msg.color.a = 1.0;
-  
-  float cx = 0;
-  float cy = 0;
-  //float phi = 0;
-  float width = 0.3;
-  float length = 0.6;
-  
-  geometry_msgs::Point p;
-  p.x = cx + width/2;
-  p.y = cy + length/2;
-  bb_msg.points.push_back(p);
-  p.x = cx + width/2;
-  p.y = cy - length/2;
-  bb_msg.points.push_back(p);
-  p.x = cx - width/2;
-  p.y = cy - length/2;
-  bb_msg.points.push_back(p);
-  p.x = cx - width/2;
-  p.y = cy + length/2;
-  bb_msg.points.push_back(p);
-  p.x = cx + width/2;
-  p.y = cy + length/2;
-  bb_msg.points.push_back(p);
-  return bb_msg;
-}
 
 void Cluster::calcMean(const pointList& c){
 
