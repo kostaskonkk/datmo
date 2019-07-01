@@ -8,7 +8,7 @@
 
     <node type="rviz" name="rviz" pkg="rviz" args="-d $(find datmo)/config/datmo.rviz" /> 
 
-    <!--<node type="odom_node" name="odom" pkg="odometry" /> -->
+    <node type="odom_node" name="odom" pkg="odometry" /> 
 
     <node pkg="tf2_ros" type="static_transform_publisher" name="link_imu" args="0 0 0 0 0 0 /base_link /imu_link" />
 

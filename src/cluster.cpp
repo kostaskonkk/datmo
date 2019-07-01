@@ -156,6 +156,8 @@ void Cluster::update(const pointList& new_points, const double dt_in, const tf::
     filtered_track_msg.odom.pose.pose.position.y = map_kf.state()[1];
     filtered_track_msg.odom.twist.twist.linear.x = map_kf.state()[2];
     filtered_track_msg.odom.twist.twist.linear.y = map_kf.state()[3];
+
+    //TODO Dynamic Static Classifier
   } 
 }
 
@@ -165,7 +167,7 @@ visualization_msgs::Marker Cluster::getBoundingBoxVisualisationMessage() {
   //if(!moving){return bb_msg;};//cluster not moving-empty msg
 
   bb_msg.header.stamp = ros::Time::now();
-  bb_msg.header.frame_id  = "/laser";
+  bb_msg.header.frame_id  = p_target_frame_name_;
   bb_msg.ns = "boundind_boxes";
   bb_msg.action = visualization_msgs::Marker::ADD;
   bb_msg.pose.orientation.w = 1.0;
@@ -177,45 +179,39 @@ visualization_msgs::Marker Cluster::getBoundingBoxVisualisationMessage() {
   bb_msg.color.r = this->r;
   bb_msg.color.a = 1.0;
   
-  float cx = 0;
-  float cy = 0;
-  //float phi = 0;
+  float cx = map_kf.state()[0]; 
+  float cy = map_kf.state()[1]; 
+  float th = 0;
   float width = 0.3;
   float length = 0.6;
 
   geometry_msgs::Point p;
-  p.x = cx + width/2;
-  p.y = cy + length/2;
+  float x = width/2;
+  float y = length/2;
+  p.x = cx + x*cos(th) - y*sin(th);
+  p.y = cy + x*sin(th) + y*cos(th);
   bb_msg.points.push_back(p);
-  p.x = cx + width/2;
-  p.y = cy - length/2;
+  x = + width/2;
+  y = - length/2;
+  p.x = cx + x*cos(th) - y*sin(th);
+  p.y = cy + x*sin(th) + y*cos(th);
   bb_msg.points.push_back(p);
-  p.x = cx - width/2;
-  p.y = cy - length/2;
+  x = - width/2;
+  y = - length/2;
+  p.x = cx + x*cos(th) - y*sin(th);
+  p.y = cy + x*sin(th) + y*cos(th);
   bb_msg.points.push_back(p);
-  p.x = cx - width/2;
-  p.y = cy + length/2;
+  x = - width/2;
+  y = + length/2;
+  p.x = cx + x*cos(th) - y*sin(th);
+  p.y = cy + x*sin(th) + y*cos(th);
   bb_msg.points.push_back(p);
-  p.x = cx + width/2;
-  p.y = cy + length/2;
+  x = + width/2;
+  y = + length/2;
+  p.x = cx + x*cos(th) - y*sin(th);
+  p.y = cy + x*sin(th) + y*cos(th);
   bb_msg.points.push_back(p);
   
-  //geometry_msgs::Point p;
-  //p.x = cx + width/2;
-  //p.y = cy + length/2;
-  //bb_msg.points.push_back(p);
-  //p.x = cx + width/2;
-  //p.y = cy - length/2;
-  //bb_msg.points.push_back(p);
-  //p.x = cx - width/2;
-  //p.y = cy - length/2;
-  //bb_msg.points.push_back(p);
-  //p.x = cx - width/2;
-  //p.y = cy + length/2;
-  //bb_msg.points.push_back(p);
-  //p.x = cx + width/2;
-  //p.y = cy + length/2;
-  //bb_msg.points.push_back(p);
   return bb_msg;
 }
 visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {

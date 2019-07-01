@@ -36,7 +36,8 @@ public:
 
   unsigned long int id; //identifier for the cluster 
 
-  float r, g, b; //randomly assigned color to the cluster
+  //float rr, rg, rb; //randomly assigned color to the cluster
+  float r, g, b; //current color of the cluster
 
 
   visualization_msgs::Marker getCenterVisualisationMessage();
