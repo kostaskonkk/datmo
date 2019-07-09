@@ -1,12 +1,15 @@
 #pragma once
 
 #include "kalman-cpp/kalman.hpp"
+#include "l_shape_tracker.h"
 #include <Eigen/Dense>
 #include <tf/transform_listener.h>
 #include <visualization_msgs/Marker.h>
-#include <nav_msgs/Odometry.h>
+//#include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
 #include "datmo/Track.h"
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 using namespace std;
 using namespace Eigen;
@@ -22,11 +25,8 @@ public:
 
   nav_msgs::Path trajectory_;
 
-  std::string p_target_frame_name_ = "map";
-  std::string p_source_frame_name_ = "laser";
-
-  double p_trajectory_update_rate_;
-  double p_trajectory_publish_rate_;
+  string p_target_frame_name_ = "map";
+  string p_source_frame_name_ = "laser";
 
   datmo::Track track_msg;
   datmo::Track filtered_track_msg;
@@ -36,15 +36,18 @@ public:
 
   unsigned long int id; //identifier for the cluster 
 
-  //float rr, rg, rb; //randomly assigned color to the cluster
   float r, g, b; //current color of the cluster
 
+  geometry_msgs::Quaternion geo;//added for debug
 
   visualization_msgs::Marker getCenterVisualisationMessage();
+  visualization_msgs::Marker getClosestCornerPointVisualisationMessage();
   visualization_msgs::Marker getClusterVisualisationMessage();
   visualization_msgs::Marker getLineVisualisationMessage();
   visualization_msgs::Marker getArrowVisualisationMessage();
   visualization_msgs::Marker getBoundingBoxVisualisationMessage();
+  visualization_msgs::Marker getBoxVisualisationMessage();
+  visualization_msgs::Marker getL1L2VisualisationMessage();
 
   nav_msgs::Path getTrajectory();
 
@@ -53,12 +56,8 @@ public:
   std::pair<double, double> mean() { return mean_values; }; //Return mean of cluster.
 
   double meanX() { return mean_values.first; };
-
   double meanY() { return mean_values.second;};
 
-  int size() { return clusters.size(); };
-
-  // float lineSegmentExtractor(const vector<Point> &, vector<double> &, bool );
 
   KalmanFilter kf;
   KalmanFilter map_kf;
@@ -67,7 +66,11 @@ public:
 private:
   bool moving; 
 
-  vector<pointList> clusters;
+  //vector<pointList> clusters;
+  pointList new_cluster;
+  vector<Point> corner_list;
+
+  vector<Point> l1l2; //save coordinates of the three points that define the lines
 
   // mean value of the cluster
   std::pair<double, double> mean_values;
@@ -75,19 +78,20 @@ private:
   std::pair<double, double> abs_mean_values;
   std::pair<double, double> abs_previous_mean_values;
 
-  double theta;
+  Point closest_corner_point;
   
   double dt; // Discrete time step
-  
+
   double vx, vy;
-  float Lx, Ly;
+
+  float L1, L2, theta;
 
   void calcMean(const pointList& ); //Find the mean value of the cluster
-
-  void calcTheta();
-
+  void rectangleFitting(const pointList& ); //Search-Based Rectangle Fitting 
+  double areaCriterion(const VectorXd&, const VectorXd& );
+  double closenessCriterion(const VectorXd& ,const VectorXd&, const float& );
+  Point lineIntersection(double& , double& , double& , double& , double& , double& );
   double perpendicularDistance(const Point&, const Point&, const Point&);
-
   void ramerDouglasPeucker(const vector<Point>&, double, vector<Point>&);
 
 };

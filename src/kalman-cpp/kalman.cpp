@@ -26,17 +26,13 @@ KalmanFilter::KalmanFilter(
 
 KalmanFilter::KalmanFilter() {}
 
-void KalmanFilter::init(double t0, const Eigen::VectorXd& x0, unsigned long int id) {
+void KalmanFilter::init(double t0, const Eigen::VectorXd& x0) {
   x_hat = x0;
   P = P0;
   this->t0 = t0;
   t = t0;
   initialized = true;
-  this->id = id;
 
-  this->r = rand() / double(RAND_MAX);
-  this->g = rand() / double(RAND_MAX);
-  this->b = rand() / double(RAND_MAX);
 }
 
 void KalmanFilter::init() {

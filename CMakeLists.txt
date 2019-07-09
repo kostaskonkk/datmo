@@ -8,6 +8,7 @@ add_compile_options(-std=c++11)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)# required for YCM
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
@@ -46,6 +47,6 @@ include_directories(
 )
 
 
-add_executable(datmo  src/main.cpp src/kalman-cpp/kalman.cpp src/datmo.cpp src/cluster.cpp)
+add_executable(datmo  src/l_shape_tracker.cpp src/main.cpp src/kalman-cpp/kalman.cpp src/datmo.cpp src/cluster.cpp)
 add_dependencies(datmo ${catkin_EXPORTED_TARGETS})
 target_link_libraries(datmo ${catkin_LIBRARIES})

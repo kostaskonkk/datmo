@@ -16,6 +16,8 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   this->b = rand() / double(RAND_MAX);
   this->moving = true; //all clusters at the beginning are initialised as moving
 
+  new_cluster = new_points;
+
   // Initialization of Kalman Filter
   int n = 4; // Number of states
   int m = 4; // Number of measurements
@@ -44,12 +46,14 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   this->kf = kalman_filter;
   this->map_kf = kalman_filter;
 
-  clusters.push_back(new_points);
-  Cluster::calcMean(new_points);
+  calcMean(new_points);
+  rectangleFitting(new_points);
 
   VectorXd x0(n);
   x0 << Cluster::meanX(), Cluster::meanY(), 0, 0;
-  kf.init(0,x0, this->id);
+  kf.init(0,x0);
+
+  //LShapeTracker::LShapeTracker(const Point& corner_point, const double& L1, const double& L2, const double& theta, const double& dt){
 
   if(tf_listener.canTransform(p_target_frame_name_, p_source_frame_name_, ros::Time())){
 
@@ -79,12 +83,12 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
 
     //Initialise Kalman filter on Map coordinates
     x0 << pose_out.pose.position.x, pose_out.pose.position.y, 0, 0;
-    map_kf.init(0,x0, this->id);
+    map_kf.init(0,x0);
   }
 
   else{ //If the tf is not possible init all states at 0
     x0 << 0, 0, 0, 0;
-    map_kf.init(0,x0,this->id);
+    map_kf.init(0,x0);
   };
 
   //Populate filtered track msg
@@ -102,9 +106,10 @@ void Cluster::update(const pointList& new_points, const double dt_in, const tf::
 
   previous_mean_values = mean_values;
   abs_previous_mean_values = abs_mean_values;
+  new_cluster = new_points;
 
-  clusters.push_back(new_points);
   Cluster::calcMean(new_points);
+  rectangleFitting(new_points);
   this->dt = dt_in;
 
   // Update Kalman Filter
@@ -161,7 +166,141 @@ void Cluster::update(const pointList& new_points, const double dt_in, const tf::
   } 
 }
 
+void Cluster::rectangleFitting(const pointList& new_cluster){
+  //This function is based on ¨Efficient L-Shape Fitting for
+  //Vehicle Detection Using Laser Scanners¨
+  unsigned int n = new_cluster.size();
+  VectorXd e1(2),e2(2);
+  MatrixXd X(n, 2); 
+  for (unsigned int i = 0; i < n; ++i) {
+    X(i,0) = new_cluster[i].first;
+    X(i,1) = new_cluster[i].second;
+  }
+  VectorXd C1(n),C2(n);
+  double q;
+  unsigned int i =0;
+  double th = 0.0;
+  //TODO make d configurable through Rviz
+  unsigned int d = 100;
+  ArrayX2d Q(d,2);
+  float step = (3.14/2)/d;
+  for (i = 0; i < d; ++i) {
+    e1 << cos(th), sin(th);
+    e2 <<-sin(th), cos(th);
+    C1 = X * e1;
+    C2 = X * e2;
+
+    //q = areaCriterion(C1,C2);
+    q = closenessCriterion(C1,C2,0.001);
+    Q(i,0) = th;
+    Q(i,1) = q;
+
+    th = th + step;
+  }
+
+  ArrayX2d::Index max_index;
+  Q.col(1).maxCoeff(&max_index);//find Q with maximum value
+  th = Q(max_index,0);
+  e1 << cos(th), sin(th);
+  e2 <<-sin(th), cos(th);
+  C1 = X * e1;
+  C2 = X * e2;
+  // The coefficients of the four lines are calculated
+  double a1,a2,a3,a4,b1,b2,b3,b4,c1,c2,c3,c4;
+  a1 = cos(th);
+  b1 = sin(th);
+  c1 = C1.minCoeff();
+  a2 = -sin(th);
+  b2 = cos(th);
+  c2 = C2.minCoeff();
+  a3 = cos(th);
+  b3 = sin(th);
+  c3 = C1.maxCoeff();
+  a4 = -sin(th);
+  b4 = cos(th);
+  c4 = C2.maxCoeff();
+
+  vector<Point> corners;
+  corners.push_back(lineIntersection(a2, b2, c2, a3, b3, c3));
+  corners.push_back(lineIntersection(a1, b1, c1, a2, b2, c2));
+  corners.push_back(lineIntersection(a1, b1, c1, a4, b4, c4));
+  corners.push_back(lineIntersection(a4, b4, c4, a3, b3, c3));
+  corner_list = corners;
+
+  //Find the corner point that is closest to the ego vehicle
+  double min_distance = pow(pow(corners[0].first,2.0)+pow(corners[0].second,2.0),0.5);
+  unsigned int idx = 0;
+  closest_corner_point = corners[0];
+  double distance;
+  for (unsigned int i = 1; i < 4; ++i) {
+    distance = pow(pow(corners[i].first,2.0)+pow(corners[i].second,2.0),0.5);
+    if (distance<min_distance) {
+      min_distance = distance;  
+      closest_corner_point = corners[i];
+      idx = i;
+    }
+  }
+
+  //Populate the l1l2 pointlist
+  vector<Point> l1l2_list;
+  if (idx==3) {
+    l1l2_list.push_back(corners[0]);
+  }
+  else{
+    l1l2_list.push_back(corners[idx+1]);
+  }
+  l1l2_list.push_back(corners[idx]);
+  if (idx==0) {
+    l1l2_list.push_back(corners[3]);
+  } 
+  else{
+    l1l2_list.push_back(corners[idx-1]);
+  }
+  l1l2 = l1l2_list;
+
+
+  double dx = l1l2_list[1].first - l1l2_list[0].first;
+  double dy = l1l2_list[1].second- l1l2_list[0].second;
+  L1 = pow(pow(dx,2.0)+pow(dy,2.0),0.5);
+  dx = l1l2_list[1].first - l1l2_list[2].first;
+  dy = l1l2_list[1].second- l1l2_list[2].second;
+  L2 = pow(pow(dx,2.0)+pow(dy,2.0),0.5);
+
+  //theta = atan((l1l2[1].second - l1l2[0].second) / (l1l2[1].first - l1l2[0].first)); 
+  theta = atan((l1l2[0].second - l1l2[1].second) / (l1l2[0].first - l1l2[1].first)); 
+
+
+} 
+ 
 visualization_msgs::Marker Cluster::getBoundingBoxVisualisationMessage() {
+
+  visualization_msgs::Marker bb_msg;
+  bb_msg.header.stamp = ros::Time::now();
+  bb_msg.header.frame_id  = p_source_frame_name_;
+  bb_msg.ns = "boundind_boxes";
+  bb_msg.action = visualization_msgs::Marker::ADD;
+  bb_msg.pose.orientation.w = 1.0;
+  bb_msg.type = visualization_msgs::Marker::LINE_STRIP;
+  bb_msg.id = this->id;
+  bb_msg.scale.x = 0.03; //line width
+  bb_msg.color.g = this->g;
+  bb_msg.color.b = this->b;
+  bb_msg.color.r = this->r;
+  bb_msg.color.a = 1.0;
+
+  geometry_msgs::Point p;
+  for (unsigned int i = 0; i < 4; ++i) {
+    p.x = corner_list[i].first;  
+    p.y = corner_list[i].second;  
+    bb_msg.points.push_back(p);
+  }
+  p.x = corner_list[0].first;  
+  p.y = corner_list[0].second;  
+  bb_msg.points.push_back(p);
+
+  return bb_msg;
+}
+visualization_msgs::Marker Cluster::getBoxVisualisationMessage() {
   
   visualization_msgs::Marker bb_msg;
   //if(!moving){return bb_msg;};//cluster not moving-empty msg
@@ -214,33 +353,145 @@ visualization_msgs::Marker Cluster::getBoundingBoxVisualisationMessage() {
   
   return bb_msg;
 }
+
+visualization_msgs::Marker Cluster::getL1L2VisualisationMessage() {
+
+  visualization_msgs::Marker l1l2_msg;
+  //if(!moving){return l1l2_msg;};//cluster not moving-empty msg
+
+  l1l2_msg.header.stamp = ros::Time::now();
+  l1l2_msg.header.frame_id  = p_source_frame_name_;
+  l1l2_msg.ns = "L1L2";
+  l1l2_msg.action = visualization_msgs::Marker::ADD;
+  l1l2_msg.pose.orientation.w = 1.0;
+  l1l2_msg.type = visualization_msgs::Marker::LINE_STRIP;
+  l1l2_msg.id = this->id;
+  l1l2_msg.scale.x = 0.1; //line width
+  l1l2_msg.color.r = 1.0;
+  l1l2_msg.color.g = 0.0;
+  l1l2_msg.color.b = 0.0;
+  l1l2_msg.color.a = 1.0;
+
+  geometry_msgs::Point p;
+  for (unsigned int i = 0; i < 3; ++i) {
+    p.x = l1l2[i].first;
+    p.y = l1l2[i].second;
+    l1l2_msg.points.push_back(p);
+  }
+
+  return l1l2_msg;
+
+}
+
+Point Cluster::lineIntersection(double& a1, double& b1, double& c1, double& a2, double& b2, double& c2){
+  // Function that returns the intersection point of two lines given their equations on
+  // the form: a1x + b1x = c1, a2x + b2x = c2
+  // There is no check for the determinant being zero because of the way the lines are 
+  // calculated, it is not possible for this to happen.
+  // source: geeksforgeeks point of intesection of two lines
+  double determinant = a1*b2 - a2*b1;
+  Point intersection_point;
+  intersection_point.first  = (b2*c1 - b1*c2)/determinant;
+  intersection_point.second = (a1*c2 - a2*c1)/determinant;
+
+  return intersection_point;
+}
+double Cluster::areaCriterion(const VectorXd& C1, const VectorXd& C2){
+
+  double a;
+  a = -(C1.maxCoeff()-C1.minCoeff())*(C2.maxCoeff()-C2.minCoeff());
+  
+  return a; 
+
+}
+
+double Cluster::closenessCriterion(const VectorXd& C1, const VectorXd& C2, const float& d0){
+  //Algorithm 4 of ¨Efficient L-Shape Fitting for Vehicle Detection Using Laser Scanners¨
+
+  double c1_max, c1_min, c2_max, c2_min;
+  c1_max = C1.maxCoeff();
+  c1_min = C1.minCoeff();
+  c2_max = C2.maxCoeff();
+  c2_min = C2.minCoeff();
+  VectorXd C1_max = c1_max - C1.array(); 
+  VectorXd C1_min = C1.array() - c1_min;
+  VectorXd D1, D2;
+  if(C1_max.squaredNorm() < C1_min.squaredNorm()){
+    D1 = C1_max;
+  }
+  else{
+    D1 = C1_min;
+  }
+  VectorXd C2_max = c2_max - C2.array(); 
+  VectorXd C2_min = C2.array() - c2_min;
+  if(C2_max.squaredNorm() < C2_min.squaredNorm()){
+    D2 = C2_max;
+  }
+  else{
+    D2 = C2_min;
+  }
+
+  double d, min;
+  double b =0 ;
+  for (int i = 0; i < D1.size(); ++i) {
+    if (D1(i) < D2(i)) {
+      min = D1(i);
+    }
+    else{
+      min = D2(i);
+    } 
+    if (min>d0) {
+      d =  min;
+    }
+    else{
+      d = d0;
+    } 
+    b = b + 1/d;
+  }
+ 
+  return b; 
+}
+
+
 visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
 
   visualization_msgs::Marker arrow_marker;
   arrow_marker.type = visualization_msgs::Marker::ARROW;
-  arrow_marker.header.frame_id = p_target_frame_name_;
+  //arrow_marker.header.frame_id = p_target_frame_name_;
   arrow_marker.header.stamp = ros::Time::now();
   arrow_marker.ns = "velocities";
   arrow_marker.action = visualization_msgs::Marker::ADD;
-  arrow_marker.pose.orientation.w = 1.0;    
-  arrow_marker.scale.x = 0.05;
-  arrow_marker.scale.y = 0.1;  
+  //arrow_marker.scale.x = 0.05;
+  //arrow_marker.scale.y = 0.1;  
   arrow_marker.color.a = 1.0;
   arrow_marker.color.g = this->g;
   arrow_marker.color.b = this->b;
   arrow_marker.color.r = this->r;
   arrow_marker.id = this->id;
- 
-  geometry_msgs::Point p;
-  p.x = map_kf.state()[0]; 
-  p.y = map_kf.state()[1]; 
-  p.z = 0;
-  arrow_marker.points.push_back(p);
 
-  p.x = map_kf.state()[0] + map_kf.state()[2]; 
-  p.y = map_kf.state()[1] + map_kf.state()[3]; 
-  p.z = 0;
-  arrow_marker.points.push_back(p);
+  arrow_marker.header.frame_id = p_source_frame_name_;
+  tf2::Quaternion quat_theta;
+  quat_theta.setRPY(0,0,theta);
+  quat_theta.normalize();
+  //tf2::convert(geo, quat_theta);
+  geo = tf2::toMsg(quat_theta);
+  arrow_marker.pose.orientation = geo;
+  //arrow_marker.pose.orientation.w = 1.0;    
+  arrow_marker.pose.position.x = closest_corner_point.first;
+  arrow_marker.pose.position.y = closest_corner_point.second;
+  arrow_marker.scale.x = 0.2;
+  arrow_marker.scale.y = 0.1;  
+ 
+  //geometry_msgs::Point p;
+  //p.x = map_kf.state()[0]; 
+  //p.y = map_kf.state()[1]; 
+  //p.z = 0;
+  //arrow_marker.points.push_back(p);
+
+  //p.x = map_kf.state()[0] + map_kf.state()[2]; 
+  //p.y = map_kf.state()[1] + map_kf.state()[3]; 
+  //p.z = 0;
+  //arrow_marker.points.push_back(p);
   return arrow_marker;
 }
 
@@ -251,40 +502,31 @@ nav_msgs::Path Cluster::getTrajectory(){
 }  
 
 
-//nav_msgs::Odometry Cluster::getOdom() {
+ visualization_msgs::Marker Cluster::getClosestCornerPointVisualisationMessage() {
 
-  //nav_msgs::Odometry odom;
+  visualization_msgs::Marker corner_msg;
+  corner_msg.type = visualization_msgs::Marker::POINTS;
+  corner_msg.header.frame_id = p_source_frame_name_;
+  corner_msg.header.stamp = ros::Time::now();
+  corner_msg.ns = "closest_corner";
+  corner_msg.action = visualization_msgs::Marker::ADD;
+  corner_msg.pose.orientation.w = 1.0;    
+  corner_msg.scale.x = 0.1;
+  corner_msg.scale.y = 0.1;  
+  corner_msg.color.a = 1.0;
+  corner_msg.color.g = 0.0;
+  corner_msg.color.b = 0.0;
+  corner_msg.color.r = 0.0;
+  corner_msg.id = this->id;
 
-  //odom.header.stamp = ros::Time::now();
-  //odom.header.frame_id = "/laser";
-  
-  //odom.pose.pose.position.x = meanX();
-  //odom.pose.pose.position.y = meanY();
+  geometry_msgs::Point p;
+  p.x = closest_corner_point.first; 
+  p.y = closest_corner_point.second;
+  p.z = 0;
+  corner_msg.points.push_back(p);
 
-  //odom.twist.twist.linear.x = vx;
-  //odom.twist.twist.linear.y = vy;
-
-
-  //return odom;
-//}
-
-//nav_msgs::Odometry Cluster::getFilteredOdom() {
-
-  //nav_msgs::Odometry odom;
-
-  //odom.header.stamp = ros::Time::now();
-  //odom.header.frame_id = "/laser";
-  
-  //odom.pose.pose.position.x = kf.state()[0];
-  //odom.pose.pose.position.y = kf.state()[1];
-
-  //odom.twist.twist.linear.x = kf.state()[2];
-  //odom.twist.twist.linear.y = kf.state()[3];
-
-
-  //return odom;
-//}
-
+  return corner_msg;
+}
 
 
  visualization_msgs::Marker Cluster::getCenterVisualisationMessage() {
@@ -322,8 +564,8 @@ visualization_msgs::Marker Cluster::getClusterVisualisationMessage() {
   cluster_vmsg.action = visualization_msgs::Marker::ADD;
   cluster_vmsg.pose.orientation.w = 1.0;
   cluster_vmsg.type = visualization_msgs::Marker::POINTS;
-  cluster_vmsg.scale.x = 0.13;
-  cluster_vmsg.scale.y = 0.13;
+  cluster_vmsg.scale.x = 0.08;
+  cluster_vmsg.scale.y = 0.08;
   //cluster_vmsg.lifetime = ros::Duration(0.09);
   cluster_vmsg.id = this->id;
 
@@ -333,12 +575,11 @@ visualization_msgs::Marker Cluster::getClusterVisualisationMessage() {
   cluster_vmsg.color.a = 1.0;
 
 
-  int last_cluster = clusters.size() -1;
   geometry_msgs::Point p;
  
-  for(unsigned int j=0; j<clusters[last_cluster].size(); ++j){
-    p.x = clusters[last_cluster][j].first;
-    p.y = clusters[last_cluster][j].second;
+  for(unsigned int j=0; j<new_cluster.size(); ++j){
+    p.x = new_cluster[j].first;
+    p.y = new_cluster[j].second;
     p.z = 0;
     cluster_vmsg.points.push_back(p);
   }
@@ -367,8 +608,6 @@ visualization_msgs::Marker Cluster::getLineVisualisationMessage() {
   line_msg.color.r = this->r;
   line_msg.color.a = 1.0;
 
-  pointList last_cluster = clusters.back();
-
 
   //Feed the cluster into the Iterative End-Point Fit Function
   //and the l_shape_extractor and then save them into the l_shapes vector
@@ -376,7 +615,7 @@ visualization_msgs::Marker Cluster::getLineVisualisationMessage() {
 
 
   vector<Point> pointListOut;
-  Cluster::ramerDouglasPeucker(last_cluster, 0.1, pointListOut);
+  Cluster::ramerDouglasPeucker(new_cluster, 0.1, pointListOut);
   geometry_msgs::Point p;
   for(unsigned int k =0 ;k<pointListOut.size();++k){
     p.x = pointListOut[k].first;
@@ -410,11 +649,6 @@ void Cluster::calcMean(const pointList& c){
 
     this->mean_values.first = sum_x / c.size();
     this->mean_values.second= sum_y / c.size();
-}
-
-void Cluster::calcTheta(){
-
-    this->theta = atan(this->mean_values.second / this->mean_values.second);
 }
 
 double Cluster::perpendicularDistance(const Point &pt, const Point &lineStart, const Point &lineEnd){
@@ -494,64 +728,3 @@ void Cluster::ramerDouglasPeucker(const vector<Point> &pointList, double epsilon
     out.push_back(pointList[end]);
   }
 }
-
-// float Cluster::lineSegmentExtractor(const vector<Point> &line_points, vector<double> &l_shape, bool visualise)
-// {
-//   if (line_points.size() == 3){
-
-//     // l_shape.push_back(line_points[1].first); //xcorner
-//     // l_shape.push_back(line_points[1].second);//ycorner
-//     // double L1,L2,theta;
-//     // L1 = sqrt(pow(line_points[1].first - line_points[0].first,2) + pow(line_points[1].second - line_points[0].second,2));
-//     // L2 = sqrt(pow(line_points[2].first - line_points[1].first,2) + pow(line_points[2].second - line_points[1].second,2));
-//     // l_shape.push_back(L1);
-//     // l_shape.push_back(L2);
-//     // theta = atan(line_points[1].second - line_points[0].second / line_points[1].first - line_points[0].first);//arctan(dy/dx)
-//     // l_shape.push_back(theta);
-
-//   }
-
-//   else if (line_points.size() == 2){
-
-//     if(abs(line_points[0].first - line_points[1].first) > line_points[0].second - line_points[1].second){
-//       this-> Lx = sqrt(pwr(line_points[0].first - line_points[1].first,2) + pwr(line_points[0].firstsecond - line_points[1].second,2));
-//     }
-//     else{
-//       this-> Ly = sqrt(pwr(line_points[0].first - line_points[1].first,2) + pwr(line_points[0].firstsecond - line_points[1].second,2));
-//     }
-
-//   }
-
-//   return L;
-
-
-//   // if(visualise == 1){
-
-//   //   visualization_msgs::Marker lshapes_marker;
-//   //   lshapes_marker.type = visualization_msgs::Marker::LINE_STRIP;
-
-//   //   lshapes_marker.header.frame_id = "/map";
-//   //   lshapes_marker.ns = "L-Shapes";
-//   //   lshapes_marker.action = visualization_msgs::Marker::ADD;
-//   //   lshapes_marker.id = cl;
-//   //   lshapes_marker.pose.orientation.w = 1.0;    
-//   //   lshapes_marker.header.stamp = ros::Time::now();
-//   //   lshapes_marker.scale.x = 0.1;  //line width
-//   //   lshapes_marker.color.g = 0.0f;
-//   //   lshapes_marker.color.b = 0.0f;
-//   //   lshapes_marker.color.r = 0.8f;
-    
-
-//   //   lshapes_marker.color.a = 1.0;
-
-//   //   geometry_msgs::Point p;
-//   //   for(unsigned int i=0;i<3;i++){
-//   //     p.x = line_points[i].first;
-//   //     p.y = line_points[i].second;
-//   //     p.z = 0;
-//   //     lshapes_marker.points.push_back(p);
-//   //   }
-
-//   // }
-// }
-//}

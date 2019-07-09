@@ -27,9 +27,6 @@ public:
   // Matrices for computation
   Eigen::MatrixXd A, C, Q, R, P, K, P0;
 
-  unsigned long int id; //identifier for the filter
-  float g, r, b; //randomly assigned color to the filter
-
   KalmanFilter(
       double dt,
       const Eigen::MatrixXd& A,
@@ -52,7 +49,7 @@ public:
   /**
   * Initialize the filter with a guess for initial states.
   */
-  void init(double t0, const Eigen::VectorXd& x0, const unsigned int long id);
+  void init(double t0, const Eigen::VectorXd& x0 );
 
   /**
   * Update the estimated state based on measured values. The

@@ -62,7 +62,7 @@ public:
     marker_array_pub = n.advertise<visualization_msgs::MarkerArray>("marker_array", 10);
     trajectory_pub = n.advertise<nav_msgs::Path>("trajectories", 1000);
     //vehicles_pub = n.advertise<geometry_msgs::PoseArray>("vehicles", 100);
-    //vehicles_InBox_pub = n.advertise<geometry_msgs::PoseArray>("vehicles_inBox", 100);
+    debug_pub = n.advertise<geometry_msgs::Quaternion>("debug", 100);
     //vel_vehicles_pub = n.advertise<geometry_msgs::PoseArray>("vel_vehicles", 100);
     sub_scan = n.subscribe("/scan", 1, &Datmo::callback, this);
     // sub_pose = n.subscribe("/mocap_pose", 1, &Datmo::tf_callback, this);
@@ -84,7 +84,7 @@ private:
   ros::Publisher trajectory_pub;  
   //ros::Publisher seg_pub_1;
   ros::Publisher marker_array_pub; 
-  //ros::Publisher vehicles_InBox_pub;
+  ros::Publisher debug_pub;
   //ros::Publisher vehicles_pub;
   //ros::Publisher vel_vehicles_pub;
   ros::Publisher tracks_pub;

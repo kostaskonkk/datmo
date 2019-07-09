@@ -121,8 +121,20 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
       marker_array.markers.push_back(clusters[i].getArrowVisualisationMessage());
       marker_array.markers.push_back(clusters[i].getClusterVisualisationMessage());
       marker_array.markers.push_back(clusters[i].getBoundingBoxVisualisationMessage());
+      marker_array.markers.push_back(clusters[i].getClosestCornerPointVisualisationMessage());
+      marker_array.markers.push_back(clusters[i].getL1L2VisualisationMessage());
+      debug_pub.publish(clusters[i].geo);
+      //marker_array.markers.push_back(clusters[i].getBoundingBoxVisualisationMessage());
     };
   }
+  //ros::Time before_time;
+  //before_time = ros::Time::now();
+  //double duration;
+  //for (unsigned int i =0; i<clusters.size();i++){
+      //marker_array.markers.push_back(clusters[i].rectangleFitting());
+  //}
+  //duration = (ros::Time::now() - before_time).toSec();
+  //ROS_INFO_STREAM("Seconds: "<<duration);
 
   marker_array_pub.publish(marker_array);
   tracks_pub.publish(track_array);
@@ -130,7 +142,7 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
   //visualiseGroupedPoints(groups);
   
   //TODO Publish in Rviz upper right corner this information
-  // ROS_INFO_STREAM("Groups"<<groups.size()<< "Clusters: "<<clusters.size());
+   //ROS_INFO_STREAM("Groups"<<groups.size()<< "Clusters: "<<clusters.size());
   // ROS_INFO_STREAM("Time"<<ros::Time::now()<<"clusters: "<<clusters.size() << "Filters: "<<filters.size());
 
 }
