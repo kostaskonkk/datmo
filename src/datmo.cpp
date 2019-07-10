@@ -1,4 +1,4 @@
-#include "datmo.h"
+#include "datmo.hpp"
 
 void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
 {
@@ -74,7 +74,7 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
    //}
  
   // Delete not associated Clusters
-  int o=0;
+  unsigned int o=0;
   unsigned int p = clusters.size();
   while(o<p){
     if(c_matched[o] == false){
@@ -94,7 +94,7 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
   // Initialisation of new Cluster Objects
   for(unsigned int i=0; i<groups.size();++i){
     if(g_matched[i] == false){
-      Cluster cl(cclusters, groups[i], dt, tf_);
+      Cluster cl(cclusters, groups[i], dt, tf_, "laser", "map");
       cclusters++;
       clusters.push_back(cl);
     } 
@@ -106,7 +106,6 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
   for (unsigned int i =0; i<clusters.size();i++){
 
 
-    //ROS_INFO_STREAM("vx="<<clusters[i].map_kf.state()[2]<< "vy="<<clusters[i].map_kf.state()[3]); 
     //ROS_INFO_STREAM("avx="<<clusters[i].avx<<"avy="<<clusters[i].avy); 
     track_array.tracks.push_back(clusters[i].track_msg);
     filtered_track_array.tracks.push_back(clusters[i].filtered_track_msg);
@@ -117,14 +116,14 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
    
     if (p_marker_pub){
       //marker_array.markers.push_back(clusters[i].getLineVisualisationMessage());
-      //marker_array.markers.push_back(clusters[i].getCenterVisualisationMessage());
+      marker_array.markers.push_back(clusters[i].getCenterVisualisationMessage());
       marker_array.markers.push_back(clusters[i].getArrowVisualisationMessage());
       marker_array.markers.push_back(clusters[i].getClusterVisualisationMessage());
       marker_array.markers.push_back(clusters[i].getBoundingBoxVisualisationMessage());
+      marker_array.markers.push_back(clusters[i].getBoxModelVisualisationMessage());
       marker_array.markers.push_back(clusters[i].getClosestCornerPointVisualisationMessage());
       marker_array.markers.push_back(clusters[i].getL1L2VisualisationMessage());
-      debug_pub.publish(clusters[i].geo);
-      //marker_array.markers.push_back(clusters[i].getBoundingBoxVisualisationMessage());
+      ROS_INFO_STREAM("theta ="<<clusters[i].th1<<"theta2 ="<<clusters[i].th2); 
     };
   }
   //ros::Time before_time;

@@ -66,6 +66,7 @@ public:
   */
   void update(const Eigen::VectorXd& y, double dt, const Eigen::MatrixXd A);
 
+  void changeStates(const Eigen::VectorXd& new_states); 
   /**
   * Return the current state and time.
   */

@@ -2,7 +2,7 @@
 
     <param name="use_sim_time" value="true" />
 
-    <node pkg="rosbag" type="record" name="recorder" output="screen" args="-O /home/kostas/results/filtered_tracks.bag /tf /poseupdate /odometry/wheel_imu /odometry/map /mocap_pose /tracks /filtered_tracks /robot_1 /robot_2" />
+    <!--<node pkg="rosbag" type="record" name="recorder" output="screen" args="-O /home/kostas/results/filtered_tracks.bag /tf /poseupdate /odometry/wheel_imu /odometry/map /mocap_pose /tracks /filtered_tracks /robot_1 /robot_2" />-->
 
     <node pkg="rosbag" type="play" name="player" output="screen" args="-r 1.0 --clock /home/kostas/Dropbox/experiments/7/funny.bag"/>
 
@@ -11,6 +11,7 @@
     <node type="odom_node" name="odom" pkg="odometry" /> 
 
     <node pkg="tf2_ros" type="static_transform_publisher" name="link_imu" args="0 0 0 0 0 0 /base_link /imu_link" />
+    <!--<node pkg="tf2_ros" type="static_transform_publisher" name="link_laser" args="-0.1385 0 0 0 0 0 /base_link /laser" />-->
 
     <node pkg="robot_localization" type="ekf_localization_node" name="ekf_node" clear_params="true" output="screen">
         <rosparam command="load" file="$(find odometry)/config/ekf_template-test.yaml" />
@@ -24,37 +25,6 @@
         <remap from="odometry/filtered" to="odometry/map" />
     </node>
 
-<node pkg="hector_mapping" type="hector_mapping" name="hector_mapping" output="screen">
-    <param name="map_frame" value="map" />
-    <param name="base_frame" value="base_link" />
-    <param name="odom_frame" value="odom" />
-
-    <param name="use_tf_scan_transformation" value="true"/>
-    <param name="use_tf_pose_start_estimate" value="false"/>
-    <param name="pub_map_odom_transform" value="false"/>
-    <param name="pub_odometry" value="false"/>
-
-    <param name="map_resolution" value="0.07"/>
-    <param name="map_size" value="1024"/>
-    <param name="map_start_x" value="0.5"/>
-    <param name="map_start_y" value="0.5" />
-    <param name="map_multi_res_levels" value="4" />
-
-    <param name="update_factor_free" value="0.4"/>
-    <param name="update_factor_occupied" value="0.9" />
-    <param name="map_update_distance_thresh" value="1"/>
-    <param name="map_update_angle_thresh" value="0.06" />
-    <param name="laser_z_min_value" value = "-1.0" />
-    <param name="laser_z_max_value" value = "1.0" />
-    <param name="laser_min_dist" value="0.2"/>
-    <param name="laser_max_dist" value="8.0"/>
-
-    <param name="advertise_map_service" value="false"/>
-    <param name="scan_subscriber_queue_size" value="5"/>
-    <param name="scan_topic" value="scan"/>
-    <param name="tf_map_scanmatch_transform_frame_name" value="scanmatcher_frame" />
-</node>
-
    <node pkg="datmo" type="datmo" name="datmo" >
       <param name="pub_markers" value="true" />
       <param name="pub_vehicles_InBox" value="false" />
@@ -65,70 +35,36 @@
       <param name="pub_trajectories" value="true" />
    </node>
 
-    <!--<node pkg="tf2_ros" type="static_transform_publisher" name="link_laser" args="-0.1385 0 0 0 0 0 /base_link /laser" />-->
+    <node pkg="hector_mapping" type="hector_mapping" name="hector_mapping" output="screen">
+	<param name="map_frame" value="map" />
+	<param name="base_frame" value="base_link" />
+	<param name="odom_frame" value="odom" />
 
+	<param name="use_tf_scan_transformation" value="true"/>
+	<param name="use_tf_pose_start_estimate" value="false"/>
+	<param name="pub_map_odom_transform" value="false"/>
+	<param name="pub_odometry" value="false"/>
 
-<!--    <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" output="screen">-->
-      <!--[><remap from="scan" to="base_scan"/><]-->
-      <!--<param name="map_update_interval" value="1.0"/>-->
-      <!--<param name="map_frame" value="map_gmapping"/>-->
-      <!--<param name="maxUrange" value="20.0"/>-->
-      <!--<param name="sigma" value="0.05"/>-->
-      <!--<param name="kernelSize" value="1"/>-->
-      <!--<param name="lstep" value="0.05"/>-->
-      <!--<param name="astep" value="0.05"/>-->
-      <!--<param name="minimumScore" value="20" />-->
-      <!--<param name="iterations" value="20"/>-->
-      <!--<param name="lsigma" value="0.075"/>-->
-      <!--<param name="ogain" value="3.0"/>-->
-      <!--<param name="lskip" value="0"/>-->
-      <!--<param name="srr" value="0.1"/>-->
-      <!--<param name="srt" value="0.2"/>-->
-      <!--<param name="str" value="0.1"/>-->
-      <!--<param name="stt" value="1"/>-->
-      <!--<param name="linearUpdate" value="1.0"/>-->
-      <!--<param name="angularUpdate" value="0.5"/>-->
-      <!--<param name="temporalUpdate" value="3.0"/>-->
-      <!--<param name="resampleThreshold" value="0.5"/>-->
-      <!--<param name="particles" value="30"/>-->
-      <!--<param name="xmin" value="-20.0"/>-->
-      <!--<param name="ymin" value="-20.0"/>-->
-      <!--<param name="xmax" value="20.0"/>-->
-      <!--<param name="ymax" value="20.0"/>-->
-      <!--<param name="delta" value="0.05"/>-->
-      <!--<param name="llsamplerange" value="0.01"/>-->
-      <!--<param name="llsamplestep" value="0.01"/>-->
-      <!--<param name="lasamplerange" value="0.005"/>-->
-      <!--<param name="lasamplestep" value="0.005"/>-->
+	<param name="map_resolution" value="0.07"/>
+	<param name="map_size" value="1024"/>
+	<param name="map_start_x" value="0.5"/>
+	<param name="map_start_y" value="0.5" />
+	<param name="map_multi_res_levels" value="4" />
 
-      <!--<param name="base_frame" value="/base_link"/>-->
-      <!--<param name="odom_frame" value="/odom"/>-->
-    <!--</node> -->
-    
-    <!-- <node pkg="hector_trajectory_server" type="hector_trajectory_server" name="hector_trajectory_server" output="screen">
-        <param name="target_frame_name" type="string" value="/map" />
-        <param name="source_frame_name" type="string" value="/base_link" />
-        <param name="trajectory_update_rate" type="double" value="4" />
-    </node> -->
+	<param name="update_factor_free" value="0.4"/>
+	<param name="update_factor_occupied" value="0.9" />
+	<param name="map_update_distance_thresh" value="1"/>
+	<param name="map_update_angle_thresh" value="0.06" />
+	<param name="laser_z_min_value" value = "-1.0" />
+	<param name="laser_z_max_value" value = "1.0" />
+	<param name="laser_min_dist" value="0.2"/>
+	<param name="laser_max_dist" value="8.0"/>
 
-    <!--<node pkg="laser_scan_matcher" type="laser_scan_matcher_node" name="laser_scan_matcher_node" output="screen">-->
-      <!--<param name="use_imu" value="true"/>-->
-      <!--<param name="max_iterations" value="10"/>-->
-      <!--<param name="publish_pose_stamped" value="true"/>-->
-      <!--<param name="publish_tf" value="true" /> -->
-      <!--<param name="fixed_frame" value="map_kostas"/>-->
-      <!--<param name="base_frame" value="laser"/>-->
-    <!--</node>-->
+	<param name="advertise_map_service" value="false"/>
+	<param name="scan_subscriber_queue_size" value="5"/>
+	<param name="scan_topic" value="scan"/>
+	<param name="tf_map_scanmatch_transform_frame_name" value="scanmatcher_frame" />
+    </node>
 
-    <!--<node pkg="gmapping" type="slam_gmapping" name="maping" output="screen"/>-->
-     <!--<node pkg="gmapping" type="slam_gmapping" name="maping" output="screen">-->
-        <!--<param name="maxUrange" value="8.0" />-->
-        <!--<param name="minimumScore" value="50" />-->
-        <!--<param name="xmin" value="-20" />-->
-        <!--<param name="ymin" value="-20" />-->
-        <!--<param name="xmax" value="20" />-->
-        <!--<param name="ymax" value="20" />-->
-        <!--<param name="transform_publish_period" value="0.03"/>-->
-    <!--</node>-->
 
 </launch>

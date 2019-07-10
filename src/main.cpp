@@ -1,5 +1,5 @@
 #include "ros/ros.h"
-#include "datmo.h"
+#include "datmo.hpp"
 int main(int argc, char **argv)
 {
   //Initiate ROS

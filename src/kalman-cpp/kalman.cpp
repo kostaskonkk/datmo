@@ -58,6 +58,15 @@ void KalmanFilter::update(const Eigen::VectorXd& y) {
   t += dt;
 }
 
+void KalmanFilter::changeStates(const Eigen::VectorXd& new_states) {
+
+  if(!initialized)
+    throw std::runtime_error("Filter is not initialized!");
+  if(x_hat.size() != new_states.size())
+    throw std::runtime_error("State vectors do not have the same size");
+  x_hat = new_states;
+}
+
 void KalmanFilter::update(const Eigen::VectorXd& y, double dt, const Eigen::MatrixXd A) {
 
   this->A = A;

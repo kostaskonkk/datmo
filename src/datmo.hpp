@@ -23,7 +23,7 @@
 #include <datmo/TrackArray.h>
 #include <datmo/Track.h>
 
-#include "cluster.h"
+#include "cluster.hpp"
 // #include <midi_ros/midi.h> //parameter tuning through midi controller
 
 

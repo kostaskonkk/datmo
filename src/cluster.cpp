@@ -5,16 +5,19 @@
 * @date: 14.03.2019
 */
 
-#include "cluster.h"
+#include "cluster.hpp"
 
 
-Cluster::Cluster(unsigned long int id, const pointList& new_points, const double& dt, const tf::TransformListener& tf_listener){
+Cluster::Cluster(unsigned long int id, const pointList& new_points, const double& dt, const tf::TransformListener& tf_listener, const string& source_frame,const string& target_frame){
 
   this->id = id;
   this->r = rand() / double(RAND_MAX);
   this->g = rand() / double(RAND_MAX);
   this->b = rand() / double(RAND_MAX);
   this->moving = true; //all clusters at the beginning are initialised as moving
+  age = 1;
+  p_source_frame_name_ = source_frame;
+  p_target_frame_name_ = target_frame;
 
   new_cluster = new_points;
 
@@ -48,12 +51,13 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
 
   calcMean(new_points);
   rectangleFitting(new_points);
+  LShapeTracker tr(this->closest_corner_point, this->L1, this->L2, this->theta, dt);
+  this->tracker = tr;
 
   VectorXd x0(n);
   x0 << Cluster::meanX(), Cluster::meanY(), 0, 0;
   kf.init(0,x0);
 
-  //LShapeTracker::LShapeTracker(const Point& corner_point, const double& L1, const double& L2, const double& theta, const double& dt){
 
   if(tf_listener.canTransform(p_target_frame_name_, p_source_frame_name_, ros::Time())){
 
@@ -99,17 +103,27 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   filtered_track_msg.odom.pose.pose.position.y = map_kf.state()[1];
   filtered_track_msg.odom.twist.twist.linear.x = map_kf.state()[2];
   filtered_track_msg.odom.twist.twist.linear.y = map_kf.state()[3];
+
   
 }
 
 void Cluster::update(const pointList& new_points, const double dt_in, const tf::TransformListener& tf_listener) {
 
+  age++;
   previous_mean_values = mean_values;
   abs_previous_mean_values = abs_mean_values;
   new_cluster = new_points;
 
   Cluster::calcMean(new_points);
   rectangleFitting(new_points);
+  //Corner Point Switch Detection
+  if(theta < tracker.shape.state()(2) - 1.2){
+    tracker.ClockwisePointSwitch();
+  }
+  else if(theta > tracker.shape.state()(2) + 1.2){
+    tracker.CounterClockwisePointSwitch();
+  }
+  tracker.update(this->closest_corner_point, this->L1, this->L2, this->theta, dt_in);
   this->dt = dt_in;
 
   // Update Kalman Filter
@@ -266,8 +280,7 @@ void Cluster::rectangleFitting(const pointList& new_cluster){
   dy = l1l2_list[1].second- l1l2_list[2].second;
   L2 = pow(pow(dx,2.0)+pow(dy,2.0),0.5);
 
-  //theta = atan((l1l2[1].second - l1l2[0].second) / (l1l2[1].first - l1l2[0].first)); 
-  theta = atan((l1l2[0].second - l1l2[1].second) / (l1l2[0].first - l1l2[1].first)); 
+  theta = atan2((l1l2[0].second - l1l2[1].second),(l1l2[0].first - l1l2[1].first)); 
 
 
 } 
@@ -300,14 +313,14 @@ visualization_msgs::Marker Cluster::getBoundingBoxVisualisationMessage() {
 
   return bb_msg;
 }
-visualization_msgs::Marker Cluster::getBoxVisualisationMessage() {
+visualization_msgs::Marker Cluster::getBoxModelVisualisationMessage() {
   
   visualization_msgs::Marker bb_msg;
   //if(!moving){return bb_msg;};//cluster not moving-empty msg
 
   bb_msg.header.stamp = ros::Time::now();
-  bb_msg.header.frame_id  = p_target_frame_name_;
-  bb_msg.ns = "boundind_boxes";
+  bb_msg.header.frame_id  = p_source_frame_name_;
+  bb_msg.ns = "box_models";
   bb_msg.action = visualization_msgs::Marker::ADD;
   bb_msg.pose.orientation.w = 1.0;
   bb_msg.type = visualization_msgs::Marker::LINE_STRIP;
@@ -318,40 +331,70 @@ visualization_msgs::Marker Cluster::getBoxVisualisationMessage() {
   bb_msg.color.r = this->r;
   bb_msg.color.a = 1.0;
   
-  float cx = map_kf.state()[0]; 
-  float cy = map_kf.state()[1]; 
-  float th = 0;
-  float width = 0.3;
-  float length = 0.6;
+  double cx, cy, th, L1, L2; 
+  tracker.lshapeToBoxModelConversion(cx, cy, L1, L2, th);
 
   geometry_msgs::Point p;
-  float x = width/2;
-  float y = length/2;
+  double x = L1/2;
+  double y = L2/2;
   p.x = cx + x*cos(th) - y*sin(th);
   p.y = cy + x*sin(th) + y*cos(th);
   bb_msg.points.push_back(p);
-  x = + width/2;
-  y = - length/2;
+  x = + L1/2;
+  y = - L2/2;
   p.x = cx + x*cos(th) - y*sin(th);
   p.y = cy + x*sin(th) + y*cos(th);
   bb_msg.points.push_back(p);
-  x = - width/2;
-  y = - length/2;
+  x = - L1/2;
+  y = - L2/2;
   p.x = cx + x*cos(th) - y*sin(th);
   p.y = cy + x*sin(th) + y*cos(th);
   bb_msg.points.push_back(p);
-  x = - width/2;
-  y = + length/2;
+  x = - L1/2;
+  y = + L2/2;
   p.x = cx + x*cos(th) - y*sin(th);
   p.y = cy + x*sin(th) + y*cos(th);
   bb_msg.points.push_back(p);
-  x = + width/2;
-  y = + length/2;
+  x = + L1/2;
+  y = + L2/2;
   p.x = cx + x*cos(th) - y*sin(th);
   p.y = cy + x*sin(th) + y*cos(th);
   bb_msg.points.push_back(p);
   
   return bb_msg;
+  //double cx = map_kf.state()[0]; 
+  //double cy = map_kf.state()[1]; 
+  //double th = 0;
+  //double width = 0.3;
+  //double length = 0.6;
+
+  //geometry_msgs::Point p;
+  //double x = width/2;
+  //double y = length/2;
+  //p.x = cx + x*cos(th) - y*sin(th);
+  //p.y = cy + x*sin(th) + y*cos(th);
+  //bb_msg.points.push_back(p);
+  //x = + width/2;
+  //y = - length/2;
+  //p.x = cx + x*cos(th) - y*sin(th);
+  //p.y = cy + x*sin(th) + y*cos(th);
+  //bb_msg.points.push_back(p);
+  //x = - width/2;
+  //y = - length/2;
+  //p.x = cx + x*cos(th) - y*sin(th);
+  //p.y = cy + x*sin(th) + y*cos(th);
+  //bb_msg.points.push_back(p);
+  //x = - width/2;
+  //y = + length/2;
+  //p.x = cx + x*cos(th) - y*sin(th);
+  //p.y = cy + x*sin(th) + y*cos(th);
+  //bb_msg.points.push_back(p);
+  //x = + width/2;
+  //y = + length/2;
+  //p.x = cx + x*cos(th) - y*sin(th);
+  //p.y = cy + x*sin(th) + y*cos(th);
+  //bb_msg.points.push_back(p);
+  
 }
 
 visualization_msgs::Marker Cluster::getL1L2VisualisationMessage() {
@@ -533,25 +576,57 @@ nav_msgs::Path Cluster::getTrajectory(){
 
   visualization_msgs::Marker fcorner_marker;
   fcorner_marker.type = visualization_msgs::Marker::POINTS;
-  fcorner_marker.header.frame_id = "/laser";
+  fcorner_marker.header.frame_id = p_source_frame_name_;
   fcorner_marker.header.stamp = ros::Time::now();
-  fcorner_marker.ns = "point";
+  fcorner_marker.ns = "points";
   fcorner_marker.action = visualization_msgs::Marker::ADD;
   fcorner_marker.pose.orientation.w = 1.0;    
-  fcorner_marker.scale.x = 0.1;
-  fcorner_marker.scale.y = 0.1;  
+  fcorner_marker.scale.x = 0.07;
+  fcorner_marker.scale.y = 0.07;  
   fcorner_marker.color.a = 1.0;
-  fcorner_marker.color.g = this->g;
-  fcorner_marker.color.b = this->b;
-  fcorner_marker.color.r = this->r;
+  fcorner_marker.color.g = 1;
+  fcorner_marker.color.b = 0;
+  fcorner_marker.color.r = 0;
   fcorner_marker.id = this->id;
 
-  geometry_msgs::Point p;
-  p.x = meanX(); 
-  p.y = meanY(); 
-  p.z = 0;
-  fcorner_marker.points.push_back(p);
 
+  geometry_msgs::Point p;
+  ////Clockwise Point Switching
+  //double x,y;
+  //x = closest_corner_point.first;
+  //y = closest_corner_point.second;
+  p.x = tracker.dynamic.state()(0); 
+  p.y = tracker.dynamic.state()(1); 
+  fcorner_marker.points.push_back(p);
+  th1 = theta;
+  th2 = tracker.shape.state()(2);
+  for (unsigned int i = 0; i < 5; ++i) {
+    //tracker.ClockwisePointSwitch();
+    p.x = tracker.dynamic.state()(0); 
+    p.y = tracker.dynamic.state()(1); 
+    fcorner_marker.points.push_back(p);
+  }
+
+  //CounterClockwise Point Switching
+  double x,y;
+  //geometry_msgs::Point p;
+  x = closest_corner_point.first;
+  y = closest_corner_point.second;
+  p.x = x; 
+  p.y = y; 
+  const double pi = 3.141592653589793238463; 
+  fcorner_marker.points.push_back(p);
+  for (unsigned int i = 0; i < 3; ++i) {
+    x = x + L2 * sin(theta);
+    y = y - L2 * cos(theta);
+    double temp = L1;
+    L1 = L2;
+    L2 = temp;
+    theta = theta + pi / 2;
+    p.x = x; 
+    p.y = y; 
+    fcorner_marker.points.push_back(p);
+  }
   return fcorner_marker;
 }
 
