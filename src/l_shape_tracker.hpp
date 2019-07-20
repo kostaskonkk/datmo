@@ -19,12 +19,11 @@ public:
   void lshapeToBoxModelConversion(double& x, double& y, double& L1, double& L2, double& th);
   void ClockwisePointSwitch();
   void CounterClockwisePointSwitch();
+  void changeStates(const Eigen::Vector4d& new_dynamic_states,const Eigen::Vector3d& new_shape_states);
 
   KalmanFilter dynamic;
   KalmanFilter shape;
 
-  Vector4d new_dynamic_states;
-  Vector3d  new_shape_states;
 
 private:
 

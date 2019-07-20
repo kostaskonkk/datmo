@@ -90,7 +90,16 @@ void LShapeTracker::update(const Point& corner_point, const double& L1, const do
 
   // Update Shape Kalman Filter
   VectorXd y_shape(3);
-  y_shape << L1, L2, theta;
+  double L1max, L2max;
+  if(L1 > shape.state()(0)){
+    L1max = L1;}
+  else{
+    L1max = shape.state()(0);}
+  if(L2 > shape.state()(1)){
+    L2max = L2;}
+  else{
+    L2max = shape.state()(1);}
+  y_shape << L1max, L2max, theta;
   shape.update(y_shape, dt);
 
 }
@@ -99,7 +108,8 @@ void LShapeTracker::ClockwisePointSwitch(){
 
   const double pi = 3.141592653589793238463; 
   
-  //Vector4d new_dynamic_states, new_shape_states;
+  Vector4d new_dynamic_states;
+  Vector3d new_shape_states;
   new_dynamic_states = dynamic.state();
   new_shape_states = shape.state();
   //x = x + L1 * cos(theta);
@@ -120,7 +130,8 @@ void LShapeTracker::CounterClockwisePointSwitch(){
 
   const double pi = 3.141592653589793238463; 
   
-  //Vector4d new_dynamic_states, new_shape_states;
+  Vector4d new_dynamic_states;
+  Vector3d new_shape_states;
   new_dynamic_states = dynamic.state();
   new_shape_states = shape.state();
   //x = x + L1 * cos(theta);
@@ -133,6 +144,11 @@ void LShapeTracker::CounterClockwisePointSwitch(){
   new_shape_states(1) = shape.state()(0);
   new_shape_states(2) = shape.state()(2) + pi / 2;
 
+  dynamic.changeStates(new_dynamic_states);
+  shape.changeStates(new_shape_states);
+}
+
+void LShapeTracker::changeStates(const Eigen::Vector4d& new_dynamic_states,const Eigen::Vector3d& new_shape_states ){
   dynamic.changeStates(new_dynamic_states);
   shape.changeStates(new_shape_states);
 }

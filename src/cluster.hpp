@@ -1,5 +1,5 @@
 #pragma once
-
+#include <ros/ros.h>
 #include "kalman-cpp/kalman.hpp"
 #include "l_shape_tracker.hpp"
 #include <Eigen/Dense>
@@ -37,7 +37,7 @@ public:
   unsigned long int id; //identifier for the cluster 
   unsigned long int age; //age of the cluster 
 
-  float r, g, b; //current color of the cluster
+  float r, g, b, a; //current color of the cluster
 
   geometry_msgs::Quaternion geo;//added for debug
 
@@ -46,12 +46,18 @@ public:
   visualization_msgs::Marker getClusterVisualisationMessage();
   visualization_msgs::Marker getLineVisualisationMessage();
   visualization_msgs::Marker getArrowVisualisationMessage();
+  visualization_msgs::Marker getThetaL2VisualisationMessage();
+  visualization_msgs::Marker getThetaL1VisualisationMessage();
   visualization_msgs::Marker getBoundingBoxVisualisationMessage();
   visualization_msgs::Marker getBoxModelVisualisationMessage();
-  visualization_msgs::Marker getL1L2VisualisationMessage();
+  visualization_msgs::Marker getLShapeVisualisationMessage();
   nav_msgs::Path getTrajectory();
 
   void update(const pointList& , const double, const tf::TransformListener& );
+
+  void detectCornerPointSwitch();
+  bool red_flag, green_flag, blue_flag;
+  //visualization_msgs::Marker switch_msg;
 
   std::pair<double, double> mean() { return mean_values; }; //Return mean of cluster.
 
@@ -61,9 +67,9 @@ public:
   LShapeTracker tracker; 
   KalmanFilter kf;
   KalmanFilter map_kf;
-
-  double th1, th2;
-  double L1, L2, theta;
+  double old_thetaL1, old_thetaL2;
+  double detection_angle;
+  double L1, L2, thetaL1, thetaL2;
   double avx, avy; //for test
 private:
   bool moving; 

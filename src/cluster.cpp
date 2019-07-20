@@ -14,8 +14,12 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   this->r = rand() / double(RAND_MAX);
   this->g = rand() / double(RAND_MAX);
   this->b = rand() / double(RAND_MAX);
+  a = 1.0;
   this->moving = true; //all clusters at the beginning are initialised as moving
   age = 1;
+  red_flag = false;
+  green_flag = false;
+  blue_flag = false;
   p_source_frame_name_ = source_frame;
   p_target_frame_name_ = target_frame;
 
@@ -51,8 +55,10 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
 
   calcMean(new_points);
   rectangleFitting(new_points);
-  LShapeTracker tr(this->closest_corner_point, this->L1, this->L2, this->theta, dt);
-  this->tracker = tr;
+  old_thetaL1 = thetaL1;
+  old_thetaL2 = thetaL2;
+  LShapeTracker tr(closest_corner_point, L1, L2, thetaL1, dt);
+  tracker = tr;
 
   VectorXd x0(n);
   x0 << Cluster::meanX(), Cluster::meanY(), 0, 0;
@@ -107,6 +113,7 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   
 }
 
+
 void Cluster::update(const pointList& new_points, const double dt_in, const tf::TransformListener& tf_listener) {
 
   age++;
@@ -116,14 +123,10 @@ void Cluster::update(const pointList& new_points, const double dt_in, const tf::
 
   Cluster::calcMean(new_points);
   rectangleFitting(new_points);
-  //Corner Point Switch Detection
-  if(theta < tracker.shape.state()(2) - 1.2){
-    tracker.ClockwisePointSwitch();
-  }
-  else if(theta > tracker.shape.state()(2) + 1.2){
-    tracker.CounterClockwisePointSwitch();
-  }
-  tracker.update(this->closest_corner_point, this->L1, this->L2, this->theta, dt_in);
+  detectCornerPointSwitch();
+
+  
+  tracker.update(this->closest_corner_point, this->L1, this->L2, this->thetaL1, dt_in);
   this->dt = dt_in;
 
   // Update Kalman Filter
@@ -176,8 +179,130 @@ void Cluster::update(const pointList& new_points, const double dt_in, const tf::
     filtered_track_msg.odom.twist.twist.linear.x = map_kf.state()[2];
     filtered_track_msg.odom.twist.twist.linear.y = map_kf.state()[3];
 
-    //TODO Dynamic Static Classifier
   } 
+  //TODO Dynamic Static Classifier
+  old_thetaL1 = thetaL1;
+  old_thetaL2 = thetaL2;
+    
+}
+double angleDif(double& angle0, double& angle1){
+  //const double pi = 3.141592653589793238463; 
+  //double abs_dif= abs(angle0 - angle1);
+  //return min((2 * pi) - abs_dif, abs_dif);}
+  return min( abs(angle0 - angle1), abs(angle1 - angle0));
+}
+
+bool clockwiseRotation(double& angle0, double& angle1){
+
+  if (abs(angle0 - angle1) < abs(angle1 - angle0)){
+      if(angle0 - angle1 < 0){
+      	return false;}
+      else{
+	return true;}}
+  else{
+      if(angle1 - angle0 < 0){
+      	return true;}
+      else{
+	return false;}
+  }
+  //return false;
+}
+double findTurn(double& new_angle, double& old_angle){
+  //https://math.stackexchange.com/questions/1366869/calculating-rotation-direction-between-two-angles
+  const double pi = 3.141592653589793238463; 
+  double theta_pro = new_angle - old_angle;
+  double turn = 0;
+  if(-pi<=theta_pro && theta_pro <= pi){
+    turn = theta_pro;}
+  else if(theta_pro > pi){
+    turn = theta_pro - 2*pi;}
+  else if(theta_pro < -pi){
+    turn = theta_pro + 2*pi;}
+  return turn;
+}
+void Cluster::detectCornerPointSwitch(){
+  //Corner Point Switch Detection
+  red_flag = false;
+  green_flag= false;
+  blue_flag= false;
+  
+
+  //Detect if a rotation took place maybe remove the second part if it is redundant
+  if(angleDif(old_thetaL1, thetaL1)> 2){
+    blue_flag = true;
+    ROS_INFO_STREAM("state - L1)"<<findTurn( tracker.shape.state()(2), thetaL1));
+    a = 0;
+  }
+
+  //else if(angleDif(old_thetaL1, thetaL1)> 0.5){
+    //red_flag = true;}
+  //else if(abs(turn)>0.5){
+    //green_flag = true;}
+  //if(abs(turn) > 0.2){
+  //ROS_INFO_STREAM("old"<<old_thetaL1<<"new"<<thetaL1<<"turn: "<<turn<<"state"<<tracker.shape.state()(2));
+
+  //Vector4d new_dynamic_states = tracker.dynamic.state();
+  //Vector3d new_shape_states = tracker.shape.state();
+  //new_dynamic_states(0) = closest_corner_point.first;
+  //new_dynamic_states(1) = closest_corner_point.second;
+  //new_shape_states(0) = L1;
+  //new_shape_states(1) = L2;
+  //new_shape_states(2) = thetaL1;
+
+  //tracker.changeStates(new_dynamic_states, new_shape_states);
+  //}
+  //else if(abs(tracker.shape.state()(2) - thetaL1) > 0.2){
+  //ROS_INFO_STREAM("old"<<old_thetaL1<<" new"<<thetaL1<<" turn: "<<turn<<" state"<<tracker.shape.state()(2)<<" dif: "<<(tracker.shape.state()(2) - thetaL1));}
+    //tracker.CounterClockwisePointSwitch();
+  
+
+  //if(turn <-0.3){
+    //tracker.ClockwisePointSwitch();}
+    //tracker.CounterClockwisePointSwitch();
+    //if(clockwiseRotation(old_thetaL1, thetaL1)&& clockwiseRotation(old_thetaL2, thetaL2)){
+      //tracker.ClockwisePointSwitch();
+      //red_flag = true;
+    //}
+    //else if (!clockwiseRotation(old_thetaL1, thetaL1)&& !clockwiseRotation(old_thetaL2, thetaL2)){
+      //tracker.CounterClockwisePointSwitch();
+      //green_flag = true;
+    //}
+  //}
+  //double to1, ot1, to2, ot2;
+  //to1 = thetaL1 - old_thetaL1;
+  //ot1 = old_thetaL1 = thetaL1;
+  //to2 = thetaL2 - old_thetaL2;
+  //ot2 = old_thetaL2 - thetaL2;
+  //if( abs(to1)< abs(ot1) && abs(to2)< abs(ot2)){
+  //atan2(sin(x-y), cos(x-y))
+  //double t1 = atan2(sin(to1), cos(to1));
+  //double o1 = atan2(sin(ot1), cos(ot1));
+  //double t2 = atan2(sin(to2), cos(to2));
+  //double o2 = atan2(sin(ot2), cos(ot2));
+  //if( abs(t1)<abs(o1)&& abs(t1) > 2 ){
+    //blue_flag = true;}
+
+  //if( (abs(to1)< abs(ot1))  && abs(to2)< abs(ot2)){
+    //if(abs(to1) >0.5 && abs(to2)>0.5){
+      //if(to1 < 0 && to2 <0){
+	//tracker.CounterClockwisePointSwitch();
+            //red_flag = true;
+        //}
+      //else{tracker.ClockwisePointSwitch();
+	//green_flag = true;}
+    //}
+  //}
+  //if( abs(to1)> abs(ot1) && abs(to2)> abs(ot2)){
+    //ccps_flag = true;
+    //if(abs(ot1) >0.3 && abs(ot2)>0.3){
+      //if(ot1 < 0 && ot2 <0){
+	//tracker.CounterClockwisePointSwitch();
+        //}
+      //else{tracker.ClockwisePointSwitch();
+	//cps_flag = true;}
+    //}
+  //}
+
 }
 
 void Cluster::rectangleFitting(const pointList& new_cluster){
@@ -195,7 +320,7 @@ void Cluster::rectangleFitting(const pointList& new_cluster){
   unsigned int i =0;
   double th = 0.0;
   //TODO make d configurable through Rviz
-  unsigned int d = 100;
+  unsigned int d = 50;
   ArrayX2d Q(d,2);
   float step = (3.14/2)/d;
   for (i = 0; i < d; ++i) {
@@ -280,8 +405,14 @@ void Cluster::rectangleFitting(const pointList& new_cluster){
   dy = l1l2_list[1].second- l1l2_list[2].second;
   L2 = pow(pow(dx,2.0)+pow(dy,2.0),0.5);
 
-  theta = atan2((l1l2[0].second - l1l2[1].second),(l1l2[0].first - l1l2[1].first)); 
+  thetaL1   = atan2((l1l2[0].second - l1l2[1].second),(l1l2[0].first - l1l2[1].first)); 
+  //theta   = atan2((l1l2[0].second + l1l2[1].second),(l1l2[0].first + l1l2[1].first)); 
+  //thetaL2 = atan2((l1l2[2].second - l1l2[1].second),(l1l2[2].first - l1l2[1].first)); 
+  //theta = atan2((l1l2[1].second - l1l2[0].second),(l1l2[1].first - l1l2[0].first)); 
 
+  //Crazy idea
+  thetaL2 = atan2((l1l2[2].second - l1l2[1].second),(l1l2[2].first - l1l2[1].first)); 
+  //thetaL2 = atan2((l1l2[0].second - l1l2[1].second),(l1l2[0].first - l1l2[1].first)); 
 
 } 
  
@@ -313,6 +444,7 @@ visualization_msgs::Marker Cluster::getBoundingBoxVisualisationMessage() {
 
   return bb_msg;
 }
+
 visualization_msgs::Marker Cluster::getBoxModelVisualisationMessage() {
   
   visualization_msgs::Marker bb_msg;
@@ -326,11 +458,27 @@ visualization_msgs::Marker Cluster::getBoxModelVisualisationMessage() {
   bb_msg.type = visualization_msgs::Marker::LINE_STRIP;
   bb_msg.id = this->id;
   bb_msg.scale.x = 0.05; //line width
-  bb_msg.color.g = this->g;
-  bb_msg.color.b = this->b;
-  bb_msg.color.r = this->r;
-  bb_msg.color.a = 1.0;
+  bb_msg.color.g = g;
+  bb_msg.color.b = b;
+  bb_msg.color.r = r;
+  bb_msg.color.a = a;
+
   
+  if(blue_flag == true){
+    bb_msg.lifetime.sec = 1;
+    bb_msg.color.g = 0;
+    bb_msg.color.b = 1;
+    bb_msg.color.r = 0;}
+
+  if(green_flag == true){
+    bb_msg.color.g = 1;
+    bb_msg.color.b = 0;
+    bb_msg.color.r = 0;}
+
+  if(red_flag == true){
+    bb_msg.color.g = 0;
+    bb_msg.color.b = 0;
+    bb_msg.color.r = 1;}
   double cx, cy, th, L1, L2; 
   tracker.lshapeToBoxModelConversion(cx, cy, L1, L2, th);
 
@@ -362,59 +510,43 @@ visualization_msgs::Marker Cluster::getBoxModelVisualisationMessage() {
   bb_msg.points.push_back(p);
   
   return bb_msg;
-  //double cx = map_kf.state()[0]; 
-  //double cy = map_kf.state()[1]; 
-  //double th = 0;
-  //double width = 0.3;
-  //double length = 0.6;
-
-  //geometry_msgs::Point p;
-  //double x = width/2;
-  //double y = length/2;
-  //p.x = cx + x*cos(th) - y*sin(th);
-  //p.y = cy + x*sin(th) + y*cos(th);
-  //bb_msg.points.push_back(p);
-  //x = + width/2;
-  //y = - length/2;
-  //p.x = cx + x*cos(th) - y*sin(th);
-  //p.y = cy + x*sin(th) + y*cos(th);
-  //bb_msg.points.push_back(p);
-  //x = - width/2;
-  //y = - length/2;
-  //p.x = cx + x*cos(th) - y*sin(th);
-  //p.y = cy + x*sin(th) + y*cos(th);
-  //bb_msg.points.push_back(p);
-  //x = - width/2;
-  //y = + length/2;
-  //p.x = cx + x*cos(th) - y*sin(th);
-  //p.y = cy + x*sin(th) + y*cos(th);
-  //bb_msg.points.push_back(p);
-  //x = + width/2;
-  //y = + length/2;
-  //p.x = cx + x*cos(th) - y*sin(th);
-  //p.y = cy + x*sin(th) + y*cos(th);
-  //bb_msg.points.push_back(p);
   
 }
 
-visualization_msgs::Marker Cluster::getL1L2VisualisationMessage() {
+visualization_msgs::Marker Cluster::getLShapeVisualisationMessage() {
 
   visualization_msgs::Marker l1l2_msg;
   //if(!moving){return l1l2_msg;};//cluster not moving-empty msg
 
   l1l2_msg.header.stamp = ros::Time::now();
   l1l2_msg.header.frame_id  = p_source_frame_name_;
-  l1l2_msg.ns = "L1L2";
+  l1l2_msg.ns = "L-Shapes";
   l1l2_msg.action = visualization_msgs::Marker::ADD;
   l1l2_msg.pose.orientation.w = 1.0;
   l1l2_msg.type = visualization_msgs::Marker::LINE_STRIP;
   l1l2_msg.id = this->id;
   l1l2_msg.scale.x = 0.1; //line width
-  l1l2_msg.color.r = 1.0;
-  l1l2_msg.color.g = 0.0;
-  l1l2_msg.color.b = 0.0;
+  l1l2_msg.color.r = this->r;
+  l1l2_msg.color.g = this->g;
+  l1l2_msg.color.b = this->b;
   l1l2_msg.color.a = 1.0;
-
+  
+  double theta_degrees = thetaL1 * (180.0/3.141592653589793238463);
+  if (theta_degrees > 360){
+    l1l2_msg.color.r = 1.0;
+    l1l2_msg.color.g = 0;
+    l1l2_msg.color.b = 0;
+  }
+  //if (theta_degrees> 0 && theta_degrees < 360) {
+    //l1l2_msg.color.r = 1.0;
+    //l1l2_msg.color.g = 0.0;
+    //l1l2_msg.color.b = 0.0;
+  //}
+  //if (theta_degrees> 0 && theta_degrees < 90) {
+    //l1l2_msg.color.r = 0.0;
+    //l1l2_msg.color.g = 1.0;
+    //l1l2_msg.color.b = 0.0;
+  //}
   geometry_msgs::Point p;
   for (unsigned int i = 0; i < 3; ++i) {
     p.x = l1l2[i].first;
@@ -496,25 +628,94 @@ double Cluster::closenessCriterion(const VectorXd& C1, const VectorXd& C2, const
 }
 
 
-visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
+visualization_msgs::Marker Cluster::getThetaL1VisualisationMessage() {
+
+  visualization_msgs::Marker arrow_marker;
+  arrow_marker.type = visualization_msgs::Marker::ARROW;
+  arrow_marker.header.stamp = ros::Time::now();
+  arrow_marker.ns = "thetaL1";
+  arrow_marker.action = visualization_msgs::Marker::ADD;
+  //arrow_marker.scale.x = 0.05;
+  //arrow_marker.scale.y = 0.1;  
+  arrow_marker.color.a = 1.0;
+  arrow_marker.color.g = 0;
+  arrow_marker.color.b = 0;
+  arrow_marker.color.r = 1;
+  arrow_marker.id = this->id;
+
+  if(blue_flag == true){
+    arrow_marker.lifetime.sec = 1;
+    arrow_marker.color.g = 0;
+    arrow_marker.color.b = 1;
+    arrow_marker.color.r = 0;}
+
+  if(green_flag == true){
+    arrow_marker.lifetime.sec = 1;
+    arrow_marker.color.g = 1;
+    arrow_marker.color.b = 0;
+    arrow_marker.color.r = 0;}
+
+  if(red_flag == true){
+    arrow_marker.lifetime.sec = 1;
+    arrow_marker.color.g = 0;
+    arrow_marker.color.b = 0;
+    arrow_marker.color.r = 1;}
+
+  arrow_marker.header.frame_id = p_source_frame_name_;
+  tf2::Quaternion quat_theta;
+  quat_theta.setRPY(0,0,thetaL1);
+  //quat_theta.normalize();
+  //tf2::convert(geo, quat_theta);
+  //geo = tf2::toMsg(quat_theta);
+  arrow_marker.pose.orientation = tf2::toMsg(quat_theta);
+  //arrow_marker.pose.orientation.w = 1.0;    
+  arrow_marker.pose.position.x = closest_corner_point.first;
+  arrow_marker.pose.position.y = closest_corner_point.second;
+  arrow_marker.pose.position.z = 0;
+  arrow_marker.scale.x = 0.2;
+  arrow_marker.scale.y = 0.1;  
+  arrow_marker.scale.z = 0.001;  
+ 
+  return arrow_marker;
+}
+
+visualization_msgs::Marker Cluster::getThetaL2VisualisationMessage() {
 
   visualization_msgs::Marker arrow_marker;
   arrow_marker.type = visualization_msgs::Marker::ARROW;
   //arrow_marker.header.frame_id = p_target_frame_name_;
   arrow_marker.header.stamp = ros::Time::now();
-  arrow_marker.ns = "velocities";
+  arrow_marker.ns = "thetaL2";
   arrow_marker.action = visualization_msgs::Marker::ADD;
   //arrow_marker.scale.x = 0.05;
   //arrow_marker.scale.y = 0.1;  
   arrow_marker.color.a = 1.0;
-  arrow_marker.color.g = this->g;
-  arrow_marker.color.b = this->b;
-  arrow_marker.color.r = this->r;
+  arrow_marker.color.g = 1;
+  arrow_marker.color.b = 0;
+  arrow_marker.color.r = 0;
   arrow_marker.id = this->id;
+
+  if(blue_flag == true){
+    arrow_marker.lifetime.sec = 1;
+    arrow_marker.color.g = 0;
+    arrow_marker.color.b = 1;
+    arrow_marker.color.r = 0;}
+
+  if(green_flag == true){
+    arrow_marker.lifetime.sec = 1;
+    arrow_marker.color.g = 1;
+    arrow_marker.color.b = 0;
+    arrow_marker.color.r = 0;}
+
+  if(red_flag == true){
+    arrow_marker.lifetime.sec = 1;
+    arrow_marker.color.g = 0;
+    arrow_marker.color.b = 0;
+    arrow_marker.color.r = 1;}
 
   arrow_marker.header.frame_id = p_source_frame_name_;
   tf2::Quaternion quat_theta;
-  quat_theta.setRPY(0,0,theta);
+  quat_theta.setRPY(0,0,thetaL2);
   quat_theta.normalize();
   //tf2::convert(geo, quat_theta);
   geo = tf2::toMsg(quat_theta);
@@ -524,17 +725,8 @@ visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
   arrow_marker.pose.position.y = closest_corner_point.second;
   arrow_marker.scale.x = 0.2;
   arrow_marker.scale.y = 0.1;  
+  arrow_marker.scale.z = 0.01;  
  
-  //geometry_msgs::Point p;
-  //p.x = map_kf.state()[0]; 
-  //p.y = map_kf.state()[1]; 
-  //p.z = 0;
-  //arrow_marker.points.push_back(p);
-
-  //p.x = map_kf.state()[0] + map_kf.state()[2]; 
-  //p.y = map_kf.state()[1] + map_kf.state()[3]; 
-  //p.z = 0;
-  //arrow_marker.points.push_back(p);
   return arrow_marker;
 }
 
@@ -543,6 +735,39 @@ nav_msgs::Path Cluster::getTrajectory(){
   if(!moving){return empty_traj;};
   return trajectory_;
 }  
+visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
+
+  visualization_msgs::Marker arrow_marker;
+  arrow_marker.type = visualization_msgs::Marker::ARROW;
+  arrow_marker.header.frame_id = p_target_frame_name_;
+  arrow_marker.header.stamp = ros::Time::now();
+  arrow_marker.ns = "velocities";
+  arrow_marker.action = visualization_msgs::Marker::ADD;
+  arrow_marker.scale.x = 0.05;
+  arrow_marker.scale.y = 0.1;  
+  arrow_marker.color.a = 1.0;
+  arrow_marker.color.g = 1;
+  arrow_marker.color.b = 0;
+  arrow_marker.color.r = 0;
+  arrow_marker.id = this->id;
+
+  arrow_marker.pose.position.x = closest_corner_point.first;
+  arrow_marker.pose.position.y = closest_corner_point.second;
+  arrow_marker.scale.x = 0.2;
+  arrow_marker.scale.y = 0.1;  
+ 
+  geometry_msgs::Point p;
+  p.x = map_kf.state()[0]; 
+  p.y = map_kf.state()[1]; 
+  p.z = 0;
+  arrow_marker.points.push_back(p);
+
+  p.x = map_kf.state()[0] + map_kf.state()[2]; 
+  p.y = map_kf.state()[1] + map_kf.state()[3]; 
+  p.z = 0;
+  arrow_marker.points.push_back(p);
+  return arrow_marker;
+}
 
 
  visualization_msgs::Marker Cluster::getClosestCornerPointVisualisationMessage() {
@@ -589,44 +814,54 @@ nav_msgs::Path Cluster::getTrajectory(){
   fcorner_marker.color.r = 0;
   fcorner_marker.id = this->id;
 
+  Vector4d new_dynamic_states = tracker.dynamic.state();
+  Vector3d new_shape_states = tracker.shape.state();
 
-  geometry_msgs::Point p;
   ////Clockwise Point Switching
-  //double x,y;
-  //x = closest_corner_point.first;
-  //y = closest_corner_point.second;
-  p.x = tracker.dynamic.state()(0); 
-  p.y = tracker.dynamic.state()(1); 
-  fcorner_marker.points.push_back(p);
-  th1 = theta;
-  th2 = tracker.shape.state()(2);
-  for (unsigned int i = 0; i < 5; ++i) {
+  //geometry_msgs::Point p;
+  //p.x = tracker.dynamic.state()(0); 
+  //p.y = tracker.dynamic.state()(1); 
+  //fcorner_marker.points.push_back(p);
+  //for (unsigned int i = 0; i < 4; ++i) {
+    //tracker.CounterClockwisePointSwitch();
+    //p.x = tracker.dynamic.state()(0); 
+    //p.y = tracker.dynamic.state()(1); 
+    //fcorner_marker.points.push_back(p);
+  //}
+
+  //p.x = tracker.dynamic.state()(0); 
+  //p.y = tracker.dynamic.state()(1); 
+  //fcorner_marker.points.push_back(p);
+  //for (unsigned int i = 0; i < 4; ++i) {
     //tracker.ClockwisePointSwitch();
-    p.x = tracker.dynamic.state()(0); 
-    p.y = tracker.dynamic.state()(1); 
-    fcorner_marker.points.push_back(p);
-  }
+    //p.x = tracker.dynamic.state()(0); 
+    //p.y = tracker.dynamic.state()(1); 
+    //fcorner_marker.points.push_back(p);
+  //}
+  //tracker.resetStates(new_dynamic_states, new_shape_states);
 
   //CounterClockwise Point Switching
-  double x,y;
+  //double th1 = thetaL1;
+  //double x,y;
   //geometry_msgs::Point p;
-  x = closest_corner_point.first;
-  y = closest_corner_point.second;
-  p.x = x; 
-  p.y = y; 
-  const double pi = 3.141592653589793238463; 
-  fcorner_marker.points.push_back(p);
-  for (unsigned int i = 0; i < 3; ++i) {
-    x = x + L2 * sin(theta);
-    y = y - L2 * cos(theta);
-    double temp = L1;
-    L1 = L2;
-    L2 = temp;
-    theta = theta + pi / 2;
-    p.x = x; 
-    p.y = y; 
-    fcorner_marker.points.push_back(p);
-  }
+  //x = closest_corner_point.first;
+  //y = closest_corner_point.second;
+  //p.x = x; 
+  //p.y = y; 
+  //const double pi = 3.141592653589793238463; 
+  //fcorner_marker.points.push_back(p);
+  //for (unsigned int i = 0; i < 3; ++i) {
+    //x = x + L2 * sin(th1);
+    //y = y - L2 * cos(th1);
+    //double temp = L1;
+    //L1 = L2;
+    //L2 = temp;
+    //th1 = th1 + pi / 2;
+    //p.x = x; 
+    //p.y = y; 
+    //fcorner_marker.points.push_back(p);
+  //}
+
   return fcorner_marker;
 }
 

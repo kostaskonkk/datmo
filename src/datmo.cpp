@@ -112,18 +112,19 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
     //if (p_vehicles_InBox_pub){pubPosesArrayVehiclesInsideBox(1);};
     //if (p_vehicles_pub){pubPosesArrayVehicles();};
     //if (p_vel_vehicles_pub){pubVelArrayVehicles();};
-    if (p_trajectories_pub){pubTrajectories();};
+    //if (p_trajectories_pub){pubTrajectories();};
    
     if (p_marker_pub){
       //marker_array.markers.push_back(clusters[i].getLineVisualisationMessage());
       marker_array.markers.push_back(clusters[i].getCenterVisualisationMessage());
       marker_array.markers.push_back(clusters[i].getArrowVisualisationMessage());
+      marker_array.markers.push_back(clusters[i].getThetaL1VisualisationMessage());
+      marker_array.markers.push_back(clusters[i].getThetaL2VisualisationMessage());
       marker_array.markers.push_back(clusters[i].getClusterVisualisationMessage());
       marker_array.markers.push_back(clusters[i].getBoundingBoxVisualisationMessage());
       marker_array.markers.push_back(clusters[i].getBoxModelVisualisationMessage());
       marker_array.markers.push_back(clusters[i].getClosestCornerPointVisualisationMessage());
-      marker_array.markers.push_back(clusters[i].getL1L2VisualisationMessage());
-      ROS_INFO_STREAM("theta ="<<clusters[i].th1<<"theta2 ="<<clusters[i].th2); 
+      marker_array.markers.push_back(clusters[i].getLShapeVisualisationMessage());
     };
   }
   //ros::Time before_time;
