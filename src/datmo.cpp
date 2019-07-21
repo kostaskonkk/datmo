@@ -103,12 +103,14 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
   visualization_msgs::MarkerArray marker_array;
   datmo::TrackArray track_array; 
   datmo::TrackArray filtered_track_array; 
+  datmo::TrackArray box_track_array; 
   for (unsigned int i =0; i<clusters.size();i++){
 
 
     //ROS_INFO_STREAM("avx="<<clusters[i].avx<<"avy="<<clusters[i].avy); 
     track_array.tracks.push_back(clusters[i].track_msg);
     filtered_track_array.tracks.push_back(clusters[i].filtered_track_msg);
+    box_track_array.tracks.push_back(clusters[i].box_track_msg);
     //if (p_vehicles_InBox_pub){pubPosesArrayVehiclesInsideBox(1);};
     //if (p_vehicles_pub){pubPosesArrayVehicles();};
     //if (p_vel_vehicles_pub){pubVelArrayVehicles();};
@@ -139,6 +141,7 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
   marker_array_pub.publish(marker_array);
   tracks_pub.publish(track_array);
   filtered_tracks_pub.publish(filtered_track_array);
+  box_tracks_pub.publish(box_track_array);
   //visualiseGroupedPoints(groups);
   
   //TODO Publish in Rviz upper right corner this information

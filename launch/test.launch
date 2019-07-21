@@ -2,9 +2,9 @@
 
     <param name="use_sim_time" value="true" />
 
-    <!--<node pkg="rosbag" type="record" name="recorder" output="screen" args="-O /home/kostas/results/filtered_tracks.bag /tf /poseupdate /odometry/wheel_imu /odometry/map /mocap_pose /tracks /filtered_tracks /robot_1 /robot_2" />-->
+    <node pkg="rosbag" type="record" name="recorder" output="screen" args="-O /home/kostas/results/box_tracks.bag /tf /poseupdate /odometry/wheel_imu /odometry/map /mocap_pose /tracks /filtered_tracks /box_tracks /robot_1 /robot_2" />
 
-    <node pkg="rosbag" type="play" name="player" output="screen" args="-r 1.0 --clock /home/kostas/Dropbox/experiments/7/funny.bag"/>
+    <node pkg="rosbag" type="play" name="player" output="screen" args="-r 1 --clock -l /home/kostas/Dropbox/experiments/7/funny.bag"/>
 
     <node type="rviz" name="rviz" pkg="rviz" args="-d $(find datmo)/config/datmo.rviz" /> 
 

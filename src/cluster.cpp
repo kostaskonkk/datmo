@@ -4,9 +4,29 @@
 * @author: Kostas Konstantinidis
 * @date: 14.03.2019
 */
-
 #include "cluster.hpp"
 
+ 
+static inline double normalize_angle_positive(double angle){
+  //Normalizes the angle to be 0 to 2*M_PI.
+  //It takes and returns radians.
+  return fmod(fmod(angle, 2.0*M_PI) + 2.0*M_PI, 2.0*M_PI);
+}
+static inline double normalize_angle(double angle){
+ //Normalizes the angle to be -M_PI circle to +M_PI circle
+ //It takes and returns radians.
+  double a = normalize_angle_positive(angle);
+  if (a > M_PI)
+    a -= 2.0 *M_PI;
+  return a;
+}
+static inline double shortest_angular_distance(double from, double to){
+  //Given 2 angles, this returns the shortest angular difference.
+  //The inputs and outputs are radians.
+  //The result would always be -pi <= result <= pi.
+  //Adding the result to "from" results to "to".
+  return normalize_angle(to-from);
+}
 
 Cluster::Cluster(unsigned long int id, const pointList& new_points, const double& dt, const tf::TransformListener& tf_listener, const string& source_frame,const string& target_frame){
 
@@ -57,13 +77,13 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   rectangleFitting(new_points);
   old_thetaL1 = thetaL1;
   old_thetaL2 = thetaL2;
-  LShapeTracker tr(closest_corner_point, L1, L2, thetaL1, dt);
+  //initialise thetaL1 in range [0,2pi]
+  LShapeTracker tr(closest_corner_point, L1, L2, normalize_angle(thetaL1), dt);
   tracker = tr;
 
   VectorXd x0(n);
   x0 << Cluster::meanX(), Cluster::meanY(), 0, 0;
   kf.init(0,x0);
-
 
   if(tf_listener.canTransform(p_target_frame_name_, p_source_frame_name_, ros::Time())){
 
@@ -95,7 +115,6 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
     x0 << pose_out.pose.position.x, pose_out.pose.position.y, 0, 0;
     map_kf.init(0,x0);
   }
-
   else{ //If the tf is not possible init all states at 0
     x0 << 0, 0, 0, 0;
     map_kf.init(0,x0);
@@ -109,10 +128,7 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   filtered_track_msg.odom.pose.pose.position.y = map_kf.state()[1];
   filtered_track_msg.odom.twist.twist.linear.x = map_kf.state()[2];
   filtered_track_msg.odom.twist.twist.linear.y = map_kf.state()[3];
-
-  
 }
-
 
 void Cluster::update(const pointList& new_points, const double dt_in, const tf::TransformListener& tf_listener) {
 
@@ -123,10 +139,28 @@ void Cluster::update(const pointList& new_points, const double dt_in, const tf::
 
   Cluster::calcMean(new_points);
   rectangleFitting(new_points);
-  detectCornerPointSwitch();
 
+  detectCornerPointSwitch(old_thetaL1, thetaL1);
   
-  tracker.update(this->closest_corner_point, this->L1, this->L2, this->thetaL1, dt_in);
+  double norm = normalize_angle(tracker.shape.state()(2));
+  //double wrap = 0;
+  //if(abs(tracker.shape.state()(2)) > 2*M_PI){
+    //if(tracker.shape.state()(2) > 0){ 
+      //wrap = tracker.shape.state()(2) - normalize_angle_positive(tracker.shape.state()(2));}
+    //else{
+      //wrap = tracker.shape.state()(2) + normalize_angle_positive(tracker.shape.state()(2));}
+  //}
+  //else if(tracker.shape.state()(2) < 0){
+    //double norm_pos = tracker.shape.state()(2) - normalize_angle_positive(tracker.shape.state()(2));}
+  double distance = shortest_angular_distance(norm, thetaL1);
+  //double unwrapped_thetaL1 = normalize_angle_positive(norm + distance) + wrap;
+  double unwrapped_thetaL1 = distance + tracker.shape.state()(2) ;
+  //if(abs(tracker.shape.state()(2) - unwrapped_thetaL1) > 1){
+  //ROS_INFO_STREAM("state"<<tracker.shape.state()(2)<<"L1theta"<<thetaL1<<"norm"<<norm<<"distance"<<distance<<"wrap"<<wrap<<"unwrapped"<<unwrapped_thetaL1);
+  //}
+  
+  tracker.update(closest_corner_point, L1, L2, unwrapped_thetaL1, dt_in);
+  //tracker.update(this->closest_corner_point, this->L1, this->L2, this->thetaL1, dt_in);
   this->dt = dt_in;
 
   // Update Kalman Filter
@@ -178,133 +212,46 @@ void Cluster::update(const pointList& new_points, const double dt_in, const tf::
     filtered_track_msg.odom.pose.pose.position.y = map_kf.state()[1];
     filtered_track_msg.odom.twist.twist.linear.x = map_kf.state()[2];
     filtered_track_msg.odom.twist.twist.linear.y = map_kf.state()[3];
-
   } 
   //TODO Dynamic Static Classifier
   old_thetaL1 = thetaL1;
   old_thetaL2 = thetaL2;
-    
-}
-double angleDif(double& angle0, double& angle1){
-  //const double pi = 3.141592653589793238463; 
-  //double abs_dif= abs(angle0 - angle1);
-  //return min((2 * pi) - abs_dif, abs_dif);}
-  return min( abs(angle0 - angle1), abs(angle1 - angle0));
 }
 
-bool clockwiseRotation(double& angle0, double& angle1){
 
-  if (abs(angle0 - angle1) < abs(angle1 - angle0)){
-      if(angle0 - angle1 < 0){
-      	return false;}
-      else{
-	return true;}}
-  else{
-      if(angle1 - angle0 < 0){
-      	return true;}
-      else{
-	return false;}
-  }
-  //return false;
-}
 double findTurn(double& new_angle, double& old_angle){
   //https://math.stackexchange.com/questions/1366869/calculating-rotation-direction-between-two-angles
-  const double pi = 3.141592653589793238463; 
+  //const double pi = 3.141592653589793238463; 
   double theta_pro = new_angle - old_angle;
   double turn = 0;
-  if(-pi<=theta_pro && theta_pro <= pi){
+  if(-M_PI<=theta_pro && theta_pro <= M_PI){
     turn = theta_pro;}
-  else if(theta_pro > pi){
-    turn = theta_pro - 2*pi;}
-  else if(theta_pro < -pi){
-    turn = theta_pro + 2*pi;}
+  else if(theta_pro > M_PI){
+    turn = theta_pro - 2*M_PI;}
+  else if(theta_pro < -M_PI){
+    turn = theta_pro + 2*M_PI;}
   return turn;
 }
-void Cluster::detectCornerPointSwitch(){
+void Cluster::detectCornerPointSwitch(double& from, double& to){
   //Corner Point Switch Detection
-  red_flag = false;
-  green_flag= false;
   blue_flag= false;
+  red_flag = false;
+  green_flag=false;
   
-
-  //Detect if a rotation took place maybe remove the second part if it is redundant
-  if(angleDif(old_thetaL1, thetaL1)> 2){
-    blue_flag = true;
-    ROS_INFO_STREAM("state - L1)"<<findTurn( tracker.shape.state()(2), thetaL1));
-    a = 0;
-  }
-
-  //else if(angleDif(old_thetaL1, thetaL1)> 0.5){
-    //red_flag = true;}
-  //else if(abs(turn)>0.5){
-    //green_flag = true;}
-  //if(abs(turn) > 0.2){
-  //ROS_INFO_STREAM("old"<<old_thetaL1<<"new"<<thetaL1<<"turn: "<<turn<<"state"<<tracker.shape.state()(2));
-
-  //Vector4d new_dynamic_states = tracker.dynamic.state();
-  //Vector3d new_shape_states = tracker.shape.state();
-  //new_dynamic_states(0) = closest_corner_point.first;
-  //new_dynamic_states(1) = closest_corner_point.second;
-  //new_shape_states(0) = L1;
-  //new_shape_states(1) = L2;
-  //new_shape_states(2) = thetaL1;
-
-  //tracker.changeStates(new_dynamic_states, new_shape_states);
-  //}
-  //else if(abs(tracker.shape.state()(2) - thetaL1) > 0.2){
-  //ROS_INFO_STREAM("old"<<old_thetaL1<<" new"<<thetaL1<<" turn: "<<turn<<" state"<<tracker.shape.state()(2)<<" dif: "<<(tracker.shape.state()(2) - thetaL1));}
-    //tracker.CounterClockwisePointSwitch();
-  
-
-  //if(turn <-0.3){
-    //tracker.ClockwisePointSwitch();}
-    //tracker.CounterClockwisePointSwitch();
-    //if(clockwiseRotation(old_thetaL1, thetaL1)&& clockwiseRotation(old_thetaL2, thetaL2)){
-      //tracker.ClockwisePointSwitch();
-      //red_flag = true;
-    //}
-    //else if (!clockwiseRotation(old_thetaL1, thetaL1)&& !clockwiseRotation(old_thetaL2, thetaL2)){
-      //tracker.CounterClockwisePointSwitch();
-      //green_flag = true;
-    //}
-  //}
-  //double to1, ot1, to2, ot2;
-  //to1 = thetaL1 - old_thetaL1;
-  //ot1 = old_thetaL1 = thetaL1;
-  //to2 = thetaL2 - old_thetaL2;
-  //ot2 = old_thetaL2 - thetaL2;
-  //if( abs(to1)< abs(ot1) && abs(to2)< abs(ot2)){
-  //atan2(sin(x-y), cos(x-y))
-  //double t1 = atan2(sin(to1), cos(to1));
-  //double o1 = atan2(sin(ot1), cos(ot1));
-  //double t2 = atan2(sin(to2), cos(to2));
-  //double o2 = atan2(sin(ot2), cos(ot2));
-  //if( abs(t1)<abs(o1)&& abs(t1) > 2 ){
-    //blue_flag = true;}
-
-  //if( (abs(to1)< abs(ot1))  && abs(to2)< abs(ot2)){
-    //if(abs(to1) >0.5 && abs(to2)>0.5){
-      //if(to1 < 0 && to2 <0){
-	//tracker.CounterClockwisePointSwitch();
-            //red_flag = true;
-        //}
-      //else{tracker.ClockwisePointSwitch();
-	//green_flag = true;}
-    //}
-  //}
-  //if( abs(to1)> abs(ot1) && abs(to2)> abs(ot2)){
-    //ccps_flag = true;
-    //if(abs(ot1) >0.3 && abs(ot2)>0.3){
-      //if(ot1 < 0 && ot2 <0){
-	//tracker.CounterClockwisePointSwitch();
-        //}
-      //else{tracker.ClockwisePointSwitch();
-	//cps_flag = true;}
-    //}
-  //}
+  double turn = findTurn(from, to);
+    //blue_flag = true;
+    if(turn <-0.6){
+      tracker.CounterClockwisePointSwitch();
+      red_flag = true;
+    }
+    else if(turn > 0.6){
+      tracker.ClockwisePointSwitch();
+      green_flag= true;
+    }
+    //ROS_INFO_STREAM("state - L1)"<<findTurn( tracker.shape.state()(2), thetaL1));
+    //a = 0;
 
 }
-
 void Cluster::rectangleFitting(const pointList& new_cluster){
   //This function is based on ¨Efficient L-Shape Fitting for
   //Vehicle Detection Using Laser Scanners¨
@@ -415,7 +362,6 @@ void Cluster::rectangleFitting(const pointList& new_cluster){
   //thetaL2 = atan2((l1l2[0].second - l1l2[1].second),(l1l2[0].first - l1l2[1].first)); 
 
 } 
- 
 visualization_msgs::Marker Cluster::getBoundingBoxVisualisationMessage() {
 
   visualization_msgs::Marker bb_msg;
@@ -444,7 +390,6 @@ visualization_msgs::Marker Cluster::getBoundingBoxVisualisationMessage() {
 
   return bb_msg;
 }
-
 visualization_msgs::Marker Cluster::getBoxModelVisualisationMessage() {
   
   visualization_msgs::Marker bb_msg;
@@ -482,6 +427,12 @@ visualization_msgs::Marker Cluster::getBoxModelVisualisationMessage() {
   double cx, cy, th, L1, L2; 
   tracker.lshapeToBoxModelConversion(cx, cy, L1, L2, th);
 
+  box_track_msg.id = this->id;
+  box_track_msg.odom.header.stamp = ros::Time::now();
+  box_track_msg.odom.header.frame_id = p_target_frame_name_;
+  box_track_msg.odom.pose.pose.position.x = cx;
+  box_track_msg.odom.pose.pose.position.y = cy;
+
   geometry_msgs::Point p;
   double x = L1/2;
   double y = L2/2;
@@ -512,7 +463,6 @@ visualization_msgs::Marker Cluster::getBoxModelVisualisationMessage() {
   return bb_msg;
   
 }
-
 visualization_msgs::Marker Cluster::getLShapeVisualisationMessage() {
 
   visualization_msgs::Marker l1l2_msg;
@@ -557,7 +507,6 @@ visualization_msgs::Marker Cluster::getLShapeVisualisationMessage() {
   return l1l2_msg;
 
 }
-
 Point Cluster::lineIntersection(double& a1, double& b1, double& c1, double& a2, double& b2, double& c2){
   // Function that returns the intersection point of two lines given their equations on
   // the form: a1x + b1x = c1, a2x + b2x = c2
@@ -579,7 +528,6 @@ double Cluster::areaCriterion(const VectorXd& C1, const VectorXd& C2){
   return a; 
 
 }
-
 double Cluster::closenessCriterion(const VectorXd& C1, const VectorXd& C2, const float& d0){
   //Algorithm 4 of ¨Efficient L-Shape Fitting for Vehicle Detection Using Laser Scanners¨
 
@@ -626,8 +574,6 @@ double Cluster::closenessCriterion(const VectorXd& C1, const VectorXd& C2, const
  
   return b; 
 }
-
-
 visualization_msgs::Marker Cluster::getThetaL1VisualisationMessage() {
 
   visualization_msgs::Marker arrow_marker;
@@ -678,7 +624,6 @@ visualization_msgs::Marker Cluster::getThetaL1VisualisationMessage() {
  
   return arrow_marker;
 }
-
 visualization_msgs::Marker Cluster::getThetaL2VisualisationMessage() {
 
   visualization_msgs::Marker arrow_marker;
@@ -729,7 +674,6 @@ visualization_msgs::Marker Cluster::getThetaL2VisualisationMessage() {
  
   return arrow_marker;
 }
-
 nav_msgs::Path Cluster::getTrajectory(){
   nav_msgs::Path empty_traj;
   if(!moving){return empty_traj;};
@@ -768,8 +712,6 @@ visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
   arrow_marker.points.push_back(p);
   return arrow_marker;
 }
-
-
  visualization_msgs::Marker Cluster::getClosestCornerPointVisualisationMessage() {
 
   visualization_msgs::Marker corner_msg;
@@ -795,8 +737,6 @@ visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
 
   return corner_msg;
 }
-
-
  visualization_msgs::Marker Cluster::getCenterVisualisationMessage() {
 
   visualization_msgs::Marker fcorner_marker;
@@ -864,7 +804,6 @@ visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
 
   return fcorner_marker;
 }
-
 visualization_msgs::Marker Cluster::getClusterVisualisationMessage() {
   visualization_msgs::Marker cluster_vmsg;
   if(!moving){return cluster_vmsg;};//cluster not moving-empty msg
@@ -896,8 +835,6 @@ visualization_msgs::Marker Cluster::getClusterVisualisationMessage() {
 
   return cluster_vmsg;
 }
-
-
 visualization_msgs::Marker Cluster::getLineVisualisationMessage() {
 
   visualization_msgs::Marker line_msg;
@@ -945,8 +882,6 @@ visualization_msgs::Marker Cluster::getLineVisualisationMessage() {
   return line_msg;
 
 }
-
-
 void Cluster::calcMean(const pointList& c){
 
   double sum_x = 0, sum_y = 0;
@@ -960,7 +895,6 @@ void Cluster::calcMean(const pointList& c){
     this->mean_values.first = sum_x / c.size();
     this->mean_values.second= sum_y / c.size();
 }
-
 double Cluster::perpendicularDistance(const Point &pt, const Point &lineStart, const Point &lineEnd){
   //2D implementation of the Ramer-Douglas-Peucker algorithm
   //By Tim Sheerman-Chase, 2016
@@ -992,7 +926,6 @@ double Cluster::perpendicularDistance(const Point &pt, const Point &lineStart, c
 
   return pow(pow(ax,2.0)+pow(ay,2.0),0.5);
 }
- 
 void Cluster::ramerDouglasPeucker(const vector<Point> &pointList, double epsilon, vector<Point> &out){
   //2D implementation of the Ramer-Douglas-Peucker algorithm
   //By Tim Sheerman-Chase, 2016

@@ -17,6 +17,7 @@ using namespace Eigen;
 typedef std::pair<double, double> Point;
 typedef std::vector<Point> pointList;
 //#define PI 3.141592653589793238463
+const double pi = 3.141592653589793238463; 
 
 class Cluster {
 public:
@@ -30,6 +31,7 @@ public:
 
   datmo::Track track_msg;
   datmo::Track filtered_track_msg;
+  datmo::Track box_track_msg;
 
   // Poses used for transformation to target_frame.
   geometry_msgs::PoseStamped pose_source_;
@@ -56,6 +58,7 @@ public:
   void update(const pointList& , const double, const tf::TransformListener& );
 
   void detectCornerPointSwitch();
+  void detectCornerPointSwitch(double& from, double& to);
   bool red_flag, green_flag, blue_flag;
   //visualization_msgs::Marker switch_msg;
 

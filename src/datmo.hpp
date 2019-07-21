@@ -59,6 +59,7 @@ public:
 
     tracks_pub = n.advertise<datmo::TrackArray>("tracks", 1);
     filtered_tracks_pub = n.advertise<datmo::TrackArray>("filtered_tracks", 1);
+    box_tracks_pub = n.advertise<datmo::TrackArray>("box_tracks", 1);
     marker_array_pub = n.advertise<visualization_msgs::MarkerArray>("marker_array", 10);
     trajectory_pub = n.advertise<nav_msgs::Path>("trajectories", 1000);
     //vehicles_pub = n.advertise<geometry_msgs::PoseArray>("vehicles", 100);
@@ -89,6 +90,7 @@ private:
   //ros::Publisher vel_vehicles_pub;
   ros::Publisher tracks_pub;
   ros::Publisher filtered_tracks_pub;
+  ros::Publisher box_tracks_pub;
 
   tf::TransformBroadcaster tf_br;
   tf::Transform tf_world_base_link;
