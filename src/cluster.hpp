@@ -41,8 +41,6 @@ public:
 
   float r, g, b, a; //current color of the cluster
 
-  geometry_msgs::Quaternion geo;//added for debug
-
   visualization_msgs::Marker getCenterVisualisationMessage();
   visualization_msgs::Marker getClosestCornerPointVisualisationMessage();
   visualization_msgs::Marker getClusterVisualisationMessage();

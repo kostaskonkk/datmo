@@ -4,11 +4,9 @@
 #include <random>
 #include <algorithm> // for sort(), min()
 //Douglas Peucker algorithm
-#include <iostream>
-#include <cmath>
-#include <utility>
-#include <stdexcept>
-//
+//#include <iostream>
+//#include <cmath>
+//#include <utility>
 
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/PoseStamped.h>
@@ -24,7 +22,6 @@
 #include <datmo/Track.h>
 
 #include "cluster.hpp"
-// #include <midi_ros/midi.h> //parameter tuning through midi controller
 
 
 
@@ -42,52 +39,18 @@ using namespace std;
 class Datmo
 {
 public:
-  Datmo()
-  {
-    ros::NodeHandle n; 
-    ros::NodeHandle n_private("~");
-    ROS_INFO("Starting Detection And Tracking of Moving Objects");
+  Datmo();
 
-    n_private.param("pub_markers", p_marker_pub, false);
-    n_private.param("pub_vehicles_InBox", p_vehicles_InBox_pub, false);
-    n_private.param("pub_vehicles_pub", p_vehicles_pub, false);
-    n_private.param("pub_vel_vehicles_pub", p_vel_vehicles_pub, false);
-    n_private.param("pub_odom_pub", p_odom_pub, false);
-    n_private.param("pub_odom_filtered_pub", p_odom_filtered_pub, false);
-    n_private.param("pub_trajectories", p_trajectories_pub, false);
- 
-
-    tracks_pub = n.advertise<datmo::TrackArray>("tracks", 1);
-    filtered_tracks_pub = n.advertise<datmo::TrackArray>("filtered_tracks", 1);
-    box_tracks_pub = n.advertise<datmo::TrackArray>("box_tracks", 1);
-    marker_array_pub = n.advertise<visualization_msgs::MarkerArray>("marker_array", 10);
-    trajectory_pub = n.advertise<nav_msgs::Path>("trajectories", 1000);
-    //vehicles_pub = n.advertise<geometry_msgs::PoseArray>("vehicles", 100);
-    debug_pub = n.advertise<geometry_msgs::Quaternion>("debug", 100);
-    //vel_vehicles_pub = n.advertise<geometry_msgs::PoseArray>("vel_vehicles", 100);
-    sub_scan = n.subscribe("/scan", 1, &Datmo::callback, this);
-    // sub_pose = n.subscribe("/mocap_pose", 1, &Datmo::tf_callback, this);
-    // sub_midi = n.subscribe("/midi", 1, &datmo::midi_callback, this);
-
-  }
-
-  // void midi_callback(const std_msgs::Int8::ConstPtr &);
   void callback(const sensor_msgs::LaserScan::ConstPtr &);
   void Clustering(const sensor_msgs::LaserScan::ConstPtr& , vector<pointList> &);
   void visualiseGroupedPoints(const vector<pointList> &);
-  //void pubPosesArrayVehicles();
-  //void pubPosesArrayVehiclesInsideBox(double halfwidth);
   void pubTrajectories();
-  //void pubVelArrayVehicles();
 
   tf::TransformListener tf_;
 private:
   ros::Publisher trajectory_pub;  
-  //ros::Publisher seg_pub_1;
   ros::Publisher marker_array_pub; 
   ros::Publisher debug_pub;
-  //ros::Publisher vehicles_pub;
-  //ros::Publisher vel_vehicles_pub;
   ros::Publisher tracks_pub;
   ros::Publisher filtered_tracks_pub;
   ros::Publisher box_tracks_pub;
@@ -96,11 +59,8 @@ private:
   tf::Transform tf_world_base_link;
   tf::Transformer transformer;
 
-  //ros::Subscriber sub_midi;
   ros::Subscriber sub_scan;
-  //ros::Subscriber sub_pose;
   sensor_msgs::LaserScan scan;
-
   vector<Cluster> clusters;
 
   //Tuning Parameteres

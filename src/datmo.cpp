@@ -1,5 +1,27 @@
 #include "datmo.hpp"
 
+Datmo::Datmo(){
+  ros::NodeHandle n; 
+  ros::NodeHandle n_private("~");
+  ROS_INFO("Starting Detection And Tracking of Moving Objects");
+
+  n_private.param("pub_markers", p_marker_pub, false);
+  n_private.param("pub_vehicles_InBox", p_vehicles_InBox_pub, false);
+  n_private.param("pub_vehicles_pub", p_vehicles_pub, false);
+  n_private.param("pub_vel_vehicles_pub", p_vel_vehicles_pub, false);
+  n_private.param("pub_odom_pub", p_odom_pub, false);
+  n_private.param("pub_odom_filtered_pub", p_odom_filtered_pub, false);
+  n_private.param("pub_trajectories", p_trajectories_pub, false);
+
+
+  tracks_pub = n.advertise<datmo::TrackArray>("tracks", 1);
+  filtered_tracks_pub = n.advertise<datmo::TrackArray>("filtered_tracks", 1);
+  box_tracks_pub = n.advertise<datmo::TrackArray>("box_tracks", 1);
+  marker_array_pub = n.advertise<visualization_msgs::MarkerArray>("marker_array", 10);
+  trajectory_pub = n.advertise<nav_msgs::Path>("trajectories", 1000);
+  sub_scan = n.subscribe("/scan", 1, &Datmo::callback, this);
+}
+
 void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
 {
 

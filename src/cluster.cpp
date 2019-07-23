@@ -610,11 +610,7 @@ visualization_msgs::Marker Cluster::getThetaL1VisualisationMessage() {
   arrow_marker.header.frame_id = p_source_frame_name_;
   tf2::Quaternion quat_theta;
   quat_theta.setRPY(0,0,thetaL1);
-  //quat_theta.normalize();
-  //tf2::convert(geo, quat_theta);
-  //geo = tf2::toMsg(quat_theta);
   arrow_marker.pose.orientation = tf2::toMsg(quat_theta);
-  //arrow_marker.pose.orientation.w = 1.0;    
   arrow_marker.pose.position.x = closest_corner_point.first;
   arrow_marker.pose.position.y = closest_corner_point.second;
   arrow_marker.pose.position.z = 0;
@@ -662,10 +658,6 @@ visualization_msgs::Marker Cluster::getThetaL2VisualisationMessage() {
   tf2::Quaternion quat_theta;
   quat_theta.setRPY(0,0,thetaL2);
   quat_theta.normalize();
-  //tf2::convert(geo, quat_theta);
-  geo = tf2::toMsg(quat_theta);
-  arrow_marker.pose.orientation = geo;
-  //arrow_marker.pose.orientation.w = 1.0;    
   arrow_marker.pose.position.x = closest_corner_point.first;
   arrow_marker.pose.position.y = closest_corner_point.second;
   arrow_marker.scale.x = 0.2;
