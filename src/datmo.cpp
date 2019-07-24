@@ -132,7 +132,6 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
     //ROS_INFO_STREAM("avx="<<clusters[i].avx<<"avy="<<clusters[i].avy); 
     track_array.tracks.push_back(clusters[i].track_msg);
     filtered_track_array.tracks.push_back(clusters[i].filtered_track_msg);
-    box_track_array.tracks.push_back(clusters[i].box_track_msg);
     //if (p_vehicles_InBox_pub){pubPosesArrayVehiclesInsideBox(1);};
     //if (p_vehicles_pub){pubPosesArrayVehicles();};
     //if (p_vel_vehicles_pub){pubVelArrayVehicles();};
@@ -150,6 +149,7 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
       marker_array.markers.push_back(clusters[i].getClosestCornerPointVisualisationMessage());
       marker_array.markers.push_back(clusters[i].getLShapeVisualisationMessage());
     };
+    box_track_array.tracks.push_back(clusters[i].box_track_msg);
   }
   //ros::Time before_time;
   //before_time = ros::Time::now();

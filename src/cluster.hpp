@@ -69,9 +69,11 @@ public:
   KalmanFilter kf;
   KalmanFilter map_kf;
   double old_thetaL1, old_thetaL2;
-  double detection_angle;
   double L1, L2, thetaL1, thetaL2;
+  double cx, cy, L1_box, L2_box, th; 
+  double detection_angle;
   double avx, avy; //for test
+
 private:
   bool moving; 
 

@@ -160,6 +160,7 @@ void Cluster::update(const pointList& new_points, const double dt_in, const tf::
   //}
   
   tracker.update(closest_corner_point, L1, L2, unwrapped_thetaL1, dt_in);
+  tracker.lshapeToBoxModelConversion(cx, cy, L1_box, L2_box, th);
   //tracker.update(this->closest_corner_point, this->L1, this->L2, this->thetaL1, dt_in);
   this->dt = dt_in;
 
@@ -212,6 +213,18 @@ void Cluster::update(const pointList& new_points, const double dt_in, const tf::
     filtered_track_msg.odom.pose.pose.position.y = map_kf.state()[1];
     filtered_track_msg.odom.twist.twist.linear.x = map_kf.state()[2];
     filtered_track_msg.odom.twist.twist.linear.y = map_kf.state()[3];
+
+    pose_source_.pose.position.x = cx;
+    pose_source_.pose.position.y = cy;
+    geometry_msgs::PoseStamped pose_box_center;
+
+    tf_listener.transformPose(p_target_frame_name_, pose_source_, pose_box_center);
+
+    box_track_msg.id = this->id;
+    box_track_msg.odom.header.stamp = ros::Time::now();
+    box_track_msg.odom.header.frame_id = p_target_frame_name_;
+    box_track_msg.odom.pose.pose.position.x = pose_out.pose.position.x;
+    box_track_msg.odom.pose.pose.position.y = pose_out.pose.position.y;
   } 
   //TODO Dynamic Static Classifier
   old_thetaL1 = thetaL1;
@@ -424,38 +437,31 @@ visualization_msgs::Marker Cluster::getBoxModelVisualisationMessage() {
     bb_msg.color.g = 0;
     bb_msg.color.b = 0;
     bb_msg.color.r = 1;}
-  double cx, cy, th, L1, L2; 
-  tracker.lshapeToBoxModelConversion(cx, cy, L1, L2, th);
 
-  box_track_msg.id = this->id;
-  box_track_msg.odom.header.stamp = ros::Time::now();
-  box_track_msg.odom.header.frame_id = p_target_frame_name_;
-  box_track_msg.odom.pose.pose.position.x = cx;
-  box_track_msg.odom.pose.pose.position.y = cy;
 
   geometry_msgs::Point p;
-  double x = L1/2;
-  double y = L2/2;
+  double x = L1_box/2;
+  double y = L2_box/2;
   p.x = cx + x*cos(th) - y*sin(th);
   p.y = cy + x*sin(th) + y*cos(th);
   bb_msg.points.push_back(p);
-  x = + L1/2;
-  y = - L2/2;
+  x = + L1_box/2;
+  y = - L2_box/2;
   p.x = cx + x*cos(th) - y*sin(th);
   p.y = cy + x*sin(th) + y*cos(th);
   bb_msg.points.push_back(p);
-  x = - L1/2;
-  y = - L2/2;
+  x = - L1_box/2;
+  y = - L2_box/2;
   p.x = cx + x*cos(th) - y*sin(th);
   p.y = cy + x*sin(th) + y*cos(th);
   bb_msg.points.push_back(p);
-  x = - L1/2;
-  y = + L2/2;
+  x = - L1_box/2;
+  y = + L2_box/2;
   p.x = cx + x*cos(th) - y*sin(th);
   p.y = cy + x*sin(th) + y*cos(th);
   bb_msg.points.push_back(p);
-  x = + L1/2;
-  y = + L2/2;
+  x = + L1_box/2;
+  y = + L2_box/2;
   p.x = cx + x*cos(th) - y*sin(th);
   p.y = cy + x*sin(th) + y*cos(th);
   bb_msg.points.push_back(p);
@@ -594,13 +600,11 @@ visualization_msgs::Marker Cluster::getThetaL1VisualisationMessage() {
     arrow_marker.color.g = 0;
     arrow_marker.color.b = 1;
     arrow_marker.color.r = 0;}
-
   if(green_flag == true){
     arrow_marker.lifetime.sec = 1;
     arrow_marker.color.g = 1;
     arrow_marker.color.b = 0;
     arrow_marker.color.r = 0;}
-
   if(red_flag == true){
     arrow_marker.lifetime.sec = 1;
     arrow_marker.color.g = 0;
@@ -641,13 +645,11 @@ visualization_msgs::Marker Cluster::getThetaL2VisualisationMessage() {
     arrow_marker.color.g = 0;
     arrow_marker.color.b = 1;
     arrow_marker.color.r = 0;}
-
   if(green_flag == true){
     arrow_marker.lifetime.sec = 1;
     arrow_marker.color.g = 1;
     arrow_marker.color.b = 0;
     arrow_marker.color.r = 0;}
-
   if(red_flag == true){
     arrow_marker.lifetime.sec = 1;
     arrow_marker.color.g = 0;
@@ -657,13 +659,13 @@ visualization_msgs::Marker Cluster::getThetaL2VisualisationMessage() {
   arrow_marker.header.frame_id = p_source_frame_name_;
   tf2::Quaternion quat_theta;
   quat_theta.setRPY(0,0,thetaL2);
-  quat_theta.normalize();
+  //quat_theta.normalize();
+  arrow_marker.pose.orientation = tf2::toMsg(quat_theta);
   arrow_marker.pose.position.x = closest_corner_point.first;
   arrow_marker.pose.position.y = closest_corner_point.second;
   arrow_marker.scale.x = 0.2;
   arrow_marker.scale.y = 0.1;  
   arrow_marker.scale.z = 0.01;  
- 
   return arrow_marker;
 }
 nav_msgs::Path Cluster::getTrajectory(){
