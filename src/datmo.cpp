@@ -12,6 +12,7 @@ Datmo::Datmo(){
   n_private.param("pub_odom_pub", p_odom_pub, false);
   n_private.param("pub_odom_filtered_pub", p_odom_filtered_pub, false);
   n_private.param("pub_trajectories", p_trajectories_pub, false);
+  n_private.param("write_execution_times", w_exec_times, false);
 
 
   tracks_pub = n.advertise<datmo::TrackArray>("tracks", 1);
@@ -20,6 +21,23 @@ Datmo::Datmo(){
   marker_array_pub = n.advertise<visualization_msgs::MarkerArray>("marker_array", 10);
   trajectory_pub = n.advertise<nav_msgs::Path>("trajectories", 1000);
   sub_scan = n.subscribe("/scan", 1, &Datmo::callback, this);
+
+  if (w_exec_times) {
+    whole.open ("/home/kostas/results/exec_time/whole.csv");
+    whole << ("nano,milli\n");
+    clustering.open ("/home/kostas/results/exec_time/clustering.csv");
+    clustering << ("nano\n");
+    rect_fitting.open("/home/kostas/results/exec_time/rect_fitting.csv");
+    rect_fitting << ("dur_nano,num_points\n");
+  }
+
+}
+Datmo::~Datmo(){
+  if (w_exec_times){
+  whole.close();
+  clustering.close();
+  rect_fitting.close();
+  }
 }
 
 void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
@@ -29,6 +47,16 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
   if (time > ros::Time::now()){clusters.clear();}
   time = ros::Time::now();
 
+  auto start = chrono::steady_clock::now();
+
+  vector<pointList> groups;
+  Datmo::Clustering(scan_in, groups);
+
+  if (w_exec_times) {
+    auto cl_dur_nano = chrono::duration_cast<chrono::nanoseconds>(chrono::steady_clock::now() - start);
+    clustering << cl_dur_nano.count()<<"\n";
+  }
+
   // delete all Markers 
   visualization_msgs::Marker marker;
   visualization_msgs::MarkerArray markera;
@@ -37,8 +65,6 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
   marker_array_pub.publish(markera);
 
 
-  vector<pointList> groups;
-  Datmo::Clustering(scan_in, groups);
 
 
   // Cluster Association based on the Euclidean distance
@@ -149,7 +175,12 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
       marker_array.markers.push_back(clusters[i].getClosestCornerPointVisualisationMessage());
       marker_array.markers.push_back(clusters[i].getLShapeVisualisationMessage());
     };
-    box_track_array.tracks.push_back(clusters[i].box_track_msg);
+
+    if (w_exec_times){
+      
+      rect_fitting << clusters[i].getRectangleFittingExecutionTime().first<<",";
+      rect_fitting << clusters[i].getRectangleFittingExecutionTime().second<<"\n";
+    }
   }
   //ros::Time before_time;
   //before_time = ros::Time::now();
@@ -170,6 +201,18 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
    //ROS_INFO_STREAM("Groups"<<groups.size()<< "Clusters: "<<clusters.size());
   // ROS_INFO_STREAM("Time"<<ros::Time::now()<<"clusters: "<<clusters.size() << "Filters: "<<filters.size());
 
+
+   if (w_exec_times) {
+     //Store the time difference between start and end
+     //
+     auto diff = chrono::steady_clock::now() - start;
+     auto diff_nano = chrono::duration_cast<chrono::nanoseconds>(diff);
+     auto diff_milli = chrono::duration_cast<chrono::milliseconds>(diff);
+     //file << "Duration="<<diff_nano.count()<<" ns, "<<diff_milli.count()<<" ms\n";
+     whole << diff_nano.count()<<","<<diff_milli.count()<<"\n";
+     //ROS_INFO_STREAM("Whole="<<diff_nano.count()<<" ns"); 
+   }
+    
 }
 
 void Datmo::visualiseGroupedPoints(const vector<pointList>& groups){
@@ -236,7 +279,7 @@ void Datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<p
 
   int j = 0;
   vector< vector<float> > polar(c_points +1 ,vector<float>(2)); //c_points+1 for wrapping
-  for(int i = 0; i<scan.ranges.size(); ++i){
+  for(unsigned int i = 0; i<scan.ranges.size(); ++i){
     if(isinf(scan.ranges[i]) == 0){
 
       polar[j][0] = scan.ranges[i]; //first column is the range 

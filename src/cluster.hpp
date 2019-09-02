@@ -10,6 +10,7 @@
 #include "datmo/Track.h"
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <chrono>
 
 using namespace std;
 using namespace Eigen;
@@ -52,6 +53,9 @@ public:
   visualization_msgs::Marker getBoxModelVisualisationMessage();
   visualization_msgs::Marker getLShapeVisualisationMessage();
   nav_msgs::Path getTrajectory();
+
+  pair<int, int> getRectangleFittingExecutionTime(){return dur_size_rectangle_fitting;};
+  pair<int, int> dur_size_rectangle_fitting;
 
   void update(const pointList& , const double, const tf::TransformListener& );
 

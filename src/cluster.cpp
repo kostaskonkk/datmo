@@ -137,7 +137,7 @@ void Cluster::update(const pointList& new_points, const double dt_in, const tf::
   abs_previous_mean_values = abs_mean_values;
   new_cluster = new_points;
 
-  Cluster::calcMean(new_points);
+  calcMean(new_points);
   rectangleFitting(new_points);
 
   detectCornerPointSwitch(old_thetaL1, thetaL1);
@@ -268,6 +268,8 @@ void Cluster::detectCornerPointSwitch(double& from, double& to){
 void Cluster::rectangleFitting(const pointList& new_cluster){
   //This function is based on ¨Efficient L-Shape Fitting for
   //Vehicle Detection Using Laser Scanners¨
+  auto begining = chrono::steady_clock::now(); //timing the execution
+
   unsigned int n = new_cluster.size();
   VectorXd e1(2),e2(2);
   MatrixXd X(n, 2); 
@@ -370,11 +372,16 @@ void Cluster::rectangleFitting(const pointList& new_cluster){
   //thetaL2 = atan2((l1l2[2].second - l1l2[1].second),(l1l2[2].first - l1l2[1].first)); 
   //theta = atan2((l1l2[1].second - l1l2[0].second),(l1l2[1].first - l1l2[0].first)); 
 
-  //Crazy idea
   thetaL2 = atan2((l1l2[2].second - l1l2[1].second),(l1l2[2].first - l1l2[1].first)); 
   //thetaL2 = atan2((l1l2[0].second - l1l2[1].second),(l1l2[0].first - l1l2[1].first)); 
+  
+  auto duration_nano = chrono::duration_cast<chrono::nanoseconds>(chrono::steady_clock::now() - begining);
+
+  dur_size_rectangle_fitting.first = duration_nano.count();
+  dur_size_rectangle_fitting.second = new_cluster.size();
 
 } 
+
 visualization_msgs::Marker Cluster::getBoundingBoxVisualisationMessage() {
 
   visualization_msgs::Marker bb_msg;

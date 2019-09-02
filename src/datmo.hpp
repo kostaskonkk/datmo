@@ -3,6 +3,11 @@
 #include <vector>
 #include <random>
 #include <algorithm> // for sort(), min()
+
+#include <chrono>
+#include <iostream>
+#include <fstream>
+
 //Douglas Peucker algorithm
 //#include <iostream>
 //#include <cmath>
@@ -40,6 +45,7 @@ class Datmo
 {
 public:
   Datmo();
+  ~Datmo();
 
   void callback(const sensor_msgs::LaserScan::ConstPtr &);
   void Clustering(const sensor_msgs::LaserScan::ConstPtr& , vector<pointList> &);
@@ -63,6 +69,10 @@ private:
   sensor_msgs::LaserScan scan;
   vector<Cluster> clusters;
 
+  ofstream whole; // file to write the program duration
+  ofstream clustering; // file to write the program duration
+  ofstream rect_fitting; //write rectangle fitting duration
+
   //Tuning Parameteres
   unsigned int tp_dth = 63;
   double dt;
@@ -80,5 +90,6 @@ private:
   bool p_odom_pub;
   bool p_odom_filtered_pub;
   bool p_trajectories_pub;
+  bool w_exec_times;
 
 };
