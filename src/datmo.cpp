@@ -154,9 +154,9 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
   datmo::TrackArray box_track_array; 
   for (unsigned int i =0; i<clusters.size();i++){
 
-
     //ROS_INFO_STREAM("avx="<<clusters[i].avx<<"avy="<<clusters[i].avy); 
     track_array.tracks.push_back(clusters[i].track_msg);
+    box_track_array.tracks.push_back(clusters[i].box_track_msg);
     filtered_track_array.tracks.push_back(clusters[i].filtered_track_msg);
     //if (p_vehicles_InBox_pub){pubPosesArrayVehiclesInsideBox(1);};
     //if (p_vehicles_pub){pubPosesArrayVehicles();};
@@ -179,7 +179,7 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
     if (w_exec_times){
       
       rect_fitting << clusters[i].getRectangleFittingExecutionTime().first<<",";
-      rect_fitting << clusters[i].getRectangleFittingExecutionTime().second<<"\n";
+      rect_fitting << clusters[i].getRectangleFittingExecutionTime().first<<"\n";
     }
   }
   //ros::Time before_time;

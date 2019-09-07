@@ -225,6 +225,10 @@ void Cluster::update(const pointList& new_points, const double dt_in, const tf::
     box_track_msg.odom.header.frame_id = p_target_frame_name_;
     box_track_msg.odom.pose.pose.position.x = pose_out.pose.position.x;
     box_track_msg.odom.pose.pose.position.y = pose_out.pose.position.y;
+    box_track_msg.odom.pose.pose.orientation.z = thetaL1;
+    box_track_msg.length = L1;
+    box_track_msg.width  = L2;
+    ROS_INFO_STREAM("L1: "<<L1<<"box_msg_L1: "<<box_track_msg.length);
   } 
   //TODO Dynamic Static Classifier
   old_thetaL1 = thetaL1;
@@ -410,6 +414,7 @@ visualization_msgs::Marker Cluster::getBoundingBoxVisualisationMessage() {
 
   return bb_msg;
 }
+
 visualization_msgs::Marker Cluster::getBoxModelVisualisationMessage() {
   
   visualization_msgs::Marker bb_msg;
