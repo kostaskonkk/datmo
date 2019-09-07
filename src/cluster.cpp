@@ -114,11 +114,6 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
     //Initialise Kalman filter on Map coordinates
     x0 << pose_out.pose.position.x, pose_out.pose.position.y, 0, 0;
     map_kf.init(0,x0);
-  }
-  else{ //If the tf is not possible init all states at 0
-    x0 << 0, 0, 0, 0;
-    map_kf.init(0,x0);
-  };
 
   //Populate filtered track msg
   filtered_track_msg.id = this->id;
@@ -128,6 +123,29 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   filtered_track_msg.odom.pose.pose.position.y = map_kf.state()[1];
   filtered_track_msg.odom.twist.twist.linear.x = map_kf.state()[2];
   filtered_track_msg.odom.twist.twist.linear.y = map_kf.state()[3];
+
+  pose_source_.pose.position.x = cx;
+  pose_source_.pose.position.y = cy;
+  geometry_msgs::PoseStamped pose_box_center;
+
+  tf_listener.transformPose(p_target_frame_name_, pose_source_, pose_box_center);
+
+  box_track_msg.id = this->id;
+  box_track_msg.odom.header.stamp = ros::Time::now();
+  box_track_msg.odom.header.frame_id = p_target_frame_name_;
+  box_track_msg.odom.pose.pose.position.x = pose_box_center.pose.position.x;
+  box_track_msg.odom.pose.pose.position.y = pose_box_center.pose.position.y;
+  box_track_msg.odom.pose.pose.orientation.z = thetaL1;
+  box_track_msg.length = L1;
+  box_track_msg.width  = L2;
+  ROS_INFO_STREAM("L1: "<<L1<<"box_msg_L1: "<<box_track_msg.length);
+
+  }
+  else{ //If the tf is not possible init all states at 0
+    x0 << 0, 0, 0, 0;
+    map_kf.init(0,x0);
+  };
+
 }
 
 void Cluster::update(const pointList& new_points, const double dt_in, const tf::TransformListener& tf_listener) {
@@ -214,21 +232,21 @@ void Cluster::update(const pointList& new_points, const double dt_in, const tf::
     filtered_track_msg.odom.twist.twist.linear.x = map_kf.state()[2];
     filtered_track_msg.odom.twist.twist.linear.y = map_kf.state()[3];
 
-    pose_source_.pose.position.x = cx;
-    pose_source_.pose.position.y = cy;
-    geometry_msgs::PoseStamped pose_box_center;
+    //pose_source_.pose.position.x = cx;
+    //pose_source_.pose.position.y = cy;
+    //geometry_msgs::PoseStamped pose_box_center;
 
-    tf_listener.transformPose(p_target_frame_name_, pose_source_, pose_box_center);
+    //tf_listener.transformPose(p_target_frame_name_, pose_source_, pose_box_center);
 
-    box_track_msg.id = this->id;
-    box_track_msg.odom.header.stamp = ros::Time::now();
-    box_track_msg.odom.header.frame_id = p_target_frame_name_;
-    box_track_msg.odom.pose.pose.position.x = pose_out.pose.position.x;
-    box_track_msg.odom.pose.pose.position.y = pose_out.pose.position.y;
-    box_track_msg.odom.pose.pose.orientation.z = thetaL1;
-    box_track_msg.length = L1;
-    box_track_msg.width  = L2;
-    ROS_INFO_STREAM("L1: "<<L1<<"box_msg_L1: "<<box_track_msg.length);
+    //box_track_msg.id = this->id;
+    //box_track_msg.odom.header.stamp = ros::Time::now();
+    //box_track_msg.odom.header.frame_id = p_target_frame_name_;
+    //box_track_msg.odom.pose.pose.position.x = pose_box_center.pose.position.x;
+    //box_track_msg.odom.pose.pose.position.y = pose_box_center.pose.position.y;
+    //box_track_msg.odom.pose.pose.orientation.z = thetaL1;
+    //box_track_msg.length = L1;
+    //box_track_msg.width  = L2;
+    //ROS_INFO_STREAM("L1: "<<L1<<"box_msg_L1: "<<box_track_msg.length);
   } 
   //TODO Dynamic Static Classifier
   old_thetaL1 = thetaL1;
