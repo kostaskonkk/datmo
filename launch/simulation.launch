@@ -1,0 +1,19 @@
+<launch>
+    <param name="use_sim_time" value="true" />
+    <!--<node type="rviz" name="rviz" pkg="rviz" args="-d $(find datmo)/config/datmo.rviz" />-->
+
+   <node pkg="datmo" type="datmo" name="datmo" >
+      <param name="lidar_frame" value="center_laser_link" />
+      <param name="world_frame" value="map" />
+      <param name="threshold_distance" value="1.6" />
+      <param name="euclidean_distance" value="1.5" />
+      <param name="pub_markers" value="true" />
+      <param name="pub_vehicles_InBox" value="false" />
+      <param name="pub_vehicles_pub" value="false" />
+      <param name="pub_vel_vehicles_pub" value="false" />
+      <param name="pub_odom_pub" value="false" />
+      <param name="pub_odom_filtered_pub" value="false" />
+      <param name="pub_trajectories" value="false" />
+   </node>
+
+</launch>

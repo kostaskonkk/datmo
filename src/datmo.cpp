@@ -5,6 +5,11 @@ Datmo::Datmo(){
   ros::NodeHandle n_private("~");
   ROS_INFO("Starting Detection And Tracking of Moving Objects");
 
+  n_private.param("lidar_frame", lidar_frame, string("laser"));
+  n_private.param("world_frame", world_frame, string("map"));
+
+  n_private.param("threshold_distance", dth, 0.2);
+  n_private.param("euclidean_distance", euclidean_distance, 0.25);
   n_private.param("pub_markers", p_marker_pub, false);
   n_private.param("pub_vehicles_InBox", p_vehicles_InBox_pub, false);
   n_private.param("pub_vehicles_pub", p_vehicles_pub, false);
@@ -20,6 +25,7 @@ Datmo::Datmo(){
   box_tracks_pub = n.advertise<datmo::TrackArray>("box_tracks", 1);
   marker_array_pub = n.advertise<visualization_msgs::MarkerArray>("marker_array", 10);
   trajectory_pub = n.advertise<nav_msgs::Path>("trajectories", 1000);
+  //tf.waitForTransform(lidar_frame,world_frame, ros::Time(0), ros::Duration(3.0));
   sub_scan = n.subscribe("/scan", 1, &Datmo::callback, this);
 
   if (w_exec_times) {
@@ -89,7 +95,7 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
     mean_y = sum_y / groups[i].size();
 
     for(unsigned int j=0;j<clusters.size();++j){
-      if( abs( mean_x - clusters[j].meanX() ) < 0.25 && abs( mean_y - clusters[j].meanY() ) < 0.25){
+      if( abs( mean_x - clusters[j].meanX() ) < euclidean_distance && abs( mean_y - clusters[j].meanY() ) < euclidean_distance){
         //update Cluster
         g_matched[i] = true, c_matched[j] = true;
         clusters[j].update(groups[i], 0.1, tf_);
@@ -142,7 +148,7 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
   // Initialisation of new Cluster Objects
   for(unsigned int i=0; i<groups.size();++i){
     if(g_matched[i] == false){
-      Cluster cl(cclusters, groups[i], dt, tf_, "laser", "map");
+      Cluster cl(cclusters, groups[i], dt, tf_, lidar_frame, world_frame);
       cclusters++;
       clusters.push_back(cl);
     } 
@@ -220,7 +226,7 @@ void Datmo::visualiseGroupedPoints(const vector<pointList>& groups){
   visualization_msgs::MarkerArray marker_array;
   //Populate grouped points message
   visualization_msgs::Marker gpoints;
-  gpoints.header.frame_id = "/laser";
+  gpoints.header.frame_id = lidar_frame;
   gpoints.header.stamp = ros::Time::now();
   gpoints.ns = "clustered_points";
   gpoints.action = visualization_msgs::Marker::ADD;
@@ -292,9 +298,9 @@ void Datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<p
   polar[c_points][0] = polar[0][0];
   polar[c_points][1] = polar[0][1];
 
-  float dth, d;
+  float d;
 
-  dth = 0.25 * (tp_dth+1)/64 ;// 1 for simulation, 0.2 worked quite good fo
+  //dth = 0.25 * (tp_dth+1)/64 ;// 1 for simulation, 0.2 worked quite good fo
   //float k = 0.01;
 
  //Find clusters based on adaptive threshold distance

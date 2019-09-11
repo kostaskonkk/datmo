@@ -17,12 +17,12 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/PoseArray.h>
 #include <nav_msgs/Odometry.h>
-#include <nav_msgs/Path.h>
+//#include <nav_msgs/Path.h>
 #include <sensor_msgs/LaserScan.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <geometry_msgs/Point.h>
-#include <tf/transform_broadcaster.h>
+#include <tf/tf.h>
 #include <datmo/TrackArray.h>
 #include <datmo/Track.h>
 
@@ -61,9 +61,10 @@ private:
   ros::Publisher filtered_tracks_pub;
   ros::Publisher box_tracks_pub;
 
-  tf::TransformBroadcaster tf_br;
-  tf::Transform tf_world_base_link;
-  tf::Transformer transformer;
+  //tf::TransformBroadcaster tf_br;
+  //tf::Transform tf_world_base_link;
+  //tf::Listener tf_listener;
+  tf::Transformer tf;
 
   ros::Subscriber sub_scan;
   sensor_msgs::LaserScan scan;
@@ -74,7 +75,6 @@ private:
   ofstream rect_fitting; //write rectangle fitting duration
 
   //Tuning Parameteres
-  unsigned int tp_dth = 63;
   double dt;
   ros::Time time;
 
@@ -83,6 +83,8 @@ private:
 
 
   //Parameters
+  double dth;
+  double euclidean_distance;
   bool p_marker_pub;
   bool p_vehicles_InBox_pub;
   bool p_vehicles_pub;
@@ -91,5 +93,7 @@ private:
   bool p_odom_filtered_pub;
   bool p_trajectories_pub;
   bool w_exec_times;
+  string lidar_frame;
+  string world_frame;
 
 };

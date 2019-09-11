@@ -144,6 +144,7 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   else{ //If the tf is not possible init all states at 0
     x0 << 0, 0, 0, 0;
     map_kf.init(0,x0);
+    ROS_WARN_STREAM("No transform could be found between "<<p_source_frame_name_<<" and "<<p_target_frame_name_);
   };
 
 }
@@ -248,6 +249,9 @@ void Cluster::update(const pointList& new_points, const double dt_in, const tf::
     //box_track_msg.width  = L2;
     //ROS_INFO_STREAM("L1: "<<L1<<"box_msg_L1: "<<box_track_msg.length);
   } 
+  else{
+    ROS_WARN_STREAM("No transform could be found between "<<p_source_frame_name_<<" and "<<p_target_frame_name_);
+  };
   //TODO Dynamic Static Classifier
   old_thetaL1 = thetaL1;
   old_thetaL2 = thetaL2;
@@ -277,11 +281,11 @@ void Cluster::detectCornerPointSwitch(double& from, double& to){
     //blue_flag = true;
     if(turn <-0.6){
       tracker.CounterClockwisePointSwitch();
-      red_flag = true;
+      //red_flag = true;
     }
     else if(turn > 0.6){
       tracker.ClockwisePointSwitch();
-      green_flag= true;
+      //green_flag= true;
     }
     //ROS_INFO_STREAM("state - L1)"<<findTurn( tracker.shape.state()(2), thetaL1));
     //a = 0;
@@ -452,21 +456,21 @@ visualization_msgs::Marker Cluster::getBoxModelVisualisationMessage() {
   bb_msg.color.a = a;
 
   
-  if(blue_flag == true){
-    bb_msg.lifetime.sec = 1;
-    bb_msg.color.g = 0;
-    bb_msg.color.b = 1;
-    bb_msg.color.r = 0;}
+  //if(blue_flag == true){
+    //bb_msg.lifetime.sec = 1;
+    //bb_msg.color.g = 0;
+    //bb_msg.color.b = 1;
+    //bb_msg.color.r = 0;}
 
-  if(green_flag == true){
-    bb_msg.color.g = 1;
-    bb_msg.color.b = 0;
-    bb_msg.color.r = 0;}
+  //if(green_flag == true){
+    //bb_msg.color.g = 1;
+    //bb_msg.color.b = 0;
+    //bb_msg.color.r = 0;}
 
-  if(red_flag == true){
-    bb_msg.color.g = 0;
-    bb_msg.color.b = 0;
-    bb_msg.color.r = 1;}
+  //if(red_flag == true){
+    //bb_msg.color.g = 0;
+    //bb_msg.color.b = 0;
+    //bb_msg.color.r = 1;}
 
 
   geometry_msgs::Point p;
@@ -617,29 +621,27 @@ visualization_msgs::Marker Cluster::getThetaL1VisualisationMessage() {
   arrow_marker.header.stamp = ros::Time::now();
   arrow_marker.ns = "thetaL1";
   arrow_marker.action = visualization_msgs::Marker::ADD;
-  //arrow_marker.scale.x = 0.05;
-  //arrow_marker.scale.y = 0.1;  
   arrow_marker.color.a = 1.0;
   arrow_marker.color.g = 0;
   arrow_marker.color.b = 0;
   arrow_marker.color.r = 1;
   arrow_marker.id = this->id;
 
-  if(blue_flag == true){
-    arrow_marker.lifetime.sec = 1;
-    arrow_marker.color.g = 0;
-    arrow_marker.color.b = 1;
-    arrow_marker.color.r = 0;}
-  if(green_flag == true){
-    arrow_marker.lifetime.sec = 1;
-    arrow_marker.color.g = 1;
-    arrow_marker.color.b = 0;
-    arrow_marker.color.r = 0;}
-  if(red_flag == true){
-    arrow_marker.lifetime.sec = 1;
-    arrow_marker.color.g = 0;
-    arrow_marker.color.b = 0;
-    arrow_marker.color.r = 1;}
+  //if(blue_flag == true){
+    //arrow_marker.lifetime.sec = 1;
+    //arrow_marker.color.g = 0;
+    //arrow_marker.color.b = 1;
+    //arrow_marker.color.r = 0;}
+  //if(green_flag == true){
+    //arrow_marker.lifetime.sec = 1;
+    //arrow_marker.color.g = 1;
+    //arrow_marker.color.b = 0;
+    //arrow_marker.color.r = 0;}
+  //if(red_flag == true){
+    //arrow_marker.lifetime.sec = 1;
+    //arrow_marker.color.g = 0;
+    //arrow_marker.color.b = 0;
+    //arrow_marker.color.r = 1;}
 
   arrow_marker.header.frame_id = p_source_frame_name_;
   tf2::Quaternion quat_theta;
@@ -662,29 +664,27 @@ visualization_msgs::Marker Cluster::getThetaL2VisualisationMessage() {
   arrow_marker.header.stamp = ros::Time::now();
   arrow_marker.ns = "thetaL2";
   arrow_marker.action = visualization_msgs::Marker::ADD;
-  //arrow_marker.scale.x = 0.05;
-  //arrow_marker.scale.y = 0.1;  
   arrow_marker.color.a = 1.0;
   arrow_marker.color.g = 1;
   arrow_marker.color.b = 0;
   arrow_marker.color.r = 0;
   arrow_marker.id = this->id;
 
-  if(blue_flag == true){
-    arrow_marker.lifetime.sec = 1;
-    arrow_marker.color.g = 0;
-    arrow_marker.color.b = 1;
-    arrow_marker.color.r = 0;}
-  if(green_flag == true){
-    arrow_marker.lifetime.sec = 1;
-    arrow_marker.color.g = 1;
-    arrow_marker.color.b = 0;
-    arrow_marker.color.r = 0;}
-  if(red_flag == true){
-    arrow_marker.lifetime.sec = 1;
-    arrow_marker.color.g = 0;
-    arrow_marker.color.b = 0;
-    arrow_marker.color.r = 1;}
+  //if(blue_flag == true){
+    //arrow_marker.lifetime.sec = 1;
+    //arrow_marker.color.g = 0;
+    //arrow_marker.color.b = 1;
+    //arrow_marker.color.r = 0;}
+  //if(green_flag == true){
+    //arrow_marker.lifetime.sec = 1;
+    //arrow_marker.color.g = 1;
+    //arrow_marker.color.b = 0;
+    //arrow_marker.color.r = 0;}
+  //if(red_flag == true){
+    //arrow_marker.lifetime.sec = 1;
+    //arrow_marker.color.g = 0;
+    //arrow_marker.color.b = 0;
+    //arrow_marker.color.r = 1;}
 
   arrow_marker.header.frame_id = p_source_frame_name_;
   tf2::Quaternion quat_theta;
@@ -707,31 +707,32 @@ visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
 
   visualization_msgs::Marker arrow_marker;
   arrow_marker.type = visualization_msgs::Marker::ARROW;
-  arrow_marker.header.frame_id = p_target_frame_name_;
+  //arrow_marker.header.frame_id = p_target_frame_name_;
+  arrow_marker.header.frame_id = p_source_frame_name_;
   arrow_marker.header.stamp = ros::Time::now();
   arrow_marker.ns = "velocities";
   arrow_marker.action = visualization_msgs::Marker::ADD;
-  arrow_marker.scale.x = 0.05;
-  arrow_marker.scale.y = 0.1;  
   arrow_marker.color.a = 1.0;
-  arrow_marker.color.g = 1;
-  arrow_marker.color.b = 0;
-  arrow_marker.color.r = 0;
+  arrow_marker.color.g = g;
+  arrow_marker.color.b = b;
+  arrow_marker.color.r = r;
   arrow_marker.id = this->id;
+  arrow_marker.scale.x = 0.4;    //Shaft diameter of the arrow
+  arrow_marker.scale.y = 0.8;  //Head  diameter of the arrow
 
-  arrow_marker.pose.position.x = closest_corner_point.first;
-  arrow_marker.pose.position.y = closest_corner_point.second;
-  arrow_marker.scale.x = 0.2;
-  arrow_marker.scale.y = 0.1;  
+  //arrow_marker.pose.position.x = closest_corner_point.first;
+  //arrow_marker.pose.position.y = closest_corner_point.second;
+  //arrow_marker.pose.position.x = cx;
+  //arrow_marker.pose.position.y = cy;
  
   geometry_msgs::Point p;
-  p.x = map_kf.state()[0]; 
-  p.y = map_kf.state()[1]; 
+  p.x = cx; 
+  p.y = cy; 
   p.z = 0;
   arrow_marker.points.push_back(p);
 
-  p.x = map_kf.state()[0] + map_kf.state()[2]; 
-  p.y = map_kf.state()[1] + map_kf.state()[3]; 
+  p.x = cx+ map_kf.state()[2]; 
+  p.y = cy+ map_kf.state()[3]; 
   p.z = 0;
   arrow_marker.points.push_back(p);
   return arrow_marker;
@@ -831,7 +832,7 @@ visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
 visualization_msgs::Marker Cluster::getClusterVisualisationMessage() {
   visualization_msgs::Marker cluster_vmsg;
   if(!moving){return cluster_vmsg;};//cluster not moving-empty msg
-  cluster_vmsg.header.frame_id  = "laser";
+  cluster_vmsg.header.frame_id  = p_source_frame_name_;
   cluster_vmsg.header.stamp = ros::Time::now();
   cluster_vmsg.ns = "clusters";
   cluster_vmsg.action = visualization_msgs::Marker::ADD;
@@ -866,7 +867,7 @@ visualization_msgs::Marker Cluster::getLineVisualisationMessage() {
   if(!moving){return line_msg;};//cluster not moving-empty msg
 
   line_msg.header.stamp = ros::Time::now();
-  line_msg.header.frame_id  = "/laser";
+  line_msg.header.frame_id  = p_source_frame_name_;
   line_msg.ns = "lines";
   line_msg.action = visualization_msgs::Marker::ADD;
   line_msg.pose.orientation.w = 1.0;
