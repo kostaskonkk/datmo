@@ -171,7 +171,7 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
    
     if (p_marker_pub){
       //marker_array.markers.push_back(clusters[i].getLineVisualisationMessage());
-      marker_array.markers.push_back(clusters[i].getCenterVisualisationMessage());
+      marker_array.markers.push_back(clusters[i].getBoundingBoxCenterVisualisationMessage());
       marker_array.markers.push_back(clusters[i].getArrowVisualisationMessage());
       marker_array.markers.push_back(clusters[i].getThetaL1VisualisationMessage());
       marker_array.markers.push_back(clusters[i].getThetaL2VisualisationMessage());

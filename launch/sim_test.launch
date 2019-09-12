@@ -1,0 +1,15 @@
+<launch>
+  <param name="use_sim_time" value="true" />
+
+  <node pkg="rosbag" type="play" name="player" output="screen" args="-r 1 --clock -l /home/kostas/results/sim_raw.bag"/>
+
+  <include file="$(find datmo)/launch/simulation.launch"/>
+
+  <node pkg="localization" type="sim_local" name="localization"/>
+    <node pkg="rosbag" type="record" name="recorder" output="screen" args="-O /home/kostas/results/box_tracks.bag /mocap_pose /tracks /filtered_tracks /box_tracks /robot_1 /robot_2" />
+
+  <arg name="rvizconfig" default="$(find car_demo)/rviz/highway.rviz" />
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(arg rvizconfig)" required="true" />
+
+
+</launch>

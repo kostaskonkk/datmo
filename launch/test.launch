@@ -1,15 +1,20 @@
 <launch>
     <param name="use_sim_time" value="true" />
 
-    <include file="$(find localization)/launch/localization.launch"/>
+    <!--<include file="$(find localization)/launch/localization.launch"/>-->
+    <include file="$(find localization)/launch/mocap_localization.launch"/>
 
     <node pkg="rosbag" type="play" name="player" output="screen" args="-r 1 --clock -l /home/kostas/Dropbox/experiments/7/funny.bag"/>
-    <!--<node pkg="rosbag" type="record" name="recorder" output="screen" args="-O /home/kostas/results/box_tracks.bag /tf /poseupdate /odometry/wheel_imu /odometry/map /mocap_pose /tracks /filtered_tracks /box_tracks /robot_1 /robot_2" />-->
+    <node pkg="rosbag" type="record" name="recorder" output="screen" args="-O /home/kostas/results/box_tracks.bag /tf /poseupdate /odometry/wheel_imu /odometry/map /mocap_pose /tracks /filtered_tracks /box_tracks /robot_1 /robot_2" />
 
 
-    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find datmo)/config/datmo.rviz" /> 
+    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find datmo)/config/datmo.rviz" />
 
    <node pkg="datmo" type="datmo" name="datmo" >
+      <param name="lidar_frame" value="laser" />
+      <param name="world_frame" value="map" />
+      <param name="threshold_distance" value="0.2" />
+      <param name="euclidean_distance" value="0.25" />
       <param name="pub_markers" value="true" />
       <param name="pub_vehicles_InBox" value="false" />
       <param name="pub_vehicles_pub" value="false" />

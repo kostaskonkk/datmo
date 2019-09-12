@@ -42,7 +42,8 @@ public:
 
   float r, g, b, a; //current color of the cluster
 
-  visualization_msgs::Marker getCenterVisualisationMessage();
+  visualization_msgs::Marker getBoundingBoxCenterVisualisationMessage();
+
   visualization_msgs::Marker getClosestCornerPointVisualisationMessage();
   visualization_msgs::Marker getClusterVisualisationMessage();
   visualization_msgs::Marker getLineVisualisationMessage();
@@ -58,7 +59,7 @@ public:
   pair<int, int> dur_size_rectangle_fitting;
 
   void update(const pointList& , const double, const tf::TransformListener& );
-
+  void populateTrackingMsgs(const tf::TransformListener& );
   void detectCornerPointSwitch();
   void detectCornerPointSwitch(double& from, double& to);
   bool red_flag, green_flag, blue_flag;
@@ -100,6 +101,7 @@ private:
   double vx, vy;
 
 
+  visualization_msgs::Marker boxcenter_marker_;
   void calcMean(const pointList& ); //Find the mean value of the cluster
   void rectangleFitting(const pointList& ); //Search-Based Rectangle Fitting 
   double areaCriterion(const VectorXd&, const VectorXd& );
