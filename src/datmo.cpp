@@ -20,9 +20,10 @@ Datmo::Datmo(){
   n_private.param("write_execution_times", w_exec_times, false);
 
 
-  tracks_pub = n.advertise<datmo::TrackArray>("tracks", 1);
-  filtered_tracks_pub = n.advertise<datmo::TrackArray>("filtered_tracks", 1);
-  box_tracks_pub = n.advertise<datmo::TrackArray>("box_tracks", 1);
+  mean_tracks_pub = n.advertise<datmo::TrackArray>("mean_tracks", 10);
+  filtered_tracks_pub = n.advertise<datmo::TrackArray>("filtered_tracks", 10);
+  box_tracks_pub = n.advertise<datmo::TrackArray>("box_tracks", 10);
+  obs_tracks_pub = n.advertise<datmo::TrackArray>("obs_tracks", 10);
   marker_array_pub = n.advertise<visualization_msgs::MarkerArray>("marker_array", 10);
   trajectory_pub = n.advertise<nav_msgs::Path>("trajectories", 1000);
   //tf.waitForTransform(lidar_frame,world_frame, ros::Time(0), ros::Duration(3.0));
@@ -155,15 +156,17 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
   }
   //Visualizations
   visualization_msgs::MarkerArray marker_array;
-  datmo::TrackArray track_array; 
+  datmo::TrackArray mean_track_array; 
   datmo::TrackArray filtered_track_array; 
   datmo::TrackArray box_track_array; 
+  datmo::TrackArray obs_track_array; 
   for (unsigned int i =0; i<clusters.size();i++){
 
     //ROS_INFO_STREAM("avx="<<clusters[i].avx<<"avy="<<clusters[i].avy); 
-    track_array.tracks.push_back(clusters[i].track_msg);
-    box_track_array.tracks.push_back(clusters[i].box_track_msg);
+    mean_track_array.tracks.push_back(clusters[i].mean_track_msg);
     filtered_track_array.tracks.push_back(clusters[i].filtered_track_msg);
+    box_track_array.tracks.push_back(clusters[i].box_track_msg);
+    obs_track_array.tracks.push_back(clusters[i].obs_track_msg);
     //if (p_vehicles_InBox_pub){pubPosesArrayVehiclesInsideBox(1);};
     //if (p_vehicles_pub){pubPosesArrayVehicles();};
     //if (p_vel_vehicles_pub){pubVelArrayVehicles();};
@@ -198,9 +201,10 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
   //ROS_INFO_STREAM("Seconds: "<<duration);
 
   marker_array_pub.publish(marker_array);
-  tracks_pub.publish(track_array);
+  mean_tracks_pub.publish(mean_track_array);
   filtered_tracks_pub.publish(filtered_track_array);
   box_tracks_pub.publish(box_track_array);
+  obs_tracks_pub.publish(obs_track_array);
   //visualiseGroupedPoints(groups);
   
   //TODO Publish in Rviz upper right corner this information

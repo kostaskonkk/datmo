@@ -180,6 +180,40 @@ void Cluster::update(const pointList& new_points, const double dt_in, const tf::
   old_thetaL1 = thetaL1;
   old_thetaL2 = thetaL2;
 }
+void Cluster::nonLinearObserver(const double& x_pos, const double& y_pos){
+
+  MatrixXd C(2,4);
+  MatrixXd L(4,2);
+
+  C << 1, 0, 0, 0,
+       0, 1, 0, 0;
+
+  L <<   3.6424 * pow(10,10),  -2.4514 * pow(10,10),
+    	-2.3595 * pow(10,10),   1.8521 * pow(10,10),
+        -0.0161             ,   0.0080,
+         7.5147 * pow(10,8) ,  -7.7519 * pow(10,8);
+
+  y(0) = cx;
+  y(1) = cy;
+
+  double length;
+  if(L1>L2){
+    length = L1;}
+  else{
+    length = L2;}
+  //x_dot_hat = L * (y - C * x_hat);
+
+
+  double psi = x_hat(3);
+  double v   = x_hat(2);
+  x_dot_hat(0) = x_dot_hat(0) + v * cos(psi);
+  x_dot_hat(1) = x_dot_hat(1) + v * sin(psi);
+  //x_dot_hat(2) = x_dot_hat(2) + v / length;
+  x_dot_hat(2) = x_dot_hat(2) + 0;
+  x_dot_hat(3) = x_dot_hat(3) + 0;
+  x_hat = x_dot_hat * dt;
+
+}
 void Cluster::populateTrackingMsgs(const tf::TransformListener& tf_listener){
 
     pose_source_.header.stamp = ros::Time(0);
@@ -200,10 +234,10 @@ void Cluster::populateTrackingMsgs(const tf::TransformListener& tf_listener){
     trajectory_.header.frame_id = pose_out.header.frame_id;
     trajectory_.poses.push_back(pose_out);
     
-    track_msg.id = this->id;
-    track_msg.odom.header.stamp = pose_out.header.stamp;
-    track_msg.odom.header.frame_id = pose_out.header.frame_id;
-    track_msg.odom.pose.pose = pose_out.pose;
+    mean_track_msg.id = this->id;
+    mean_track_msg.odom.header.stamp = pose_out.header.stamp;
+    mean_track_msg.odom.header.frame_id = pose_out.header.frame_id;
+    mean_track_msg.odom.pose.pose = pose_out.pose;
 
     //Populate filtered track msg
     filtered_track_msg.id = this->id;
@@ -251,6 +285,19 @@ void Cluster::populateTrackingMsgs(const tf::TransformListener& tf_listener){
     //boxcenter_marker.points[0] = p;
     boxcenter_marker.points.push_back(p);
     boxcenter_marker_ = boxcenter_marker;
+
+    nonLinearObserver(pose_box_center.pose.position.x, pose_box_center.pose.position.y); 
+    obs_track_msg.id = this->id;
+    obs_track_msg.odom.header.stamp = ros::Time::now();
+    obs_track_msg.odom.header.frame_id = p_target_frame_name_;
+    obs_track_msg.odom.pose.pose.position.x = x_hat(0);
+    obs_track_msg.odom.pose.pose.position.y = x_hat(1);
+    obs_track_msg.odom.twist.twist.linear.x = x_dot_hat(0);
+    obs_track_msg.odom.twist.twist.linear.y = x_dot_hat(1);
+    obs_track_msg.odom.pose.pose.orientation.z = x_hat(3); // I should translate it
+    obs_track_msg.length = L1;
+    obs_track_msg.width  = L2;
+
 }
 
 double findTurn(double& new_angle, double& old_angle){
@@ -389,12 +436,8 @@ void Cluster::rectangleFitting(const pointList& new_cluster){
   L2 = pow(pow(dx,2.0)+pow(dy,2.0),0.5);
 
   thetaL1   = atan2((l1l2[0].second - l1l2[1].second),(l1l2[0].first - l1l2[1].first)); 
-  //theta   = atan2((l1l2[0].second + l1l2[1].second),(l1l2[0].first + l1l2[1].first)); 
-  //thetaL2 = atan2((l1l2[2].second - l1l2[1].second),(l1l2[2].first - l1l2[1].first)); 
-  //theta = atan2((l1l2[1].second - l1l2[0].second),(l1l2[1].first - l1l2[0].first)); 
 
   thetaL2 = atan2((l1l2[2].second - l1l2[1].second),(l1l2[2].first - l1l2[1].first)); 
-  //thetaL2 = atan2((l1l2[0].second - l1l2[1].second),(l1l2[0].first - l1l2[1].first)); 
   
   auto duration_nano = chrono::duration_cast<chrono::nanoseconds>(chrono::steady_clock::now() - begining);
 

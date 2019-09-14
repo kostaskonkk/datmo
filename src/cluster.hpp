@@ -5,7 +5,6 @@
 #include <Eigen/Dense>
 #include <tf/transform_listener.h>
 #include <visualization_msgs/Marker.h>
-//#include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
 #include "datmo/Track.h"
 #include <tf2/LinearMath/Quaternion.h>
@@ -30,9 +29,10 @@ public:
   string p_target_frame_name_;
   string p_source_frame_name_;
 
-  datmo::Track track_msg;
+  datmo::Track mean_track_msg;
   datmo::Track filtered_track_msg;
   datmo::Track box_track_msg;
+  datmo::Track obs_track_msg;
 
   // Poses used for transformation to target_frame.
   geometry_msgs::PoseStamped pose_source_;
@@ -62,6 +62,7 @@ public:
   void populateTrackingMsgs(const tf::TransformListener& );
   void detectCornerPointSwitch();
   void detectCornerPointSwitch(double& from, double& to);
+  void nonLinearObserver(const double& x, const double& y);
   bool red_flag, green_flag, blue_flag;
   //visualization_msgs::Marker switch_msg;
 
@@ -100,7 +101,12 @@ private:
 
   double vx, vy;
 
+  //NonLinear Observer
+  Vector4d x_hat;
+  Vector4d x_dot_hat;
+  Vector2d y;
 
+  
   visualization_msgs::Marker boxcenter_marker_;
   void calcMean(const pointList& ); //Find the mean value of the cluster
   void rectangleFitting(const pointList& ); //Search-Based Rectangle Fitting 

@@ -8,16 +8,10 @@
 #include <iostream>
 #include <fstream>
 
-//Douglas Peucker algorithm
-//#include <iostream>
-//#include <cmath>
-//#include <utility>
-
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/PoseArray.h>
 #include <nav_msgs/Odometry.h>
-//#include <nav_msgs/Path.h>
 #include <sensor_msgs/LaserScan.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
@@ -57,9 +51,10 @@ private:
   ros::Publisher trajectory_pub;  
   ros::Publisher marker_array_pub; 
   ros::Publisher debug_pub;
-  ros::Publisher tracks_pub;
+  ros::Publisher mean_tracks_pub;
   ros::Publisher filtered_tracks_pub;
   ros::Publisher box_tracks_pub;
+  ros::Publisher obs_tracks_pub;
 
   //tf::TransformBroadcaster tf_br;
   //tf::Transform tf_world_base_link;
@@ -82,7 +77,6 @@ private:
   //initialised as one, because 0 index take the msgs that fail to be initialized
   unsigned long int cclusters= 0;//counter for the cluster objects to be used as id for the markers
 
-
   //Parameters
   double dth;
   double euclidean_distance;
@@ -95,6 +89,8 @@ private:
   bool p_trajectories_pub;
   bool w_exec_times;
   string lidar_frame;
+
+
   string world_frame;
 
 };
