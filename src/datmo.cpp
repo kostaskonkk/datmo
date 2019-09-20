@@ -36,6 +36,8 @@ Datmo::Datmo(){
     clustering << ("nano\n");
     rect_fitting.open("/home/kostas/results/exec_time/rect_fitting.csv");
     rect_fitting << ("dur_nano,num_points\n");
+    testing.open("/home/kostas/results/exec_time/testing.csv");
+    testing << ("clusters\n");
   }
 
 }
@@ -44,11 +46,12 @@ Datmo::~Datmo(){
   whole.close();
   clustering.close();
   rect_fitting.close();
+  testing.close();
   }
 }
 
-void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
-{
+void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
+
 
   dt = (ros::Time::now() - time).toSec();
   if (time > ros::Time::now()){clusters.clear();}
@@ -71,38 +74,71 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
   markera.markers.push_back(marker);
   marker_array_pub.publish(markera);
 
-
-
-
+  int num_updates = 0;
   // Cluster Association based on the Euclidean distance
   // I should check first all the distances and then associate based on the closest distance
 
   vector<bool> g_matched(groups.size(),false);   // The Group has been matched with a Cluster
   vector<bool> c_matched(clusters.size(),false); // The Cluster object has been matched with a group
 
+  double euclidean[groups.size()][clusters.size()]; // Matrix object to save the euclidean distances
+
 
   //Finding mean coordinates of group and associating with cluster Objects
   double mean_x = 0, mean_y = 0;
 
-  for(unsigned int i = 0; i<groups.size();++i){
+  for(unsigned int g = 0; g<groups.size();++g){
     double sum_x = 0, sum_y = 0;
       
-    for(unsigned int l =0; l<groups[i].size(); l++){
+    for(unsigned int l =0; l<groups[g].size(); l++){
       //Find sum of x and y
-      sum_x = sum_x + groups[i][l].first;
-      sum_y = sum_y + groups[i][l].second;
+      sum_x = sum_x + groups[g][l].first;
+      sum_y = sum_y + groups[g][l].second;
     }
-    mean_x = sum_x / groups[i].size();
-    mean_y = sum_y / groups[i].size();
+    mean_x = sum_x / groups[g].size();
+    mean_y = sum_y / groups[g].size();
 
-    for(unsigned int j=0;j<clusters.size();++j){
-      if( abs( mean_x - clusters[j].meanX() ) < euclidean_distance && abs( mean_y - clusters[j].meanY() ) < euclidean_distance){
-        //update Cluster
-        g_matched[i] = true, c_matched[j] = true;
-        clusters[j].update(groups[i], 0.1, tf_);
-      }
+    for(unsigned int c=0;c<clusters.size();++c){
+      euclidean[g][c] = abs( mean_x - clusters[c].meanX()) + abs(mean_y - clusters[c].meanY()); 
+      //if( euclidean[g][c]< euclidean_distance) {
+      //if( abs( mean_x - clusters[c].meanX() ) < euclidean_distance && abs( mean_y - clusters[c].meanY() ) < euclidean_distance){
+        ////update Cluster
+	//g_matched[g] = true, c_matched[c] = true;
+	//clusters[c].update(groups[g], 0.1, tf_);
+        //num_updates++;
+      //}
     }
   }
+
+  //Find the smallest euclidean distance and associate if smaller than the threshold 
+  //#pragma omp for
+  //ROS_INFO_STREAM("num_threads"<<omp_get_num_threads());
+  //testing<<omp_get_num_threads()<<",";
+  vector<pair <int,int>> pairs;
+  for(unsigned int c=0; c<clusters.size();++c){
+    //testing<<omp_get_num_threads()<<",";
+    unsigned int position;
+    double min_distance = euclidean_distance;
+    for(unsigned int g=0; g<groups.size();++g){
+	if(euclidean[g][c] < min_distance){
+	  min_distance = euclidean[g][c];
+	  position = g;
+	}
+    }
+    if(min_distance < euclidean_distance){
+      g_matched[position] = true, c_matched[c] = true;
+      //clusters[c].update(groups[position], 0.1, tf_);
+      num_updates++;
+      pairs.push_back(pair<int,int>(c,position));
+    }
+  }
+
+  //#pragma omp parallel for
+  for(unsigned int p=0; p<pairs.size();++p){
+      clusters[pairs[p].first].update(groups[pairs[p].second], 0.1, tf_);
+  }
+  //testing<<omp_get_num_threads()<<",";
+     
 
 
   //// Data Association based on the Mahalanobis distance
@@ -154,6 +190,7 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
       clusters.push_back(cl);
     } 
   }
+  testing<<num_updates<<"\n";
   //Visualizations
   visualization_msgs::MarkerArray marker_array;
   datmo::TrackArray mean_track_array; 
@@ -187,7 +224,7 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in)
 
     if (w_exec_times){
       
-      rect_fitting << clusters[i].getRectangleFittingExecutionTime().first<<",";
+      //rect_fitting << clusters[i].getRectangleFittingExecutionTime().first<<",";
       rect_fitting << clusters[i].getRectangleFittingExecutionTime().first<<"\n";
     }
   }

@@ -1,5 +1,6 @@
 #include <ros/ros.h>
 #include <math.h>       /* atan */
+#include <omp.h>      //Multi-threading
 #include <vector>
 #include <random>
 #include <algorithm> // for sort(), min()
@@ -68,6 +69,7 @@ private:
   ofstream whole; // file to write the program duration
   ofstream clustering; // file to write the program duration
   ofstream rect_fitting; //write rectangle fitting duration
+  ofstream testing; //various testing
 
   //Tuning Parameteres
   double dt;

@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(datmo)
 add_compile_options(-std=c++11)
-
-# http://wiki.ros.org/eigen
 # list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 ## Find catkin macros and libraries
@@ -19,6 +17,18 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
 )
 find_package(Eigen REQUIRED)
+find_package(OpenMP REQUIRED)
+
+#MultiThreading Library
+OPTION (USE_OpenMP "Use OpenMP" OFF)
+IF(USE_OpenMP)
+  FIND_PACKAGE(OpenMP)
+  IF(OPENMP_FOUND)
+    #SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    #SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
+  ENDIF()
+ENDIF()
 
 add_message_files(
   FILES

@@ -247,6 +247,11 @@ void Cluster::populateTrackingMsgs(const tf::TransformListener& tf_listener){
     filtered_track_msg.odom.pose.pose.position.y = map_kf.state()[1];
     filtered_track_msg.odom.twist.twist.linear.x = map_kf.state()[2];
     filtered_track_msg.odom.twist.twist.linear.y = map_kf.state()[3];
+    //Covariances
+    filtered_track_msg.odom.pose.covariance[0] = map_kf.P(0,0);
+    filtered_track_msg.odom.pose.covariance[7] = map_kf.P(1,1);
+    filtered_track_msg.odom.twist.covariance[0] = map_kf.P(2,2);
+    filtered_track_msg.odom.twist.covariance[7] = map_kf.P(3,3);
 
     pose_source_.pose.position.x = cx;
     pose_source_.pose.position.y = cy;
@@ -262,7 +267,7 @@ void Cluster::populateTrackingMsgs(const tf::TransformListener& tf_listener){
     box_track_msg.odom.pose.pose.orientation.z = thetaL1;
     box_track_msg.length = L1;
     box_track_msg.width  = L2;
-    ROS_INFO_STREAM("L1: "<<L1<<"box_msg_L1: "<<box_track_msg.length);
+    //ROS_INFO_STREAM("L1: "<<L1<<"box_msg_L1: "<<box_track_msg.length);
 
     visualization_msgs::Marker boxcenter_marker;
     boxcenter_marker.type = visualization_msgs::Marker::POINTS;
@@ -350,9 +355,10 @@ void Cluster::rectangleFitting(const pointList& new_cluster){
   unsigned int i =0;
   double th = 0.0;
   //TODO make d configurable through Rviz
-  unsigned int d = 50;
+  unsigned int d = 2000;
   ArrayX2d Q(d,2);
   float step = (3.14/2)/d;
+  #pragma omp parallel for
   for (i = 0; i < d; ++i) {
     e1 << cos(th), sin(th);
     e2 <<-sin(th), cos(th);
