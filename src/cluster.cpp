@@ -73,7 +73,20 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   this->kf = kalman_filter;
   this->map_kf = kalman_filter;
 
+  //Unscented Kalman Filter
+  std::vector<double> args{0.001,0,2};
+  //args[0] = 1;//alpha parameter
+  //args[1] = 2;//kappa parameter
+  //args[2] = 1;//beta parameter
+  RobotLocalization::Ukf ukf(args);
 
+
+  Eigen::MatrixXd initialCovar(15, 15);
+  initialCovar.setIdentity();
+  initialCovar *= 0.5;
+  ukf.setEstimateErrorCovariance(initialCovar);
+
+  //EXPECT_EQ(ukf.getFilter().getEstimateErrorCovariance(), initialCovar);
   calcMean(new_points);
   rectangleFitting(new_points);
   old_thetaL1 = thetaL1;
@@ -109,6 +122,51 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
     map_kf.init(0,x0);
 
     //populateTrackingMsgs();
+
+    Eigen::VectorXd measurement(15);
+    measurement[0] = pose_out.pose.position.x;
+    measurement[1] = pose_out.pose.position.y;
+
+    Eigen::MatrixXd measurementCovariance(15, 15);
+    measurementCovariance.setIdentity();
+    for (size_t i = 0; i < 15; ++i)
+    {
+      measurementCovariance(i, i) = 1e-9;
+    }
+
+    std::vector<int> updateVector(15, false);
+    updateVector[0] = true;
+    updateVector[1] = true;
+
+    //// Ensure that measurements are being placed in the queue correctly
+    ros::Time time;
+    time.fromSec(1000);
+    //ukf.enqueueMeasurement("odom0",
+			   //measurement,
+			   //measurementCovariance,
+			   //updateVector,
+			   //std::numeric_limits<double>::max(),
+			   //time);
+
+    MeasurementPtr meas = MeasurementPtr(new Measurement());
+
+    //meas->topicName_ = topicName;
+    meas->measurement_ = measurement;
+    meas->covariance_ = measurementCovariance;
+    meas->updateVector_ = updateVector;
+    meas->time_ = time.toSec();
+    //meas->mahalanobisThresh_ = mahalanobisThresh;
+    //meas->latestControl_ = latestControl_;
+    //meas->latestControlTime_ = latestControlTime_.toSec();
+    ukf.correct(meas)
+    //measurementQueue_.push(meas);
+   
+    //ukf.integrateMeasurements(ros::Time(1001));
+
+    //EXPECT_EQ(ukf.getFilter().getState(), measurement);
+    //EXPECT_EQ(ukf.getFilter().getEstimateErrorCovariance(), measurementCovariance);
+
+    //ukf.getFilter().setEstimateErrorCovariance(initialCovar);
   }
   else{ //If the tf is not possible init all states at 0
     x0 << 0, 0, 0, 0;
@@ -355,10 +413,10 @@ void Cluster::rectangleFitting(const pointList& new_cluster){
   unsigned int i =0;
   double th = 0.0;
   //TODO make d configurable through Rviz
-  unsigned int d = 2000;
+  unsigned int d = 50;
   ArrayX2d Q(d,2);
   float step = (3.14/2)/d;
-  #pragma omp parallel for
+  //#pragma omp parallel for
   for (i = 0; i < d; ++i) {
     e1 << cos(th), sin(th);
     e2 <<-sin(th), cos(th);
