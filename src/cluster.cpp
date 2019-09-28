@@ -451,7 +451,6 @@ void Cluster::rectangleFitting(const pointList& new_cluster){
   dur_size_rectangle_fitting.second = new_cluster.size();
 
 } 
-
 visualization_msgs::Marker Cluster::getBoundingBoxVisualisationMessage() {
 
   visualization_msgs::Marker bb_msg;
@@ -480,7 +479,6 @@ visualization_msgs::Marker Cluster::getBoundingBoxVisualisationMessage() {
 
   return bb_msg;
 }
-
 visualization_msgs::Marker Cluster::getBoxModelVisualisationMessage() {
   
   visualization_msgs::Marker bb_msg;
@@ -747,6 +745,48 @@ nav_msgs::Path Cluster::getTrajectory(){
   if(!moving){return empty_traj;};
   return trajectory_;
 }  
+
+visualization_msgs::Marker Cluster::getPoseCovariance(){
+
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = p_target_frame_name_;
+    marker.header.stamp = ros::Time::now();
+    marker.ns = "covariances";
+    marker.action = visualization_msgs::Marker::ADD;
+    marker.color.a = 1.0;
+    marker.color.g = g;
+    marker.color.b = b;
+    marker.color.r = r;
+    marker.id = this->id;
+
+    marker.pose.position.x = map_kf.state()[0];
+    marker.pose.position.y = map_kf.state()[1];
+    Eigen::Matrix2f covMatrix(2,2);
+    covMatrix << map_kf.P(0),map_kf.P(1),
+                 map_kf.P(6),map_kf.P(7);
+
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix2f> eig(covMatrix);
+
+    const Eigen::Vector2f& eigValues (eig.eigenvalues());
+    const Eigen::Matrix2f& eigVectors (eig.eigenvectors());
+
+    float angle = (atan2(eigVectors(1, 0), eigVectors(0, 0)));
+
+    marker.type = visualization_msgs::Marker::CYLINDER;
+
+    double lengthMajor = sqrt(eigValues[0]);
+    double lengthMinor = sqrt(eigValues[1]);
+
+    marker.scale.x = lengthMajor;
+    marker.scale.y = lengthMinor;
+    marker.scale.z = 0.001;
+
+    marker.pose.orientation.w = cos(angle*0.5);
+    marker.pose.orientation.z = sin(angle*0.5);
+
+    return marker;
+
+  }
 visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
 
   visualization_msgs::Marker arrow_marker;

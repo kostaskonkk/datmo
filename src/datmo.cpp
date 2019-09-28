@@ -25,8 +25,7 @@ Datmo::Datmo(){
   box_tracks_pub = n.advertise<datmo::TrackArray>("box_tracks", 10);
   obs_tracks_pub = n.advertise<datmo::TrackArray>("obs_tracks", 10);
   marker_array_pub = n.advertise<visualization_msgs::MarkerArray>("marker_array", 10);
-  trajectory_pub = n.advertise<nav_msgs::Path>("trajectories", 1000);
-  //tf.waitForTransform(lidar_frame,world_frame, ros::Time(0), ros::Duration(3.0));
+  trajectory_pub = n.advertise<nav_msgs::Path>("trajectories", 20);
   sub_scan = n.subscribe("/scan", 1, &Datmo::callback, this);
 
   if (w_exec_times) {
@@ -141,28 +140,6 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
      
 
 
-  //// Data Association based on the Mahalanobis distance
-  //// I should check first all the distances and then associate based on the closest distance
-
-   //Vector2d zD, vD, xy;
-   //vector<bool> l_matched(l_shapes.size(),false); // The L-Shape has been matched with a filter
-   //vector<bool> f_matched(filters.size(),false);  // The Filter object has been matched with an L-shape
-
-   ////Find the shortest distance
-   ////TODO Augment the shortest distance to include the other states as well
-   //for(unsigned int i=0; i<l_shapes.size();++i){
-     //zD << l_shapes[i][0], l_shapes[i][1];
-
-     //for(unsigned int j=0;j<filters.size();++j){
-       //vD = zD - filters[j].C * filters[j].state();
-       //if( abs(vD(0)) < 0.15 && abs(vD(1)) < 0.15){
-       ////update Kalman Filter
-         //l_matched[i] = true, f_matched[j] = true;
-         //filters[j].update(zD);
-         //xy = filters[j].C*filters[j].state();
-       //}
-     //}
-   //}
  
   // Delete not associated Clusters
   unsigned int o=0;
@@ -220,6 +197,7 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
       marker_array.markers.push_back(clusters[i].getBoxModelVisualisationMessage());
       marker_array.markers.push_back(clusters[i].getClosestCornerPointVisualisationMessage());
       marker_array.markers.push_back(clusters[i].getLShapeVisualisationMessage());
+      marker_array.markers.push_back(clusters[i].getPoseCovariance());
     };
 
     if (w_exec_times){

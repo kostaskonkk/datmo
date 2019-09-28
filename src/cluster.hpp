@@ -16,7 +16,6 @@ using namespace Eigen;
 
 typedef std::pair<double, double> Point;
 typedef std::vector<Point> pointList;
-//#define PI 3.141592653589793238463
 const double pi = 3.141592653589793238463; 
 
 class Cluster {
@@ -43,7 +42,6 @@ public:
   float r, g, b, a; //current color of the cluster
 
   visualization_msgs::Marker getBoundingBoxCenterVisualisationMessage();
-
   visualization_msgs::Marker getClosestCornerPointVisualisationMessage();
   visualization_msgs::Marker getClusterVisualisationMessage();
   visualization_msgs::Marker getLineVisualisationMessage();
@@ -53,6 +51,8 @@ public:
   visualization_msgs::Marker getBoundingBoxVisualisationMessage();
   visualization_msgs::Marker getBoxModelVisualisationMessage();
   visualization_msgs::Marker getLShapeVisualisationMessage();
+  visualization_msgs::Marker getPoseCovariance();
+
   nav_msgs::Path getTrajectory();
 
   pair<int, int> getRectangleFittingExecutionTime(){return dur_size_rectangle_fitting;};
@@ -115,5 +115,4 @@ private:
   Point lineIntersection(double& , double& , double& , double& , double& , double& );
   double perpendicularDistance(const Point&, const Point&, const Point&);
   void ramerDouglasPeucker(const vector<Point>&, double, vector<Point>&);
-
 };
