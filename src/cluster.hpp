@@ -48,6 +48,7 @@ public:
   visualization_msgs::Marker getArrowVisualisationMessage();
   visualization_msgs::Marker getThetaL2VisualisationMessage();
   visualization_msgs::Marker getThetaL1VisualisationMessage();
+  visualization_msgs::Marker getThetaBoxVisualisationMessage();
   visualization_msgs::Marker getBoundingBoxVisualisationMessage();
   visualization_msgs::Marker getBoxModelVisualisationMessage();
   visualization_msgs::Marker getLShapeVisualisationMessage();

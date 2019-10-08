@@ -48,7 +48,6 @@ Datmo::~Datmo(){
   testing.close();
   }
 }
-
 void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
 
 
@@ -192,6 +191,7 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
       marker_array.markers.push_back(clusters[i].getArrowVisualisationMessage());
       marker_array.markers.push_back(clusters[i].getThetaL1VisualisationMessage());
       marker_array.markers.push_back(clusters[i].getThetaL2VisualisationMessage());
+      marker_array.markers.push_back(clusters[i].getThetaBoxVisualisationMessage());
       marker_array.markers.push_back(clusters[i].getClusterVisualisationMessage());
       marker_array.markers.push_back(clusters[i].getBoundingBoxVisualisationMessage());
       marker_array.markers.push_back(clusters[i].getBoxModelVisualisationMessage());
@@ -239,7 +239,6 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
    }
     
 }
-
 void Datmo::visualiseGroupedPoints(const vector<pointList>& groups){
   //Publishing the clusters with different colors
   visualization_msgs::MarkerArray marker_array;
@@ -280,15 +279,12 @@ void Datmo::visualiseGroupedPoints(const vector<pointList>& groups){
   marker_array_pub.publish(marker_array);
 
 }
-
 void Datmo::pubTrajectories(){
   for(unsigned int i = 0; i <clusters.size(); ++i){
     trajectory_pub.publish(clusters[i].getTrajectory());
   }
 }
-
-void Datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<pointList> &clusters)
-{
+void Datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<pointList> &clusters){
   scan = *scan_in;
 
 

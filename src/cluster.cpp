@@ -103,12 +103,11 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
     abs_mean_values.second = pose_out.pose.position.y;
     abs_previous_mean_values = abs_mean_values;
 
-
     //Initialise Kalman filter on Map coordinates
     x0 << pose_out.pose.position.x, pose_out.pose.position.y, 0, 0;
     map_kf.init(0,x0);
 
-    //populateTrackingMsgs();
+    populateTrackingMsgs(tf_listener);
   }
   else{ //If the tf is not possible init all states at 0
     x0 << 0, 0, 0, 0;
@@ -221,7 +220,6 @@ void Cluster::populateTrackingMsgs(const tf::TransformListener& tf_listener){
     pose_source_.header.frame_id = p_source_frame_name_;
     pose_source_.pose.position.x = meanX();
     pose_source_.pose.position.y = meanY();
-    pose_source_.pose.orientation.w = 1; 
 
     geometry_msgs::PoseStamped pose_out;
 
@@ -304,7 +302,6 @@ void Cluster::populateTrackingMsgs(const tf::TransformListener& tf_listener){
     obs_track_msg.width  = L2;
 
 }
-
 double findTurn(double& new_angle, double& old_angle){
   //https://math.stackexchange.com/questions/1366869/calculating-rotation-direction-between-two-angles
   //const double pi = 3.141592653589793238463; 
@@ -353,12 +350,12 @@ void Cluster::rectangleFitting(const pointList& new_cluster){
   VectorXd C1(n),C2(n);
   double q;
   unsigned int i =0;
-  double th = 0.0;
+  th = 0.0;
   //TODO make d configurable through Rviz
-  unsigned int d = 2000;
+  unsigned int d = 60;
   ArrayX2d Q(d,2);
   float step = (3.14/2)/d;
-  #pragma omp parallel for
+  //#pragma omp parallel for
   for (i = 0; i < d; ++i) {
     e1 << cos(th), sin(th);
     e2 <<-sin(th), cos(th);
@@ -656,6 +653,32 @@ double Cluster::closenessCriterion(const VectorXd& C1, const VectorXd& C2, const
  
   return b; 
 }
+visualization_msgs::Marker Cluster::getThetaBoxVisualisationMessage() {
+
+  visualization_msgs::Marker arrow_marker;
+  arrow_marker.type = visualization_msgs::Marker::ARROW;
+  arrow_marker.header.stamp = ros::Time::now();
+  arrow_marker.ns = "thetaBox";
+  arrow_marker.action = visualization_msgs::Marker::ADD;
+  arrow_marker.color.a = 1.0;
+  arrow_marker.color.g = this->g;
+  arrow_marker.color.b = this->b;
+  arrow_marker.color.r = this->g;
+  arrow_marker.id = this->id;
+
+  arrow_marker.header.frame_id = p_source_frame_name_;
+  tf2::Quaternion quat_theta;
+  quat_theta.setRPY(0,0,th);
+  arrow_marker.pose.orientation = tf2::toMsg(quat_theta);
+  arrow_marker.pose.position.x = closest_corner_point.first;
+  arrow_marker.pose.position.y = closest_corner_point.second;
+  arrow_marker.pose.position.z = 0;
+  arrow_marker.scale.x = 0.6;
+  arrow_marker.scale.y = 0.2;  
+  arrow_marker.scale.z = 0.001;  
+ 
+  return arrow_marker;
+}
 visualization_msgs::Marker Cluster::getThetaL1VisualisationMessage() {
 
   visualization_msgs::Marker arrow_marker;
@@ -745,7 +768,6 @@ nav_msgs::Path Cluster::getTrajectory(){
   if(!moving){return empty_traj;};
   return trajectory_;
 }  
-
 visualization_msgs::Marker Cluster::getPoseCovariance(){
 
     visualization_msgs::Marker marker;
