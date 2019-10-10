@@ -1,6 +1,10 @@
  <launch>
 
  <node pkg="datmo" type="datmo" name="datmo" >
+  <param name="lidar_frame" value="laser" />
+  <param name="world_frame" value="map" />
+  <param name="threshold_distance" value="0.2" />
+  <param name="euclidean_distance" value="0.25" />
   <param name="pub_markers" value="true" />
   <param name="pub_vehicles_InBox" value="true" />
   <param name="pub_vehicles_pub" value="true" />
