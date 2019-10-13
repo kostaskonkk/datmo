@@ -12,7 +12,6 @@
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/PoseArray.h>
-#include <nav_msgs/Odometry.h>
 #include <sensor_msgs/LaserScan.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
@@ -34,7 +33,7 @@ typedef std::vector<Point> pointList;
 
 using namespace std;
 // This node segments the point cloud based on the break-point detector algorithm.
-// This alogorithm is based on "L-Shape Model Switching-Based Precise Motion Tracking 
+// This algorithm is based on "L-Shape Model Switching-Based Precise Motion Tracking 
 // of Moving Vehicles Using Laser Scanners.
 class Datmo
 {
@@ -45,11 +44,9 @@ public:
   void callback(const sensor_msgs::LaserScan::ConstPtr &);
   void Clustering(const sensor_msgs::LaserScan::ConstPtr& , vector<pointList> &);
   void visualiseGroupedPoints(const vector<pointList> &);
-  void pubTrajectories();
 
   tf::TransformListener tf_;
 private:
-  ros::Publisher trajectory_pub;  
   ros::Publisher marker_array_pub; 
   ros::Publisher debug_pub;
   ros::Publisher mean_tracks_pub;
@@ -57,9 +54,6 @@ private:
   ros::Publisher box_tracks_pub;
   ros::Publisher obs_tracks_pub;
 
-  //tf::TransformBroadcaster tf_br;
-  //tf::Transform tf_world_base_link;
-  //tf::Listener tf_listener;
   tf::Transformer tf;
 
   ros::Subscriber sub_scan;
@@ -83,16 +77,8 @@ private:
   double dth;
   double euclidean_distance;
   bool p_marker_pub;
-  bool p_vehicles_InBox_pub;
-  bool p_vehicles_pub;
-  bool p_vel_vehicles_pub;
-  bool p_odom_pub;
-  bool p_odom_filtered_pub;
-  bool p_trajectories_pub;
   bool w_exec_times;
   string lidar_frame;
-
-
   string world_frame;
 
 };

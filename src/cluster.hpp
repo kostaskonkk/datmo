@@ -5,7 +5,6 @@
 #include <Eigen/Dense>
 #include <tf/transform_listener.h>
 #include <visualization_msgs/Marker.h>
-#include <nav_msgs/Path.h>
 #include "datmo/Track.h"
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
@@ -23,7 +22,6 @@ public:
 
   Cluster(unsigned long int id, const pointList&, const double&, const tf::TransformListener&, const string&, const string& );
 
-  nav_msgs::Path trajectory_;
 
   string p_target_frame_name_;
   string p_source_frame_name_;
@@ -54,8 +52,6 @@ public:
   visualization_msgs::Marker getLShapeVisualisationMessage();
   visualization_msgs::Marker getPoseCovariance();
 
-  nav_msgs::Path getTrajectory();
-
   pair<int, int> getRectangleFittingExecutionTime(){return dur_size_rectangle_fitting;};
   pair<int, int> dur_size_rectangle_fitting;
 
@@ -82,9 +78,7 @@ public:
   double avx, avy; //for test
 
 private:
-  bool moving; 
 
-  //vector<pointList> clusters;
   pointList new_cluster;
   vector<Point> corner_list;
 
@@ -102,7 +96,6 @@ private:
 
   double vx, vy;
 
-  //NonLinear Observer
   Vector4d x_hat;
   Vector4d x_dot_hat;
   Vector2d y;

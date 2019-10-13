@@ -5,11 +5,11 @@
     <include file="$(find localization)/launch/mocap_localization.launch"/>
 
     <node pkg="rosbag" type="play" name="player" output="screen" args="-r 1 --clock  -l /home/kostas/Dropbox/experiments/7/funny.bag"/>
-    <node pkg="rosbag" type="record" name="recorder" output="screen" args="-O /home/kostas/results/exp.bag /tf /poseupdate /odometry/wheel_imu /odometry/map /mocap_pose /mean_tracks /filtered_tracks /box_tracks /obs_tracks /robot_1 /robot_2" />
+	    <!--<node pkg="rosbag" type="record" name="recorder" output="screen" args="-O /home/kostas/results/exp.bag /tf /poseupdate /odometry/wheel_imu /odometry/map /mocap_pose /tracks/mean /tracks/filtered /tracks/box /tracks/ukf /robot_1 /robot_2" />-->
 
 
     <!--<node type="rviz" name="rviz" pkg="rviz" args="-d $(find datmo)/config/datmo.rviz" />-->
-    <node type="rviz" name="rviz" pkg="rviz" />
+    <!--<node type="rviz" name="rviz" pkg="rviz" />-->
 
    <node pkg="datmo" type="datmo" name="datmo" >
       <param name="write_execution_times" value="true" />
@@ -18,12 +18,6 @@
       <param name="threshold_distance" value="0.2" />
       <param name="euclidean_distance" value="0.25" />
       <param name="pub_markers" value="true" />
-      <param name="pub_vehicles_InBox" value="false" />
-      <param name="pub_vehicles_pub" value="false" />
-      <param name="pub_vel_vehicles_pub" value="false" />
-      <param name="pub_odom_pub" value="false" />
-      <param name="pub_odom_filtered_pub" value="false" />
-      <param name="pub_trajectories" value="false" />
    </node>
 
 </launch>

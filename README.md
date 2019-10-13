@@ -58,11 +58,6 @@ The `datmo/TrackArray` message is just a vector that can contain multiple datmo/
 * "threshold_distance" ("double", default: "0.2") - This value sets the distance that is used by the clustering algorithm
 * "euclidean_distance" ("double", default: "0.25") - This value sets the distance that is used by the euclidean distasnce data association algorithm
 * "pub_markers" ("bool", default: "false") - publish of the the vizualization markers
-* "pub_vehicles_InBox" ("bool", default: "false")
-* "pub_vehicles_pub" ("bool", default: "false")
-* "pub_vel_vehicles_pub" ("bool", default: "false")
-* "pub_odom_pub" ("bool", default: "false")
-* "pub_odom_filtered_pub" ("bool", default: "false")
 
 # TODO
 

@@ -35,7 +35,6 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   this->g = rand() / double(RAND_MAX);
   this->b = rand() / double(RAND_MAX);
   a = 1.0;
-  this->moving = true; //all clusters at the beginning are initialised as moving
   age = 1;
   red_flag = false;
   green_flag = false;
@@ -179,40 +178,6 @@ void Cluster::update(const pointList& new_points, const double dt_in, const tf::
   old_thetaL1 = thetaL1;
   old_thetaL2 = thetaL2;
 }
-void Cluster::nonLinearObserver(const double& x_pos, const double& y_pos){
-
-  MatrixXd C(2,4);
-  MatrixXd L(4,2);
-
-  C << 1, 0, 0, 0,
-       0, 1, 0, 0;
-
-  L <<   3.6424 * pow(10,10),  -2.4514 * pow(10,10),
-    	-2.3595 * pow(10,10),   1.8521 * pow(10,10),
-        -0.0161             ,   0.0080,
-         7.5147 * pow(10,8) ,  -7.7519 * pow(10,8);
-
-  y(0) = cx;
-  y(1) = cy;
-
-  double length;
-  if(L1>L2){
-    length = L1;}
-  else{
-    length = L2;}
-  //x_dot_hat = L * (y - C * x_hat);
-
-
-  double psi = x_hat(3);
-  double v   = x_hat(2);
-  x_dot_hat(0) = x_dot_hat(0) + v * cos(psi);
-  x_dot_hat(1) = x_dot_hat(1) + v * sin(psi);
-  //x_dot_hat(2) = x_dot_hat(2) + v / length;
-  x_dot_hat(2) = x_dot_hat(2) + 0;
-  x_dot_hat(3) = x_dot_hat(3) + 0;
-  x_hat = x_dot_hat * dt;
-
-}
 void Cluster::populateTrackingMsgs(const tf::TransformListener& tf_listener){
 
     pose_source_.header.stamp = ros::Time(0);
@@ -228,10 +193,6 @@ void Cluster::populateTrackingMsgs(const tf::TransformListener& tf_listener){
     abs_mean_values.first = pose_out.pose.position.x;
     abs_mean_values.second = pose_out.pose.position.y;
 
-    trajectory_.header.stamp = pose_out.header.stamp;
-    trajectory_.header.frame_id = pose_out.header.frame_id;
-    trajectory_.poses.push_back(pose_out);
-    
     mean_track_msg.id = this->id;
     mean_track_msg.odom.header.stamp = pose_out.header.stamp;
     mean_track_msg.odom.header.frame_id = pose_out.header.frame_id;
@@ -289,7 +250,6 @@ void Cluster::populateTrackingMsgs(const tf::TransformListener& tf_listener){
     boxcenter_marker.points.push_back(p);
     boxcenter_marker_ = boxcenter_marker;
 
-    nonLinearObserver(pose_box_center.pose.position.x, pose_box_center.pose.position.y); 
     obs_track_msg.id = this->id;
     obs_track_msg.odom.header.stamp = ros::Time::now();
     obs_track_msg.odom.header.frame_id = p_target_frame_name_;
@@ -479,7 +439,6 @@ visualization_msgs::Marker Cluster::getBoundingBoxVisualisationMessage() {
 visualization_msgs::Marker Cluster::getBoxModelVisualisationMessage() {
   
   visualization_msgs::Marker bb_msg;
-  //if(!moving){return bb_msg;};//cluster not moving-empty msg
 
   bb_msg.header.stamp = ros::Time::now();
   bb_msg.header.frame_id  = p_source_frame_name_;
@@ -545,7 +504,6 @@ visualization_msgs::Marker Cluster::getBoxModelVisualisationMessage() {
 visualization_msgs::Marker Cluster::getLShapeVisualisationMessage() {
 
   visualization_msgs::Marker l1l2_msg;
-  //if(!moving){return l1l2_msg;};//cluster not moving-empty msg
 
   l1l2_msg.header.stamp = ros::Time::now();
   l1l2_msg.header.frame_id  = p_source_frame_name_;
@@ -763,11 +721,7 @@ visualization_msgs::Marker Cluster::getThetaL2VisualisationMessage() {
   arrow_marker.scale.z = 0.01;  
   return arrow_marker;
 }
-nav_msgs::Path Cluster::getTrajectory(){
-  nav_msgs::Path empty_traj;
-  if(!moving){return empty_traj;};
-  return trajectory_;
-}  
+
 visualization_msgs::Marker Cluster::getPoseCovariance(){
 
     visualization_msgs::Marker marker;
@@ -924,7 +878,6 @@ visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
 }
 visualization_msgs::Marker Cluster::getClusterVisualisationMessage() {
   visualization_msgs::Marker cluster_vmsg;
-  if(!moving){return cluster_vmsg;};//cluster not moving-empty msg
   cluster_vmsg.header.frame_id  = p_source_frame_name_;
   cluster_vmsg.header.stamp = ros::Time::now();
   cluster_vmsg.ns = "clusters";
@@ -957,7 +910,6 @@ visualization_msgs::Marker Cluster::getLineVisualisationMessage() {
 
   visualization_msgs::Marker line_msg;
 
-  if(!moving){return line_msg;};//cluster not moving-empty msg
 
   line_msg.header.stamp = ros::Time::now();
   line_msg.header.frame_id  = p_source_frame_name_;
@@ -990,11 +942,9 @@ visualization_msgs::Marker Cluster::getLineVisualisationMessage() {
     line_msg.points.push_back(p);
   }
   double l;
-  if(pointListOut.size()>3){moving=false;};
   if(pointListOut.size()==1){
   for(unsigned int k=0; k<pointListOut.size()-1;++k){
     l = sqrt(pow(pointListOut[k+1].first - pointListOut[k].first,2) + pow(pointListOut[k+1].second - pointListOut[k].second,2));
-    if(l>0.8){moving = false;};
   }
   }
   return line_msg;

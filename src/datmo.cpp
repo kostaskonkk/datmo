@@ -7,25 +7,17 @@ Datmo::Datmo(){
 
   n_private.param("lidar_frame", lidar_frame, string("laser"));
   n_private.param("world_frame", world_frame, string("map"));
-
   n_private.param("threshold_distance", dth, 0.2);
   n_private.param("euclidean_distance", euclidean_distance, 0.25);
   n_private.param("pub_markers", p_marker_pub, false);
-  n_private.param("pub_vehicles_InBox", p_vehicles_InBox_pub, false);
-  n_private.param("pub_vehicles_pub", p_vehicles_pub, false);
-  n_private.param("pub_vel_vehicles_pub", p_vel_vehicles_pub, false);
-  n_private.param("pub_odom_pub", p_odom_pub, false);
-  n_private.param("pub_odom_filtered_pub", p_odom_filtered_pub, false);
-  n_private.param("pub_trajectories", p_trajectories_pub, false);
   n_private.param("write_execution_times", w_exec_times, false);
 
 
-  mean_tracks_pub = n.advertise<datmo::TrackArray>("mean_tracks", 10);
-  filtered_tracks_pub = n.advertise<datmo::TrackArray>("filtered_tracks", 10);
-  box_tracks_pub = n.advertise<datmo::TrackArray>("box_tracks", 10);
-  obs_tracks_pub = n.advertise<datmo::TrackArray>("obs_tracks", 10);
+  mean_tracks_pub = n.advertise<datmo::TrackArray>("tracks/mean", 10);
+  filtered_tracks_pub = n.advertise<datmo::TrackArray>("tracks/filtered", 10);
+  box_tracks_pub = n.advertise<datmo::TrackArray>("tracks/box", 10);
+  obs_tracks_pub = n.advertise<datmo::TrackArray>("tracks/ukf", 10);
   marker_array_pub = n.advertise<visualization_msgs::MarkerArray>("marker_array", 10);
-  trajectory_pub = n.advertise<nav_msgs::Path>("trajectories", 20);
   sub_scan = n.subscribe("/scan", 1, &Datmo::callback, this);
 
   if (w_exec_times) {
@@ -175,18 +167,12 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
   datmo::TrackArray obs_track_array; 
   for (unsigned int i =0; i<clusters.size();i++){
 
-    //ROS_INFO_STREAM("avx="<<clusters[i].avx<<"avy="<<clusters[i].avy); 
     mean_track_array.tracks.push_back(clusters[i].mean_track_msg);
     filtered_track_array.tracks.push_back(clusters[i].filtered_track_msg);
     box_track_array.tracks.push_back(clusters[i].box_track_msg);
     obs_track_array.tracks.push_back(clusters[i].obs_track_msg);
-    //if (p_vehicles_InBox_pub){pubPosesArrayVehiclesInsideBox(1);};
-    //if (p_vehicles_pub){pubPosesArrayVehicles();};
-    //if (p_vel_vehicles_pub){pubVelArrayVehicles();};
-    //if (p_trajectories_pub){pubTrajectories();};
    
     if (p_marker_pub){
-      //marker_array.markers.push_back(clusters[i].getLineVisualisationMessage());
       marker_array.markers.push_back(clusters[i].getBoundingBoxCenterVisualisationMessage());
       marker_array.markers.push_back(clusters[i].getArrowVisualisationMessage());
       marker_array.markers.push_back(clusters[i].getThetaL1VisualisationMessage());
@@ -279,11 +265,7 @@ void Datmo::visualiseGroupedPoints(const vector<pointList>& groups){
   marker_array_pub.publish(marker_array);
 
 }
-void Datmo::pubTrajectories(){
-  for(unsigned int i = 0; i <clusters.size(); ++i){
-    trajectory_pub.publish(clusters[i].getTrajectory());
-  }
-}
+
 void Datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<pointList> &clusters){
   scan = *scan_in;
 
