@@ -1,3 +1,5 @@
+Detection and Tracking of Moving Objects with 2D LIDAR
+========================================
 # Overview 
 Detection and Tracking of Moving Objects using `sensor_msgs/LaserScan`. This node can be used to detect and track objects or it can be used solely for its data clustering, data association and rectangle fitting functions. The workflow of this package is inspired by the one presented in Kim et al., 2018 [1]. 
 
