@@ -20,24 +20,18 @@ const double pi = 3.141592653589793238463;
 class Cluster {
 public:
 
-  Cluster(unsigned long int id, const pointList&, const double&, const tf::TransformListener&, const string&, const string& );
+  Cluster(unsigned long int id, const pointList&, const double&, const string&);
 
 
-  string p_target_frame_name_;
-  string p_source_frame_name_;
+  string frame_name;
 
-  datmo::Track mean_track_msg;
-  datmo::Track filtered_track_msg;
-  datmo::Track box_track_msg;
-  datmo::Track obs_track_msg;
-
-  // Poses used for transformation to target_frame.
-  geometry_msgs::PoseStamped pose_source_;
+  datmo::Track msg_track_mean;
+  datmo::Track msg_track_mean_kf;
+  datmo::Track msg_track_box;
 
   unsigned long int id; //identifier for the cluster 
   unsigned long int age; //age of the cluster 
-
-  float r, g, b, a; //current color of the cluster
+  float r, g, b, a; //color of the cluster
 
   visualization_msgs::Marker getBoundingBoxCenterVisualisationMessage();
   visualization_msgs::Marker getClosestCornerPointVisualisationMessage();
@@ -55,27 +49,22 @@ public:
   pair<int, int> getRectangleFittingExecutionTime(){return dur_size_rectangle_fitting;};
   pair<int, int> dur_size_rectangle_fitting;
 
-  void update(const pointList& , const double, const tf::TransformListener& );
-  void populateTrackingMsgs(const tf::TransformListener& );
+  void update(const pointList&, const double dt_in);
+  void populateTrackingMsgs();
   void detectCornerPointSwitch();
   void detectCornerPointSwitch(double& from, double& to);
-  void nonLinearObserver(const double& x, const double& y);
   bool red_flag, green_flag, blue_flag;
-  //visualization_msgs::Marker switch_msg;
 
   std::pair<double, double> mean() { return mean_values; }; //Return mean of cluster.
 
   double meanX() { return mean_values.first; };
   double meanY() { return mean_values.second;};
 
-  LShapeTracker tracker; 
-  KalmanFilter kf;
-  KalmanFilter map_kf;
+  LShapeTracker l_shape; 
+  KalmanFilter kf_mean;
   double old_thetaL1, old_thetaL2;
   double L1, L2, thetaL1, thetaL2;
   double cx, cy, L1_box, L2_box, th; 
-  double detection_angle;
-  double avx, avy; //for test
 
 private:
 
@@ -87,18 +76,10 @@ private:
   // mean value of the cluster
   std::pair<double, double> mean_values;
   std::pair<double, double> previous_mean_values;
-  std::pair<double, double> abs_mean_values;
-  std::pair<double, double> abs_previous_mean_values;
 
   Point closest_corner_point;
   
   double dt; // Discrete time step
-
-  double vx, vy;
-
-  Vector4d x_hat;
-  Vector4d x_dot_hat;
-  Vector2d y;
 
   
   visualization_msgs::Marker boxcenter_marker_;

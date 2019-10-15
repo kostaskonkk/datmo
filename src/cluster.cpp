@@ -28,7 +28,7 @@ static inline double shortest_angular_distance(double from, double to){
   return normalize_angle(to-from);
 }
 
-Cluster::Cluster(unsigned long int id, const pointList& new_points, const double& dt, const tf::TransformListener& tf_listener, const string& source_frame,const string& target_frame){
+Cluster::Cluster(unsigned long int id, const pointList& new_points, const double& dt, const string& world_frame){
 
   this->id = id;
   this->r = rand() / double(RAND_MAX);
@@ -39,14 +39,13 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   red_flag = false;
   green_flag = false;
   blue_flag = false;
-  p_source_frame_name_ = source_frame;
-  p_target_frame_name_ = target_frame;
+  frame_name = world_frame;
 
   new_cluster = new_points;
 
   // Initialization of Kalman Filter
   int n = 4; // Number of states
-  int m = 4; // Number of measurements
+  int m = 2; // Number of measurements
   // double dt = 0.1;  // Time step
   MatrixXd A(n, n); // System dynamics matrix
   MatrixXd C(m, n); // Output matrix
@@ -60,67 +59,35 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
        0, 0, 0, 1;
 
   C << 1, 0, 0, 0,
-       0, 1, 0, 0,
-       0, 0, 1, 0,
-       0, 0, 0, 1;
+       0, 1, 0, 0;
 
   Q.setIdentity();
   R.setIdentity();
   P.setIdentity();
 
   KalmanFilter kalman_filter(dt, A, C, Q, R, P); // Constructor for the filter
-  this->kf = kalman_filter;
-  this->map_kf = kalman_filter;
-
+  this->kf_mean = kalman_filter;
 
   calcMean(new_points);
   rectangleFitting(new_points);
   old_thetaL1 = thetaL1;
   old_thetaL2 = thetaL2;
   //initialise thetaL1 in range [0,2pi]
-  LShapeTracker tr(closest_corner_point, L1, L2, normalize_angle(thetaL1), dt);
-  tracker = tr;
+  LShapeTracker l_shape_tracker(closest_corner_point, L1, L2, normalize_angle(thetaL1), dt);
+  l_shape = l_shape_tracker;
 
   VectorXd x0(n);
   x0 << Cluster::meanX(), Cluster::meanY(), 0, 0;
-  kf.init(0,x0);
+  kf_mean.init(0,x0);
 
-  if(tf_listener.canTransform(p_target_frame_name_, p_source_frame_name_, ros::Time())){
-
-    pose_source_.header.stamp = ros::Time(0);
-    pose_source_.pose.orientation.w = 1.0;
-    pose_source_.header.frame_id = p_source_frame_name_;
-    pose_source_.pose.position.x = meanX();
-    pose_source_.pose.position.y = meanY();
-    pose_source_.pose.orientation.w = 1; 
-
-    geometry_msgs::PoseStamped pose_out;
-
-    tf_listener.transformPose(p_target_frame_name_, pose_source_, pose_out);
-
-    abs_mean_values.first = pose_out.pose.position.x;
-    abs_mean_values.second = pose_out.pose.position.y;
-    abs_previous_mean_values = abs_mean_values;
-
-    //Initialise Kalman filter on Map coordinates
-    x0 << pose_out.pose.position.x, pose_out.pose.position.y, 0, 0;
-    map_kf.init(0,x0);
-
-    populateTrackingMsgs(tf_listener);
-  }
-  else{ //If the tf is not possible init all states at 0
-    x0 << 0, 0, 0, 0;
-    map_kf.init(0,x0);
-    ROS_WARN_STREAM("No transform could be found between "<<p_source_frame_name_<<" and "<<p_target_frame_name_);
-  };
+  populateTrackingMsgs();
 
 }
 
-void Cluster::update(const pointList& new_points, const double dt_in, const tf::TransformListener& tf_listener) {
+void Cluster::update(const pointList& new_points, const double dt_in) {
 
   age++;
   previous_mean_values = mean_values;
-  abs_previous_mean_values = abs_mean_values;
   new_cluster = new_points;
 
   calcMean(new_points);
@@ -128,138 +95,56 @@ void Cluster::update(const pointList& new_points, const double dt_in, const tf::
 
   detectCornerPointSwitch(old_thetaL1, thetaL1);
   
-  double norm = normalize_angle(tracker.shape.state()(2));
+  double norm = normalize_angle(l_shape.shape.state()(2));
   double distance = shortest_angular_distance(norm, thetaL1);
-  double unwrapped_thetaL1 = distance + tracker.shape.state()(2) ;
-  //ROS_INFO_STREAM("state"<<tracker.shape.state()(2)<<"L1theta"<<thetaL1<<"norm"<<norm<<"distance"<<distance<<"wrap"<<wrap<<"unwrapped"<<unwrapped_thetaL1);
+  double unwrapped_thetaL1 = distance + l_shape.shape.state()(2) ;
+  //ROS_INFO_STREAM("state"<<l_shape.shape.state()(2)<<"L1theta"<<thetaL1<<"norm"<<norm<<"distance"<<distance<<"wrap"<<wrap<<"unwrapped"<<unwrapped_thetaL1);
   
-  tracker.update(closest_corner_point, L1, L2, unwrapped_thetaL1, dt_in);
-  tracker.lshapeToBoxModelConversion(cx, cy, L1_box, L2_box, th);
+  l_shape.update(closest_corner_point, L1, L2, unwrapped_thetaL1, dt_in);
+  l_shape.lshapeToBoxModelConversion(cx, cy, L1_box, L2_box, th);
   this->dt = dt_in;
 
   // Update Kalman Filter
-  VectorXd y(4);
-  double vx, vy;
-  vx = (mean_values.first - previous_mean_values.first)/dt;
-  vy = (mean_values.second - previous_mean_values.second)/dt;
+  VectorXd y(2);
 
-  y << meanX(), meanY(), vx, vy;
-  kf.update(y, dt);
+  y << meanX(), meanY();
+  kf_mean.update(y, dt);
 
-  if(tf_listener.canTransform(p_target_frame_name_, p_source_frame_name_, ros::Time())){
+  populateTrackingMsgs();
 
-    pose_source_.header.stamp = ros::Time(0);
-    pose_source_.pose.orientation.w = 1.0;
-    pose_source_.header.frame_id = p_source_frame_name_;
-    pose_source_.pose.position.x = meanX();
-    pose_source_.pose.position.y = meanY();
-    pose_source_.pose.orientation.w = 1; 
-
-    geometry_msgs::PoseStamped pose_out;
-
-    tf_listener.transformPose(p_target_frame_name_, pose_source_, pose_out);
-
-    abs_mean_values.first = pose_out.pose.position.x;
-    abs_mean_values.second = pose_out.pose.position.y;
-
-    //Update Kalman filter on Map coordinates
-    //double avx, avy;
-    avx = (abs_mean_values.first - abs_previous_mean_values.first)/dt;
-    avy = (abs_mean_values.second - abs_previous_mean_values.second)/dt;
-    y << pose_out.pose.position.x, pose_out.pose.position.y, avx, avy;
-    map_kf.update(y, dt);
-
-    populateTrackingMsgs(tf_listener);
-  } 
-  else{
-    ROS_WARN_STREAM("No transform could be found between "<<p_source_frame_name_<<" and "<<p_target_frame_name_);
-  };
   //TODO Dynamic Static Classifier
   old_thetaL1 = thetaL1;
   old_thetaL2 = thetaL2;
 }
-void Cluster::populateTrackingMsgs(const tf::TransformListener& tf_listener){
+void Cluster::populateTrackingMsgs(){
 
-    pose_source_.header.stamp = ros::Time(0);
-    pose_source_.pose.orientation.w = 1.0;
-    pose_source_.header.frame_id = p_source_frame_name_;
-    pose_source_.pose.position.x = meanX();
-    pose_source_.pose.position.y = meanY();
-
-    geometry_msgs::PoseStamped pose_out;
-
-    tf_listener.transformPose(p_target_frame_name_, pose_source_, pose_out);
-
-    abs_mean_values.first = pose_out.pose.position.x;
-    abs_mean_values.second = pose_out.pose.position.y;
-
-    mean_track_msg.id = this->id;
-    mean_track_msg.odom.header.stamp = pose_out.header.stamp;
-    mean_track_msg.odom.header.frame_id = pose_out.header.frame_id;
-    mean_track_msg.odom.pose.pose = pose_out.pose;
+    msg_track_mean.id = this->id;
+    msg_track_mean.odom.header.stamp = ros::Time(0);
+    msg_track_mean.odom.header.frame_id = frame_name;
+    msg_track_mean.odom.pose.pose.position.x = meanX();
+    msg_track_mean.odom.pose.pose.position.y = meanY();
 
     //Populate filtered track msg
-    filtered_track_msg.id = this->id;
-    filtered_track_msg.odom.header.stamp = ros::Time::now();
-    filtered_track_msg.odom.header.frame_id = p_target_frame_name_;
-    filtered_track_msg.odom.pose.pose.position.x = map_kf.state()[0];
-    filtered_track_msg.odom.pose.pose.position.y = map_kf.state()[1];
-    filtered_track_msg.odom.twist.twist.linear.x = map_kf.state()[2];
-    filtered_track_msg.odom.twist.twist.linear.y = map_kf.state()[3];
-    //Covariances
-    filtered_track_msg.odom.pose.covariance[0] = map_kf.P(0,0);
-    filtered_track_msg.odom.pose.covariance[7] = map_kf.P(1,1);
-    filtered_track_msg.odom.twist.covariance[0] = map_kf.P(2,2);
-    filtered_track_msg.odom.twist.covariance[7] = map_kf.P(3,3);
+    msg_track_mean_kf.id = this->id;
+    msg_track_mean_kf.odom.header.stamp = ros::Time::now();
+    msg_track_mean_kf.odom.header.frame_id = frame_name;
+    msg_track_mean_kf.odom.pose.pose.position.x = kf_mean.state()[0];
+    msg_track_mean_kf.odom.pose.pose.position.y = kf_mean.state()[1];
+    msg_track_mean_kf.odom.twist.twist.linear.x = kf_mean.state()[2];
+    msg_track_mean_kf.odom.twist.twist.linear.y = kf_mean.state()[3];
+    msg_track_mean_kf.odom.pose.covariance[0] = kf_mean.P(0,0);
+    msg_track_mean_kf.odom.pose.covariance[7] = kf_mean.P(1,1);
+    msg_track_mean_kf.odom.twist.covariance[0]= kf_mean.P(2,2);
+    msg_track_mean_kf.odom.twist.covariance[7]= kf_mean.P(3,3);
 
-    pose_source_.pose.position.x = cx;
-    pose_source_.pose.position.y = cy;
-    geometry_msgs::PoseStamped pose_box_center;
-
-    tf_listener.transformPose(p_target_frame_name_, pose_source_, pose_box_center);
-
-    box_track_msg.id = this->id;
-    box_track_msg.odom.header.stamp = ros::Time::now();
-    box_track_msg.odom.header.frame_id = p_target_frame_name_;
-    box_track_msg.odom.pose.pose.position.x = pose_box_center.pose.position.x;
-    box_track_msg.odom.pose.pose.position.y = pose_box_center.pose.position.y;
-    box_track_msg.odom.pose.pose.orientation.z = thetaL1;
-    box_track_msg.length = L1;
-    box_track_msg.width  = L2;
-    //ROS_INFO_STREAM("L1: "<<L1<<"box_msg_L1: "<<box_track_msg.length);
-
-    visualization_msgs::Marker boxcenter_marker;
-    boxcenter_marker.type = visualization_msgs::Marker::POINTS;
-    boxcenter_marker.header.frame_id = p_target_frame_name_;
-    boxcenter_marker.header.stamp = ros::Time::now();
-    boxcenter_marker.ns = "bounding_box_center";
-    boxcenter_marker.action = visualization_msgs::Marker::ADD;
-    boxcenter_marker.pose.orientation.w = 1.0;    
-    boxcenter_marker.scale.x = 0.7;
-    boxcenter_marker.scale.y = 0.7;  
-    boxcenter_marker.color.a = 1.0;
-    boxcenter_marker.color.g = 1;
-    boxcenter_marker.color.b = 0;
-    boxcenter_marker.color.r = 0;
-    boxcenter_marker.id = this->id;
-    
-    geometry_msgs::Point p;
-    p.x = pose_box_center.pose.position.x; 
-    p.y = pose_box_center.pose.position.y;
-    //boxcenter_marker.points[0] = p;
-    boxcenter_marker.points.push_back(p);
-    boxcenter_marker_ = boxcenter_marker;
-
-    obs_track_msg.id = this->id;
-    obs_track_msg.odom.header.stamp = ros::Time::now();
-    obs_track_msg.odom.header.frame_id = p_target_frame_name_;
-    obs_track_msg.odom.pose.pose.position.x = x_hat(0);
-    obs_track_msg.odom.pose.pose.position.y = x_hat(1);
-    obs_track_msg.odom.twist.twist.linear.x = x_dot_hat(0);
-    obs_track_msg.odom.twist.twist.linear.y = x_dot_hat(1);
-    obs_track_msg.odom.pose.pose.orientation.z = x_hat(3); // I should translate it
-    obs_track_msg.length = L1;
-    obs_track_msg.width  = L2;
+    msg_track_box.id = this->id;
+    msg_track_box.odom.header.stamp = ros::Time::now();
+    msg_track_box.odom.header.frame_id = frame_name;
+    msg_track_box.odom.pose.pose.position.x = cx;
+    msg_track_box.odom.pose.pose.position.y = cy;
+    msg_track_box.odom.pose.pose.orientation.z = thetaL1;
+    msg_track_box.length = L1;
+    msg_track_box.width  = L2;
 
 }
 double findTurn(double& new_angle, double& old_angle){
@@ -284,14 +169,14 @@ void Cluster::detectCornerPointSwitch(double& from, double& to){
   double turn = findTurn(from, to);
     //blue_flag = true;
     if(turn <-0.6){
-      tracker.CounterClockwisePointSwitch();
+      l_shape.CounterClockwisePointSwitch();
       //red_flag = true;
     }
     else if(turn > 0.6){
-      tracker.ClockwisePointSwitch();
+      l_shape.ClockwisePointSwitch();
       //green_flag= true;
     }
-    //ROS_INFO_STREAM("state - L1)"<<findTurn( tracker.shape.state()(2), thetaL1));
+    //ROS_INFO_STREAM("state - L1)"<<findTurn( l_shape.shape.state()(2), thetaL1));
     //a = 0;
 
 }
@@ -412,7 +297,7 @@ visualization_msgs::Marker Cluster::getBoundingBoxVisualisationMessage() {
 
   visualization_msgs::Marker bb_msg;
   bb_msg.header.stamp = ros::Time::now();
-  bb_msg.header.frame_id  = p_source_frame_name_;
+  bb_msg.header.frame_id  = frame_name;
   bb_msg.ns = "boundind_boxes";
   bb_msg.action = visualization_msgs::Marker::ADD;
   bb_msg.pose.orientation.w = 1.0;
@@ -441,7 +326,7 @@ visualization_msgs::Marker Cluster::getBoxModelVisualisationMessage() {
   visualization_msgs::Marker bb_msg;
 
   bb_msg.header.stamp = ros::Time::now();
-  bb_msg.header.frame_id  = p_source_frame_name_;
+  bb_msg.header.frame_id  = frame_name;
   bb_msg.ns = "box_models";
   bb_msg.action = visualization_msgs::Marker::ADD;
   bb_msg.pose.orientation.w = 1.0;
@@ -506,7 +391,7 @@ visualization_msgs::Marker Cluster::getLShapeVisualisationMessage() {
   visualization_msgs::Marker l1l2_msg;
 
   l1l2_msg.header.stamp = ros::Time::now();
-  l1l2_msg.header.frame_id  = p_source_frame_name_;
+  l1l2_msg.header.frame_id  = frame_name;
   l1l2_msg.ns = "L-Shapes";
   l1l2_msg.action = visualization_msgs::Marker::ADD;
   l1l2_msg.pose.orientation.w = 1.0;
@@ -624,7 +509,7 @@ visualization_msgs::Marker Cluster::getThetaBoxVisualisationMessage() {
   arrow_marker.color.r = this->g;
   arrow_marker.id = this->id;
 
-  arrow_marker.header.frame_id = p_source_frame_name_;
+  arrow_marker.header.frame_id = frame_name;
   tf2::Quaternion quat_theta;
   quat_theta.setRPY(0,0,th);
   arrow_marker.pose.orientation = tf2::toMsg(quat_theta);
@@ -666,7 +551,7 @@ visualization_msgs::Marker Cluster::getThetaL1VisualisationMessage() {
     //arrow_marker.color.b = 0;
     //arrow_marker.color.r = 1;}
 
-  arrow_marker.header.frame_id = p_source_frame_name_;
+  arrow_marker.header.frame_id = frame_name;
   tf2::Quaternion quat_theta;
   quat_theta.setRPY(0,0,thetaL1);
   arrow_marker.pose.orientation = tf2::toMsg(quat_theta);
@@ -683,7 +568,7 @@ visualization_msgs::Marker Cluster::getThetaL2VisualisationMessage() {
 
   visualization_msgs::Marker arrow_marker;
   arrow_marker.type = visualization_msgs::Marker::ARROW;
-  //arrow_marker.header.frame_id = p_target_frame_name_;
+  //arrow_marker.header.frame_id = frame_name;
   arrow_marker.header.stamp = ros::Time::now();
   arrow_marker.ns = "thetaL2";
   arrow_marker.action = visualization_msgs::Marker::ADD;
@@ -709,7 +594,7 @@ visualization_msgs::Marker Cluster::getThetaL2VisualisationMessage() {
     //arrow_marker.color.b = 0;
     //arrow_marker.color.r = 1;}
 
-  arrow_marker.header.frame_id = p_source_frame_name_;
+  arrow_marker.header.frame_id = frame_name;
   tf2::Quaternion quat_theta;
   quat_theta.setRPY(0,0,thetaL2);
   //quat_theta.normalize();
@@ -725,7 +610,7 @@ visualization_msgs::Marker Cluster::getThetaL2VisualisationMessage() {
 visualization_msgs::Marker Cluster::getPoseCovariance(){
 
     visualization_msgs::Marker marker;
-    marker.header.frame_id = p_target_frame_name_;
+    marker.header.frame_id = frame_name;
     marker.header.stamp = ros::Time::now();
     marker.ns = "covariances";
     marker.action = visualization_msgs::Marker::ADD;
@@ -735,11 +620,11 @@ visualization_msgs::Marker Cluster::getPoseCovariance(){
     marker.color.r = r;
     marker.id = this->id;
 
-    marker.pose.position.x = map_kf.state()[0];
-    marker.pose.position.y = map_kf.state()[1];
+    marker.pose.position.x = kf_mean.state()[0];
+    marker.pose.position.y = kf_mean.state()[1];
     Eigen::Matrix2f covMatrix(2,2);
-    covMatrix << map_kf.P(0),map_kf.P(1),
-                 map_kf.P(6),map_kf.P(7);
+    covMatrix << kf_mean.P(0),kf_mean.P(1),
+                 kf_mean.P(6),kf_mean.P(7);
 
     Eigen::SelfAdjointEigenSolver<Eigen::Matrix2f> eig(covMatrix);
 
@@ -767,8 +652,8 @@ visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
 
   visualization_msgs::Marker arrow_marker;
   arrow_marker.type = visualization_msgs::Marker::ARROW;
-  //arrow_marker.header.frame_id = p_target_frame_name_;
-  arrow_marker.header.frame_id = p_source_frame_name_;
+  //arrow_marker.header.frame_id = frame_name;
+  arrow_marker.header.frame_id = frame_name;
   arrow_marker.header.stamp = ros::Time::now();
   arrow_marker.ns = "velocities";
   arrow_marker.action = visualization_msgs::Marker::ADD;
@@ -791,8 +676,8 @@ visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
   p.z = 0;
   arrow_marker.points.push_back(p);
 
-  p.x = cx+ map_kf.state()[2]; 
-  p.y = cy+ map_kf.state()[3]; 
+  p.x = cx+ kf_mean.state()[2]; 
+  p.y = cy+ kf_mean.state()[3]; 
   p.z = 0;
   arrow_marker.points.push_back(p);
   return arrow_marker;
@@ -801,7 +686,7 @@ visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
 
   visualization_msgs::Marker corner_msg;
   corner_msg.type = visualization_msgs::Marker::POINTS;
-  corner_msg.header.frame_id = p_source_frame_name_;
+  corner_msg.header.frame_id = frame_name;
   corner_msg.header.stamp = ros::Time::now();
   corner_msg.ns = "closest_corner";
   corner_msg.action = visualization_msgs::Marker::ADD;
@@ -824,61 +709,32 @@ visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
 }
  visualization_msgs::Marker Cluster::getBoundingBoxCenterVisualisationMessage() {
 
+    visualization_msgs::Marker boxcenter_marker;
+    boxcenter_marker.type = visualization_msgs::Marker::POINTS;
+    boxcenter_marker.header.frame_id = frame_name;
+    boxcenter_marker.header.stamp = ros::Time::now();
+    boxcenter_marker.ns = "bounding_box_center";
+    boxcenter_marker.action = visualization_msgs::Marker::ADD;
+    boxcenter_marker.pose.orientation.w = 1.0;    
+    boxcenter_marker.scale.x = 0.1;
+    boxcenter_marker.scale.y = 0.1;  
+    boxcenter_marker.color.a = 1.0;
+    boxcenter_marker.color.r = 0;
+    boxcenter_marker.color.g = 1;
+    boxcenter_marker.color.b = 0;
+    boxcenter_marker.id = this->id;
+    
+    geometry_msgs::Point p;
+    p.x = cx; 
+    p.y = cy;
+    boxcenter_marker.points.push_back(p);
 
-  return boxcenter_marker_;
-
-  //Vector4d new_dynamic_states = tracker.dynamic.state();
-  //Vector3d new_shape_states = tracker.shape.state();
-
-  ////Clockwise Point Switching
-  //geometry_msgs::Point p;
-  //p.x = tracker.dynamic.state()(0); 
-  //p.y = tracker.dynamic.state()(1); 
-  //fcorner_marker.points.push_back(p);
-  //for (unsigned int i = 0; i < 4; ++i) {
-    //tracker.CounterClockwisePointSwitch();
-    //p.x = tracker.dynamic.state()(0); 
-    //p.y = tracker.dynamic.state()(1); 
-    //fcorner_marker.points.push_back(p);
-  //}
-
-  //p.x = tracker.dynamic.state()(0); 
-  //p.y = tracker.dynamic.state()(1); 
-  //fcorner_marker.points.push_back(p);
-  //for (unsigned int i = 0; i < 4; ++i) {
-    //tracker.ClockwisePointSwitch();
-    //p.x = tracker.dynamic.state()(0); 
-    //p.y = tracker.dynamic.state()(1); 
-    //fcorner_marker.points.push_back(p);
-  //}
-  //tracker.resetStates(new_dynamic_states, new_shape_states);
-
-  //CounterClockwise Point Switching
-  //double th1 = thetaL1;
-  //double x,y;
-  //geometry_msgs::Point p;
-  //x = closest_corner_point.first;
-  //y = closest_corner_point.second;
-  //p.x = x; 
-  //p.y = y; 
-  //const double pi = 3.141592653589793238463; 
-  //fcorner_marker.points.push_back(p);
-  //for (unsigned int i = 0; i < 3; ++i) {
-    //x = x + L2 * sin(th1);
-    //y = y - L2 * cos(th1);
-    //double temp = L1;
-    //L1 = L2;
-    //L2 = temp;
-    //th1 = th1 + pi / 2;
-    //p.x = x; 
-    //p.y = y; 
-    //fcorner_marker.points.push_back(p);
-  //}
-
+  return boxcenter_marker;
 }
+
 visualization_msgs::Marker Cluster::getClusterVisualisationMessage() {
   visualization_msgs::Marker cluster_vmsg;
-  cluster_vmsg.header.frame_id  = p_source_frame_name_;
+  cluster_vmsg.header.frame_id  = frame_name;
   cluster_vmsg.header.stamp = ros::Time::now();
   cluster_vmsg.ns = "clusters";
   cluster_vmsg.action = visualization_msgs::Marker::ADD;
@@ -912,7 +768,7 @@ visualization_msgs::Marker Cluster::getLineVisualisationMessage() {
 
 
   line_msg.header.stamp = ros::Time::now();
-  line_msg.header.frame_id  = p_source_frame_name_;
+  line_msg.header.frame_id  = frame_name;
   line_msg.ns = "lines";
   line_msg.action = visualization_msgs::Marker::ADD;
   line_msg.pose.orientation.w = 1.0;

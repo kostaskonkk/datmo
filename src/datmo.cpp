@@ -13,11 +13,10 @@ Datmo::Datmo(){
   n_private.param("write_execution_times", w_exec_times, false);
 
 
-  mean_tracks_pub = n.advertise<datmo::TrackArray>("tracks/mean", 10);
-  filtered_tracks_pub = n.advertise<datmo::TrackArray>("tracks/filtered", 10);
-  box_tracks_pub = n.advertise<datmo::TrackArray>("tracks/box", 10);
-  obs_tracks_pub = n.advertise<datmo::TrackArray>("tracks/ukf", 10);
-  marker_array_pub = n.advertise<visualization_msgs::MarkerArray>("marker_array", 10);
+  pub_tracks_mean    = n.advertise<datmo::TrackArray>("tracks/mean", 10);
+  pub_tracks_mean_kf = n.advertise<datmo::TrackArray>("tracks/filtered", 10);
+  pub_tracks_box     = n.advertise<datmo::TrackArray>("tracks/box", 10);
+  pub_marker_array   = n.advertise<visualization_msgs::MarkerArray>("marker_array", 10);
   sub_scan = n.subscribe("/scan", 1, &Datmo::callback, this);
 
   if (w_exec_times) {
@@ -40,198 +39,206 @@ Datmo::~Datmo(){
   testing.close();
   }
 }
-void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
-
-
-  dt = (ros::Time::now() - time).toSec();
-  if (time > ros::Time::now()){clusters.clear();}
-  time = ros::Time::now();
-
-  auto start = chrono::steady_clock::now();
-
-  vector<pointList> groups;
-  Datmo::Clustering(scan_in, groups);
-
-  if (w_exec_times) {
-    auto cl_dur_nano = chrono::duration_cast<chrono::nanoseconds>(chrono::steady_clock::now() - start);
-    clustering << cl_dur_nano.count()<<"\n";
+void Datmo::transformPointList(const pointList& in, pointList& out){
+  //This funcion transforms pointlist between coordinate frames and it is a wrapper for the
+  //transformPoint function
+  //There is not try catch block because it is supposed to be already encompassed into one
+  
+  geometry_msgs::PointStamped point_in, point_out;
+  Point point; 
+  point_in.header.frame_id = lidar_frame;
+  point_in.header.stamp = ros::Time(0);
+  for (unsigned int i = 0; i < in.size(); ++i) {
+    point_in.point.x = in[i].first;
+    point_in.point.y = in[i].second;
+    tf_listener.transformPoint(world_frame, point_in , point_out);
+    point.first = point_out.point.x;
+    point.second= point_out.point.y;
+    out.push_back(point);
   }
+}
+void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
 
   // delete all Markers 
   visualization_msgs::Marker marker;
   visualization_msgs::MarkerArray markera;
   marker.action =3;
   markera.markers.push_back(marker);
-  marker_array_pub.publish(markera);
+  pub_marker_array.publish(markera);
 
-  int num_updates = 0;
-  // Cluster Association based on the Euclidean distance
-  // I should check first all the distances and then associate based on the closest distance
+  // Only if there is a transform between the world and lidar frame continue
+  if(tf_listener.canTransform(world_frame, lidar_frame, ros::Time())){
 
-  vector<bool> g_matched(groups.size(),false);   // The Group has been matched with a Cluster
-  vector<bool> c_matched(clusters.size(),false); // The Cluster object has been matched with a group
+    dt = (ros::Time::now() - time).toSec();
+    if (time > ros::Time::now()){clusters.clear();}
+    time = ros::Time::now();
+    auto start = chrono::steady_clock::now();
 
-  double euclidean[groups.size()][clusters.size()]; // Matrix object to save the euclidean distances
+    vector<pointList> point_clusters_not_transformed;
+    Datmo::Clustering(scan_in, point_clusters_not_transformed);
 
-
-  //Finding mean coordinates of group and associating with cluster Objects
-  double mean_x = 0, mean_y = 0;
-
-  for(unsigned int g = 0; g<groups.size();++g){
-    double sum_x = 0, sum_y = 0;
-      
-    for(unsigned int l =0; l<groups[g].size(); l++){
-      //Find sum of x and y
-      sum_x = sum_x + groups[g][l].first;
-      sum_y = sum_y + groups[g][l].second;
+    vector<pointList> point_clusters;
+    for (unsigned int i = 0; i < point_clusters_not_transformed.size(); ++i) {
+      pointList point_cluster;
+      transformPointList(point_clusters_not_transformed[i], point_cluster);
+      point_clusters.push_back(point_cluster);
     }
-    mean_x = sum_x / groups[g].size();
-    mean_y = sum_y / groups[g].size();
 
-    for(unsigned int c=0;c<clusters.size();++c){
-      euclidean[g][c] = abs( mean_x - clusters[c].meanX()) + abs(mean_y - clusters[c].meanY()); 
-      //if( euclidean[g][c]< euclidean_distance) {
-      //if( abs( mean_x - clusters[c].meanX() ) < euclidean_distance && abs( mean_y - clusters[c].meanY() ) < euclidean_distance){
-        ////update Cluster
-	//g_matched[g] = true, c_matched[c] = true;
-	//clusters[c].update(groups[g], 0.1, tf_);
-        //num_updates++;
-      //}
+    if (w_exec_times) {
+      auto cl_dur_nano = chrono::duration_cast<chrono::nanoseconds>(chrono::steady_clock::now() - start);
+      clustering << cl_dur_nano.count()<<"\n";
     }
-  }
 
-  //Find the smallest euclidean distance and associate if smaller than the threshold 
-  //#pragma omp for
-  //ROS_INFO_STREAM("num_threads"<<omp_get_num_threads());
-  //testing<<omp_get_num_threads()<<",";
-  vector<pair <int,int>> pairs;
-  for(unsigned int c=0; c<clusters.size();++c){
-    //testing<<omp_get_num_threads()<<",";
-    unsigned int position;
-    double min_distance = euclidean_distance;
-    for(unsigned int g=0; g<groups.size();++g){
-	if(euclidean[g][c] < min_distance){
-	  min_distance = euclidean[g][c];
-	  position = g;
-	}
-    }
-    if(min_distance < euclidean_distance){
-      g_matched[position] = true, c_matched[c] = true;
-      //clusters[c].update(groups[position], 0.1, tf_);
-      num_updates++;
-      pairs.push_back(pair<int,int>(c,position));
-    }
-  }
 
-  //#pragma omp parallel for
-  for(unsigned int p=0; p<pairs.size();++p){
-      clusters[pairs[p].first].update(groups[pairs[p].second], 0.1, tf_);
-  }
-  //testing<<omp_get_num_threads()<<",";
+    // Cluster Association based on the Euclidean distance
+    // I should check first all the distances and then associate based on the closest distance
+
+    vector<bool> g_matched(point_clusters.size(),false);   // The Group has been matched with a Cluster
+    vector<bool> c_matched(clusters.size(),false); // The Cluster object has been matched with a group
+
+    double euclidean[point_clusters.size()][clusters.size()]; // Matrix object to save the euclidean distances
+
+    //Finding mean coordinates of group and associating with cluster Objects
+    double mean_x = 0, mean_y = 0;
+
+    for(unsigned int g = 0; g<point_clusters.size();++g){
+      double sum_x = 0, sum_y = 0;
+        
+      for(unsigned int l =0; l<point_clusters[g].size(); l++){
+        sum_x = sum_x + point_clusters[g][l].first;
+        sum_y = sum_y + point_clusters[g][l].second;
+      }
+      mean_x = sum_x / point_clusters[g].size();
+      mean_y = sum_y / point_clusters[g].size();
+
+      for(unsigned int c=0;c<clusters.size();++c){
+        euclidean[g][c] = abs( mean_x - clusters[c].meanX()) + abs(mean_y - clusters[c].meanY()); 
+      }
+    }
+
+    //Find the smallest euclidean distance and associate if smaller than the threshold 
+    vector<pair <int,int>> pairs;
+    for(unsigned int c=0; c<clusters.size();++c){
+      unsigned int position;
+      double min_distance = euclidean_distance;
+      for(unsigned int g=0; g<point_clusters.size();++g){
+    if(euclidean[g][c] < min_distance){
+      min_distance = euclidean[g][c];
+      position = g;
+    }
+      }
+      if(min_distance < euclidean_distance){
+        g_matched[position] = true, c_matched[c] = true;
+        pairs.push_back(pair<int,int>(c,position));
+      }
+    }
+
+    //Update Tracked Clusters
+    //#pragma omp parallel for
+    for(unsigned int p=0; p<pairs.size();++p){
+        clusters[pairs[p].first].update(point_clusters[pairs[p].second], 0.1);
+    }
+       
+     //Delete Not Associated Clusters
+    unsigned int o=0;
+    unsigned int p = clusters.size();
+    while(o<p){
+      if(c_matched[o] == false){
+
+        std::swap(clusters[o], clusters.back());
+        clusters.pop_back();
+
+        std::swap(c_matched[o], c_matched.back());
+        c_matched.pop_back();
+
+        o--;
+        p--;
+      }
+    o++;
+    }
+
+    // Initialisation of new Cluster Objects
+    for(unsigned int i=0; i<point_clusters.size();++i){
+      if(g_matched[i] == false){
+        Cluster cl(cclusters, point_clusters[i], dt, world_frame);
+        cclusters++;
+        clusters.push_back(cl);
+      } 
+    }
+    
+    //Visualizations
+    visualization_msgs::MarkerArray marker_array;
+    datmo::TrackArray mean_track_array; 
+    datmo::TrackArray filtered_track_array; 
+    datmo::TrackArray box_track_array; 
+    datmo::TrackArray obs_track_array; 
+    for (unsigned int i =0; i<clusters.size();i++){
+
+      mean_track_array.tracks.push_back(clusters[i].msg_track_mean);
+      filtered_track_array.tracks.push_back(clusters[i].msg_track_mean_kf);
+      box_track_array.tracks.push_back(clusters[i].msg_track_box);
      
+      if (p_marker_pub){
+        marker_array.markers.push_back(clusters[i].getBoundingBoxCenterVisualisationMessage());
+        marker_array.markers.push_back(clusters[i].getArrowVisualisationMessage());
+        marker_array.markers.push_back(clusters[i].getThetaL1VisualisationMessage());
+        marker_array.markers.push_back(clusters[i].getThetaL2VisualisationMessage());
+        marker_array.markers.push_back(clusters[i].getThetaBoxVisualisationMessage());
+        marker_array.markers.push_back(clusters[i].getClusterVisualisationMessage());
+        marker_array.markers.push_back(clusters[i].getBoundingBoxVisualisationMessage());
+        marker_array.markers.push_back(clusters[i].getBoxModelVisualisationMessage());
+        marker_array.markers.push_back(clusters[i].getClosestCornerPointVisualisationMessage());
+        marker_array.markers.push_back(clusters[i].getLShapeVisualisationMessage());
+        marker_array.markers.push_back(clusters[i].getPoseCovariance());
+      };
 
-
- 
-  // Delete not associated Clusters
-  unsigned int o=0;
-  unsigned int p = clusters.size();
-  while(o<p){
-    if(c_matched[o] == false){
-
-      std::swap(clusters[o], clusters.back());
-      clusters.pop_back();
-
-      std::swap(c_matched[o], c_matched.back());
-      c_matched.pop_back();
-
-      o--;
-      p--;
+      if (w_exec_times){
+        
+        //rect_fitting << clusters[i].getRectangleFittingExecutionTime().first<<",";
+        rect_fitting << clusters[i].getRectangleFittingExecutionTime().first<<"\n";
+      }
     }
-  o++;
+    //ros::Time before_time;
+    //before_time = ros::Time::now();
+    //double duration;
+    //for (unsigned int i =0; i<clusters.size();i++){
+        //marker_array.markers.push_back(clusters[i].rectangleFitting());
+    //}
+    //duration = (ros::Time::now() - before_time).toSec();
+    //ROS_INFO_STREAM("Seconds: "<<duration);
+
+    pub_marker_array.publish(marker_array);
+    pub_tracks_mean.publish(mean_track_array);
+    pub_tracks_mean_kf.publish(filtered_track_array);
+    pub_tracks_box.publish(box_track_array);
+    visualiseGroupedPoints(point_clusters);
+    
+    //TODO Publish in Rviz upper right corner this information
+     //ROS_INFO_STREAM("Groups"<<point_clusters.size()<< "Clusters: "<<clusters.size());
+    // ROS_INFO_STREAM("Time"<<ros::Time::now()<<"clusters: "<<clusters.size() << "Filters: "<<filters.size());
+
+
+     if (w_exec_times) {
+       //Store the time difference between start and end
+       auto diff = chrono::steady_clock::now() - start;
+       auto diff_nano = chrono::duration_cast<chrono::nanoseconds>(diff);
+       auto diff_milli = chrono::duration_cast<chrono::milliseconds>(diff);
+       whole << diff_nano.count()<<","<<diff_milli.count()<<"\n";
+     }
   }
+  else{ //If the tf is not possible init all states at 0
+    ROS_WARN_STREAM("No transform could be found between "<<lidar_frame<<" and "<<world_frame);
+  };
 
-  // Initialisation of new Cluster Objects
-  for(unsigned int i=0; i<groups.size();++i){
-    if(g_matched[i] == false){
-      Cluster cl(cclusters, groups[i], dt, tf_, lidar_frame, world_frame);
-      cclusters++;
-      clusters.push_back(cl);
-    } 
-  }
-  testing<<num_updates<<"\n";
-  //Visualizations
-  visualization_msgs::MarkerArray marker_array;
-  datmo::TrackArray mean_track_array; 
-  datmo::TrackArray filtered_track_array; 
-  datmo::TrackArray box_track_array; 
-  datmo::TrackArray obs_track_array; 
-  for (unsigned int i =0; i<clusters.size();i++){
-
-    mean_track_array.tracks.push_back(clusters[i].mean_track_msg);
-    filtered_track_array.tracks.push_back(clusters[i].filtered_track_msg);
-    box_track_array.tracks.push_back(clusters[i].box_track_msg);
-    obs_track_array.tracks.push_back(clusters[i].obs_track_msg);
-   
-    if (p_marker_pub){
-      marker_array.markers.push_back(clusters[i].getBoundingBoxCenterVisualisationMessage());
-      marker_array.markers.push_back(clusters[i].getArrowVisualisationMessage());
-      marker_array.markers.push_back(clusters[i].getThetaL1VisualisationMessage());
-      marker_array.markers.push_back(clusters[i].getThetaL2VisualisationMessage());
-      marker_array.markers.push_back(clusters[i].getThetaBoxVisualisationMessage());
-      marker_array.markers.push_back(clusters[i].getClusterVisualisationMessage());
-      marker_array.markers.push_back(clusters[i].getBoundingBoxVisualisationMessage());
-      marker_array.markers.push_back(clusters[i].getBoxModelVisualisationMessage());
-      marker_array.markers.push_back(clusters[i].getClosestCornerPointVisualisationMessage());
-      marker_array.markers.push_back(clusters[i].getLShapeVisualisationMessage());
-      marker_array.markers.push_back(clusters[i].getPoseCovariance());
-    };
-
-    if (w_exec_times){
-      
-      //rect_fitting << clusters[i].getRectangleFittingExecutionTime().first<<",";
-      rect_fitting << clusters[i].getRectangleFittingExecutionTime().first<<"\n";
-    }
-  }
-  //ros::Time before_time;
-  //before_time = ros::Time::now();
-  //double duration;
-  //for (unsigned int i =0; i<clusters.size();i++){
-      //marker_array.markers.push_back(clusters[i].rectangleFitting());
-  //}
-  //duration = (ros::Time::now() - before_time).toSec();
-  //ROS_INFO_STREAM("Seconds: "<<duration);
-
-  marker_array_pub.publish(marker_array);
-  mean_tracks_pub.publish(mean_track_array);
-  filtered_tracks_pub.publish(filtered_track_array);
-  box_tracks_pub.publish(box_track_array);
-  obs_tracks_pub.publish(obs_track_array);
-  //visualiseGroupedPoints(groups);
-  
-  //TODO Publish in Rviz upper right corner this information
-   //ROS_INFO_STREAM("Groups"<<groups.size()<< "Clusters: "<<clusters.size());
-  // ROS_INFO_STREAM("Time"<<ros::Time::now()<<"clusters: "<<clusters.size() << "Filters: "<<filters.size());
-
-
-   if (w_exec_times) {
-     //Store the time difference between start and end
-     //
-     auto diff = chrono::steady_clock::now() - start;
-     auto diff_nano = chrono::duration_cast<chrono::nanoseconds>(diff);
-     auto diff_milli = chrono::duration_cast<chrono::milliseconds>(diff);
-     //file << "Duration="<<diff_nano.count()<<" ns, "<<diff_milli.count()<<" ms\n";
-     whole << diff_nano.count()<<","<<diff_milli.count()<<"\n";
-     //ROS_INFO_STREAM("Whole="<<diff_nano.count()<<" ns"); 
-   }
     
 }
-void Datmo::visualiseGroupedPoints(const vector<pointList>& groups){
+void Datmo::visualiseGroupedPoints(const vector<pointList>& point_clusters){
   //Publishing the clusters with different colors
   visualization_msgs::MarkerArray marker_array;
   //Populate grouped points message
   visualization_msgs::Marker gpoints;
-  gpoints.header.frame_id = lidar_frame;
-  gpoints.header.stamp = ros::Time::now();
+  gpoints.header.frame_id = world_frame;
+  gpoints.header.stamp = ros::Time(0);
   gpoints.ns = "clustered_points";
   gpoints.action = visualization_msgs::Marker::ADD;
   gpoints.pose.orientation.w = 1.0;
@@ -239,7 +246,7 @@ void Datmo::visualiseGroupedPoints(const vector<pointList>& groups){
   // POINTS markers use x and y scale for width/height respectively
   gpoints.scale.x = 0.13;
   gpoints.scale.y = 0.13;
-  for(unsigned int i=0; i<groups.size(); ++i){
+  for(unsigned int i=0; i<point_clusters.size(); ++i){
 
     gpoints.id = cg;
     cg++;
@@ -252,17 +259,17 @@ void Datmo::visualiseGroupedPoints(const vector<pointList>& groups){
     gpoints.color.r = randomr;
     gpoints.color.a = 1.0;
     gpoints.lifetime = ros::Duration(0.08);
-    for(unsigned int j=0; j<groups[i].size(); ++j){
+    for(unsigned int j=0; j<point_clusters[i].size(); ++j){
       geometry_msgs::Point p;
-      p.x = groups[i][j].first;
-      p.y = groups[i][j].second;
+      p.x = point_clusters[i][j].first;
+      p.y = point_clusters[i][j].second;
       p.z = 0;
       gpoints.points.push_back(p);
     }
     marker_array.markers.push_back(gpoints);
     gpoints.points.clear();
   }
-  marker_array_pub.publish(marker_array);
+  pub_marker_array.publish(marker_array);
 
 }
 

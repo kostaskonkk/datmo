@@ -135,7 +135,10 @@ Visualization Manager:
         bounding_box_center: true
         box_models: true
         closest_corner: false
+        clustered_points: false
         clusters: true
+        covariances: true
+        thetaBox: true
         thetaL1: true
         thetaL2: true
         velocities: false
