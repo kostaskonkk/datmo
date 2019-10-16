@@ -20,10 +20,11 @@ const double pi = 3.141592653589793238463;
 class Cluster {
 public:
 
-  Cluster(unsigned long int id, const pointList&, const double&, const string&);
+  Cluster(unsigned long int id, const pointList&, const double&, const string&, const tf::Transform& ego_pose);
 
 
   string frame_name;
+  Point ego_coordinates;
 
   datmo::Track msg_track_mean;
   datmo::Track msg_track_mean_kf;
@@ -49,7 +50,7 @@ public:
   pair<int, int> getRectangleFittingExecutionTime(){return dur_size_rectangle_fitting;};
   pair<int, int> dur_size_rectangle_fitting;
 
-  void update(const pointList&, const double dt_in);
+  void update(const pointList&, const double dt, const tf::Transform& ego_pose);
   void populateTrackingMsgs();
   void detectCornerPointSwitch();
   void detectCornerPointSwitch(double& from, double& to);
@@ -78,9 +79,6 @@ private:
   std::pair<double, double> previous_mean_values;
 
   Point closest_corner_point;
-  
-  double dt; // Discrete time step
-
   
   visualization_msgs::Marker boxcenter_marker_;
   void calcMean(const pointList& ); //Find the mean value of the cluster

@@ -28,7 +28,7 @@ static inline double shortest_angular_distance(double from, double to){
   return normalize_angle(to-from);
 }
 
-Cluster::Cluster(unsigned long int id, const pointList& new_points, const double& dt, const string& world_frame){
+Cluster::Cluster(unsigned long int id, const pointList& new_points, const double& dt, const string& world_frame, const tf::Transform& ego_pose){
 
   this->id = id;
   this->r = rand() / double(RAND_MAX);
@@ -42,6 +42,9 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   frame_name = world_frame;
 
   new_cluster = new_points;
+
+  ego_coordinates.first = ego_pose.getOrigin().getX();
+  ego_coordinates.second= ego_pose.getOrigin().getY();
 
   // Initialization of Kalman Filter
   int n = 4; // Number of states
@@ -75,16 +78,20 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   //initialise thetaL1 in range [0,2pi]
   LShapeTracker l_shape_tracker(closest_corner_point, L1, L2, normalize_angle(thetaL1), dt);
   l_shape = l_shape_tracker;
+  l_shape.lshapeToBoxModelConversion(cx, cy, L1_box, L2_box, th);
 
   VectorXd x0(n);
-  x0 << Cluster::meanX(), Cluster::meanY(), 0, 0;
+  x0 << meanX(), meanY(), 0, 0;
   kf_mean.init(0,x0);
 
   populateTrackingMsgs();
 
 }
 
-void Cluster::update(const pointList& new_points, const double dt_in) {
+void Cluster::update(const pointList& new_points, const double dt, const tf::Transform& ego_pose) {
+
+  ego_coordinates.first = ego_pose.getOrigin().getX();
+  ego_coordinates.second= ego_pose.getOrigin().getY();
 
   age++;
   previous_mean_values = mean_values;
@@ -98,11 +105,9 @@ void Cluster::update(const pointList& new_points, const double dt_in) {
   double norm = normalize_angle(l_shape.shape.state()(2));
   double distance = shortest_angular_distance(norm, thetaL1);
   double unwrapped_thetaL1 = distance + l_shape.shape.state()(2) ;
-  //ROS_INFO_STREAM("state"<<l_shape.shape.state()(2)<<"L1theta"<<thetaL1<<"norm"<<norm<<"distance"<<distance<<"wrap"<<wrap<<"unwrapped"<<unwrapped_thetaL1);
   
-  l_shape.update(closest_corner_point, L1, L2, unwrapped_thetaL1, dt_in);
+  l_shape.update(closest_corner_point, L1, L2, unwrapped_thetaL1, dt);
   l_shape.lshapeToBoxModelConversion(cx, cy, L1_box, L2_box, th);
-  this->dt = dt_in;
 
   // Update Kalman Filter
   VectorXd y(2);
@@ -119,7 +124,7 @@ void Cluster::update(const pointList& new_points, const double dt_in) {
 void Cluster::populateTrackingMsgs(){
 
     msg_track_mean.id = this->id;
-    msg_track_mean.odom.header.stamp = ros::Time(0);
+    msg_track_mean.odom.header.stamp = ros::Time::now();
     msg_track_mean.odom.header.frame_id = frame_name;
     msg_track_mean.odom.pose.pose.position.x = meanX();
     msg_track_mean.odom.pose.pose.position.y = meanY();
@@ -136,6 +141,10 @@ void Cluster::populateTrackingMsgs(){
     msg_track_mean_kf.odom.pose.covariance[7] = kf_mean.P(1,1);
     msg_track_mean_kf.odom.twist.covariance[0]= kf_mean.P(2,2);
     msg_track_mean_kf.odom.twist.covariance[7]= kf_mean.P(3,3);
+    if (age==1) {
+      ROS_INFO_STREAM("x"<<kf_mean.state()[0]<<"msi"<<msg_track_mean_kf.odom.pose.pose.position.x);
+      
+    }
 
     msg_track_box.id = this->id;
     msg_track_box.odom.header.stamp = ros::Time::now();
@@ -245,12 +254,12 @@ void Cluster::rectangleFitting(const pointList& new_cluster){
   corner_list = corners;
 
   //Find the corner point that is closest to the ego vehicle
-  double min_distance = pow(pow(corners[0].first,2.0)+pow(corners[0].second,2.0),0.5);
+  double min_distance = pow(pow(corners[0].first - ego_coordinates.first,2.0)+pow(corners[0].second - ego_coordinates.second,2.0),0.5);
   unsigned int idx = 0;
   closest_corner_point = corners[0];
   double distance;
   for (unsigned int i = 1; i < 4; ++i) {
-    distance = pow(pow(corners[i].first,2.0)+pow(corners[i].second,2.0),0.5);
+    distance = pow(pow(corners[i].first - ego_coordinates.first,2.0)+pow(corners[i].second - ego_coordinates.second,2.0),0.5);
     if (distance<min_distance) {
       min_distance = distance;  
       closest_corner_point = corners[i];
@@ -338,24 +347,6 @@ visualization_msgs::Marker Cluster::getBoxModelVisualisationMessage() {
   bb_msg.color.r = r;
   bb_msg.color.a = a;
 
-  
-  //if(blue_flag == true){
-    //bb_msg.lifetime.sec = 1;
-    //bb_msg.color.g = 0;
-    //bb_msg.color.b = 1;
-    //bb_msg.color.r = 0;}
-
-  //if(green_flag == true){
-    //bb_msg.color.g = 1;
-    //bb_msg.color.b = 0;
-    //bb_msg.color.r = 0;}
-
-  //if(red_flag == true){
-    //bb_msg.color.g = 0;
-    //bb_msg.color.b = 0;
-    //bb_msg.color.r = 1;}
-
-
   geometry_msgs::Point p;
   double x = L1_box/2;
   double y = L2_box/2;
@@ -398,9 +389,9 @@ visualization_msgs::Marker Cluster::getLShapeVisualisationMessage() {
   l1l2_msg.type = visualization_msgs::Marker::LINE_STRIP;
   l1l2_msg.id = this->id;
   l1l2_msg.scale.x = 0.1; //line width
-  l1l2_msg.color.r = this->r;
-  l1l2_msg.color.g = this->g;
-  l1l2_msg.color.b = this->b;
+  l1l2_msg.color.r = 0;
+  l1l2_msg.color.g = 1;
+  l1l2_msg.color.b = 0;
   l1l2_msg.color.a = 1.0;
   
   double theta_degrees = thetaL1 * (180.0/3.141592653589793238463);
@@ -409,16 +400,7 @@ visualization_msgs::Marker Cluster::getLShapeVisualisationMessage() {
     l1l2_msg.color.g = 0;
     l1l2_msg.color.b = 0;
   }
-  //if (theta_degrees> 0 && theta_degrees < 360) {
-    //l1l2_msg.color.r = 1.0;
-    //l1l2_msg.color.g = 0.0;
-    //l1l2_msg.color.b = 0.0;
-  //}
-  //if (theta_degrees> 0 && theta_degrees < 90) {
-    //l1l2_msg.color.r = 0.0;
-    //l1l2_msg.color.g = 1.0;
-    //l1l2_msg.color.b = 0.0;
-  //}
+
   geometry_msgs::Point p;
   for (unsigned int i = 0; i < 3; ++i) {
     p.x = l1l2[i].first;
@@ -662,14 +644,9 @@ visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
   arrow_marker.color.b = b;
   arrow_marker.color.r = r;
   arrow_marker.id = this->id;
-  arrow_marker.scale.x = 0.4;    //Shaft diameter of the arrow
-  arrow_marker.scale.y = 0.8;  //Head  diameter of the arrow
+  arrow_marker.scale.x = 0.1;    //Shaft diameter of the arrow
+  arrow_marker.scale.y = 0.2;    //Head  diameter of the arrow
 
-  //arrow_marker.pose.position.x = closest_corner_point.first;
-  //arrow_marker.pose.position.y = closest_corner_point.second;
-  //arrow_marker.pose.position.x = cx;
-  //arrow_marker.pose.position.y = cy;
- 
   geometry_msgs::Point p;
   p.x = cx; 
   p.y = cy; 

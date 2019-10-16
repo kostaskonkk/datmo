@@ -14,7 +14,7 @@ Datmo::Datmo(){
 
 
   pub_tracks_mean    = n.advertise<datmo::TrackArray>("tracks/mean", 10);
-  pub_tracks_mean_kf = n.advertise<datmo::TrackArray>("tracks/filtered", 10);
+  pub_tracks_mean_kf = n.advertise<datmo::TrackArray>("tracks/mean_kf", 10);
   pub_tracks_box     = n.advertise<datmo::TrackArray>("tracks/box", 10);
   pub_marker_array   = n.advertise<visualization_msgs::MarkerArray>("marker_array", 10);
   sub_scan = n.subscribe("/scan", 1, &Datmo::callback, this);
@@ -39,24 +39,6 @@ Datmo::~Datmo(){
   testing.close();
   }
 }
-void Datmo::transformPointList(const pointList& in, pointList& out){
-  //This funcion transforms pointlist between coordinate frames and it is a wrapper for the
-  //transformPoint function
-  //There is not try catch block because it is supposed to be already encompassed into one
-  
-  geometry_msgs::PointStamped point_in, point_out;
-  Point point; 
-  point_in.header.frame_id = lidar_frame;
-  point_in.header.stamp = ros::Time(0);
-  for (unsigned int i = 0; i < in.size(); ++i) {
-    point_in.point.x = in[i].first;
-    point_in.point.y = in[i].second;
-    tf_listener.transformPoint(world_frame, point_in , point_out);
-    point.first = point_out.point.x;
-    point.second= point_out.point.y;
-    out.push_back(point);
-  }
-}
 void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
 
   // delete all Markers 
@@ -69,6 +51,10 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
   // Only if there is a transform between the world and lidar frame continue
   if(tf_listener.canTransform(world_frame, lidar_frame, ros::Time())){
 
+    //Find position of ego vehicle in world frame, so it can be fed through to the cluster objects
+    tf::StampedTransform ego_pose;
+    tf_listener.lookupTransform(world_frame, lidar_frame, ros::Time(0), ego_pose);
+    
     dt = (ros::Time::now() - time).toSec();
     if (time > ros::Time::now()){clusters.clear();}
     time = ros::Time::now();
@@ -77,6 +63,7 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
     vector<pointList> point_clusters_not_transformed;
     Datmo::Clustering(scan_in, point_clusters_not_transformed);
 
+    //Transform Clusters to world_frame
     vector<pointList> point_clusters;
     for (unsigned int i = 0; i < point_clusters_not_transformed.size(); ++i) {
       pointList point_cluster;
@@ -88,7 +75,6 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
       auto cl_dur_nano = chrono::duration_cast<chrono::nanoseconds>(chrono::steady_clock::now() - start);
       clustering << cl_dur_nano.count()<<"\n";
     }
-
 
     // Cluster Association based on the Euclidean distance
     // I should check first all the distances and then associate based on the closest distance
@@ -136,7 +122,7 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
     //Update Tracked Clusters
     //#pragma omp parallel for
     for(unsigned int p=0; p<pairs.size();++p){
-        clusters[pairs[p].first].update(point_clusters[pairs[p].second], 0.1);
+        clusters[pairs[p].first].update(point_clusters[pairs[p].second], 0.1, ego_pose);
     }
        
      //Delete Not Associated Clusters
@@ -160,13 +146,13 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
     // Initialisation of new Cluster Objects
     for(unsigned int i=0; i<point_clusters.size();++i){
       if(g_matched[i] == false){
-        Cluster cl(cclusters, point_clusters[i], dt, world_frame);
+        Cluster cl(cclusters, point_clusters[i], dt, world_frame, ego_pose);
         cclusters++;
         clusters.push_back(cl);
       } 
     }
     
-    //Visualizations
+    //Visualizations and msg publications
     visualization_msgs::MarkerArray marker_array;
     datmo::TrackArray mean_track_array; 
     datmo::TrackArray filtered_track_array; 
@@ -389,4 +375,22 @@ void Datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<p
 
 }
 
+void Datmo::transformPointList(const pointList& in, pointList& out){
+  //This funcion transforms pointlist between coordinate frames and it is a wrapper for the
+  //transformPoint function
+  //There is not try catch block because it is supposed to be already encompassed into one
+  
+  geometry_msgs::PointStamped point_in, point_out;
+  Point point; 
+  point_in.header.frame_id = lidar_frame;
+  point_in.header.stamp = ros::Time(0);
+  for (unsigned int i = 0; i < in.size(); ++i) {
+    point_in.point.x = in[i].first;
+    point_in.point.y = in[i].second;
+    tf_listener.transformPoint(world_frame, point_in , point_out);
+    point.first = point_out.point.x;
+    point.second= point_out.point.y;
+    out.push_back(point);
+  }
+}
 
