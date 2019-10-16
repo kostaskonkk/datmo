@@ -9,9 +9,6 @@
 #include <iostream>
 #include <fstream>
 
-#include <geometry_msgs/Pose.h>
-#include <geometry_msgs/PoseStamped.h>
-#include <geometry_msgs/PoseArray.h>
 #include <sensor_msgs/LaserScan.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
@@ -22,10 +19,7 @@
 
 #include "cluster.hpp"
 
-
-
 typedef std::pair<double, double> Point;
-typedef std::pair<double, double> coordinates;
 typedef std::vector<double> l_shape;
 typedef std::vector<l_shape> l_shapes;
 typedef std::vector<Point> pointList;
@@ -44,17 +38,14 @@ public:
   void callback(const sensor_msgs::LaserScan::ConstPtr &);
   void Clustering(const sensor_msgs::LaserScan::ConstPtr& , vector<pointList> &);
   void visualiseGroupedPoints(const vector<pointList> &);
+  void transformPointList(const pointList& , pointList& );
 
-  tf::TransformListener tf_;
+  tf::TransformListener tf_listener;
 private:
-  ros::Publisher marker_array_pub; 
-  ros::Publisher debug_pub;
-  ros::Publisher mean_tracks_pub;
-  ros::Publisher filtered_tracks_pub;
-  ros::Publisher box_tracks_pub;
-  ros::Publisher obs_tracks_pub;
-
-  tf::Transformer tf;
+  ros::Publisher pub_marker_array; 
+  ros::Publisher pub_tracks_mean;
+  ros::Publisher pub_tracks_mean_kf;
+  ros::Publisher pub_tracks_box;
 
   ros::Subscriber sub_scan;
   sensor_msgs::LaserScan scan;
