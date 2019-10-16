@@ -62,7 +62,6 @@ public:
   double meanX() { return mean_values.first; };
   double meanY() { return mean_values.second;};
 
-  //RobotLocalization::Ukf map_ukf;
   LShapeTracker l_shape; 
   KalmanFilter kf_mean;
 

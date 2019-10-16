@@ -69,22 +69,8 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   P.setIdentity();
 
   KalmanFilter kalman_filter(dt, A, C, Q, R, P); // Constructor for the filter
-
-  //Unscented Kalman Filter
-  std::vector<double> args{0.001,0,2};
-  //args[0] = 1;//alpha parameter
-  //args[1] = 2;//kappa parameter
-  //args[2] = 1;//beta parameter
-  RobotLocalization::Ukf ukf(args);
   this->kf_mean = kalman_filter;
 
-
-  Eigen::MatrixXd initialCovar(15, 15);
-  initialCovar.setIdentity();
-  initialCovar *= 0.5;
-  ukf.setEstimateErrorCovariance(initialCovar);
-
-  //EXPECT_EQ(ukf.getFilter().getEstimateErrorCovariance(), initialCovar);
   calcMean(new_points);
   rectangleFitting(new_points);
   old_thetaL1 = thetaL1;
@@ -98,24 +84,50 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   x0 << meanX(), meanY(), 0, 0;
   kf_mean.init(0,x0);
 
-  Eigen::VectorXd measurement(15);
-  measurement[0] = pose_out.pose.position.x;
-  measurement[1] = pose_out.pose.position.y;
+  //Unscented Kalman Filter
+  std::vector<double> args{0.001,0,2};
+  //args[0] = 1;//alpha parameter
+  //args[1] = 2;//kappa parameter
+  //args[2] = 1;//beta parameter
+  RobotLocalization::Ukf ukf(args);
 
-  Eigen::MatrixXd measurementCovariance(15, 15);
+  int STATE_SIZE = 15;
+  Eigen::MatrixXd initialCovar(15, 15);
+  initialCovar.setIdentity();
+  initialCovar *= 0.5;
+  ukf.setEstimateErrorCovariance(initialCovar);
+
+  //EXPECT_EQ(ukf.getFilter().getEstimateErrorCovariance(), initialCovar);
+  
+  //EXPECT_EQ(ukf.getFilter().getEstimateErrorCovariance(), initialCovar);
+
+  Eigen::VectorXd measurement(STATE_SIZE);
+  for (size_t i = 0; i < STATE_SIZE; ++i)
+  {
+    measurement[i] = i * 0.01 * STATE_SIZE;
+  }
+
+  Eigen::MatrixXd measurementCovariance(STATE_SIZE, STATE_SIZE);
   measurementCovariance.setIdentity();
-  for (size_t i = 0; i < 15; ++i)
+  for (size_t i = 0; i < STATE_SIZE; ++i)
   {
     measurementCovariance(i, i) = 1e-9;
   }
 
-  std::vector<int> updateVector(15, false);
-  updateVector[0] = true;
-  updateVector[1] = true;
+  std::vector<int> updateVector(STATE_SIZE, true);
+
+  RobotLocalization::Measurement meas;
+  meas.measurement_ = measurement;
+  meas.covariance_ = measurementCovariance;
+  meas.updateVector_ = updateVector;
+  meas.mahalanobisThresh_ = std::numeric_limits<double>::max();
+
+  ukf.correct(meas);
+  //ukf.predict();
 
   //// Ensure that measurements are being placed in the queue correctly
-  ros::Time time;
-  time.fromSec(1000);
+  //ros::Time time;
+  //time.fromSec(1000);
   //ukf.enqueueMeasurement("odom0",
        //measurement,
        //measurementCovariance,
@@ -123,17 +135,20 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
        //std::numeric_limits<double>::max(),
        //time);
 
-  MeasurementPtr meas = MeasurementPtr(new Measurement());
+  //ukf.integrateMeasurements(ros::Time(1001));
+
+
+  //MeasurementPtr meas = MeasurementPtr(new Measurement());
 
   //meas->topicName_ = topicName;
-  meas->measurement_ = measurement;
-  meas->covariance_ = measurementCovariance;
-  meas->updateVector_ = updateVector;
-  meas->time_ = time.toSec();
+  //meas->measurement_ = measurement;
+  //meas->covariance_ = measurementCovariance;
+  //meas->updateVector_ = updateVector;
+  //meas->time_ = time.toSec();
   //meas->mahalanobisThresh_ = mahalanobisThresh;
   //meas->latestControl_ = latestControl_;
   //meas->latestControlTime_ = latestControlTime_.toSec();
-  ukf.correct(meas)
+  //ukf.correct(meas)
   //measurementQueue_.push(meas);
  
   //ukf.integrateMeasurements(ros::Time(1001));

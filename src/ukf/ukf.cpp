@@ -349,7 +349,7 @@ namespace RobotLocalization
     // STATE_SIZE sigma points after that are state - weightedCovarSqrt_[ith column]
     for (size_t sigmaInd = 0; sigmaInd < STATE_SIZE; ++sigmaInd)
     {
-      sigmaPoints_[sigmaInd + 1] = transferFunction_ * (state_ + weightedCovarSqrt_.col(sigmaInd));
+      sigmaPoints_[sigmaInd + 1]              = transferFunction_ * (state_ + weightedCovarSqrt_.col(sigmaInd));
       sigmaPoints_[sigmaInd + 1 + STATE_SIZE] = transferFunction_ * (state_ - weightedCovarSqrt_.col(sigmaInd));
     }
 
