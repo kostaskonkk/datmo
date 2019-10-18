@@ -5,10 +5,11 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
+        - /Grid1
         - /MarkerArray1
         - /MarkerArray1/Namespaces1
-      Splitter Ratio: 0.6336633563041687
-    Tree Height: 339
+      Splitter Ratio: 0.633663356
+    Tree Height: 715
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -17,7 +18,7 @@ Panels:
       - /2D Nav Goal1
       - /Publish Point1
     Name: Tool Properties
-    Splitter Ratio: 0.5886790156364441
+    Splitter Ratio: 0.588679016
   - Class: rviz/Views
     Expanded:
       - /Current View1
@@ -28,20 +29,18 @@ Panels:
     Name: Time
     SyncMode: 0
     SyncSource: ""
-Preferences:
-  PromptSaveOnExit: true
 Toolbars:
   toolButtonStyle: 2
 Visualization Manager:
   Class: ""
   Displays:
     - Alpha: 0.5
-      Cell Size: 1
+      Cell Size: 0.5
       Class: rviz/Grid
       Color: 0; 0; 0
       Enabled: true
       Line Style:
-        Line Width: 0.029999999329447746
+        Line Width: 0.0299999993
         Value: Lines
       Name: Grid
       Normal Cell Count: 0
@@ -50,7 +49,7 @@ Visualization Manager:
         Y: 0
         Z: 0
       Plane: XY
-      Plane Cell Count: 15
+      Plane Cell Count: 50
       Reference Frame: <Fixed Frame>
       Value: true
     - Alpha: 1
@@ -76,7 +75,7 @@ Visualization Manager:
       Queue Size: 10
       Selectable: true
       Size (Pixels): 3
-      Size (m): 0.07000000029802322
+      Size (m): 0.0700000003
       Style: Flat Squares
       Topic: /scan
       Unreliable: false
@@ -85,9 +84,9 @@ Visualization Manager:
       Value: false
     - Class: rviz/Axes
       Enabled: true
-      Length: 0.4000000059604645
+      Length: 0.400000006
       Name: Axes
-      Radius: 0.10000000149011612
+      Radius: 0.100000001
       Reference Frame: base_link
       Value: true
     - Class: rviz/MarkerArray
@@ -99,49 +98,49 @@ Visualization Manager:
         boundind_boxes: false
         bounding_box_center: false
         box_models: true
-        closest_corner: false
+        closest_corner: true
         clustered_points: false
         clusters: true
         covariances: false
         thetaBox: false
         thetaL1: false
         thetaL2: false
-        velocities: false
+        velocities: true
       Queue Size: 100
       Value: true
     - Alpha: 1
       Axes Length: 1
-      Axes Radius: 0.10000000149011612
+      Axes Radius: 0.100000001
       Class: rviz/Pose
       Color: 255; 25; 0
       Enabled: true
-      Head Length: 0.30000001192092896
-      Head Radius: 0.10000000149011612
+      Head Length: 0.300000012
+      Head Radius: 0.100000001
       Name: Target_1
       Shaft Length: 0.5
-      Shaft Radius: 0.05000000074505806
+      Shaft Radius: 0.0500000007
       Shape: Arrow
       Topic: /robot_1_with_frame
       Unreliable: false
       Value: true
     - Alpha: 1
       Axes Length: 1
-      Axes Radius: 0.10000000149011612
+      Axes Radius: 0.100000001
       Class: rviz/Pose
       Color: 255; 25; 0
       Enabled: true
-      Head Length: 0.30000001192092896
-      Head Radius: 0.10000000149011612
+      Head Length: 0.300000012
+      Head Radius: 0.100000001
       Name: Target_2
       Shaft Length: 0.5
-      Shaft Radius: 0.05000000074505806
+      Shaft Radius: 0.0500000007
       Shape: Arrow
       Topic: /robot_2_with_frame
       Unreliable: false
       Value: true
   Enabled: true
   Global Options:
-    Background Color: 69; 69; 69
+    Background Color: 255; 255; 255
     Default Light: true
     Fixed Frame: map
     Frame Rate: 10
@@ -154,10 +153,7 @@ Visualization Manager:
     - Class: rviz/FocusCamera
     - Class: rviz/Measure
     - Class: rviz/SetInitialPose
-      Theta std deviation: 0.2617993950843811
       Topic: /initialpose
-      X std deviation: 0.5
-      Y std deviation: 0.5
     - Class: rviz/SetGoal
       Topic: /move_base_simple/goal
     - Class: rviz/PublishPoint
@@ -167,33 +163,33 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 9.175684928894043
+      Distance: 9.17568493
       Enable Stereo Rendering:
-        Stereo Eye Separation: 0.05999999865889549
+        Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 2.1001839637756348
-        Y: -3.043212413787842
-        Z: 7.7689032554626465
+        X: 0.8027637
+        Y: -2.48309779
+        Z: 7.78607655
       Focal Shape Fixed Size: true
-      Focal Shape Size: 0.05000000074505806
+      Focal Shape Size: 0.0500000007
       Invert Z Axis: false
       Name: Current View
-      Near Clip Distance: 0.009999999776482582
-      Pitch: 1.509796380996704
+      Near Clip Distance: 0.00999999978
+      Pitch: 1.53979635
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.747506618499756
+      Yaw: 4.7075057
     Saved: ~
 Window Geometry:
   Displays:
     collapsed: false
-  Height: 700
+  Height: 1080
   Hide Left Dock: false
   Hide Right Dock: false
-  QMainWindow State: 000000ff00000000fd00000004000000000000015600000289fc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000006100fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed0000032000000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000001600000289000000d300fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000016c0000033ffc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a0056006900650077007300000000000000033f000000a900fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e100000197000000030000057800000058fc0100000002fb0000000800540069006d00650000000000000005780000026d00fffffffb0000000800540069006d006501000000000000045000000000000000000000089c0000028900000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730000000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd00000004000000000000016a00000405fc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000006f00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed0000032000000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000001900000405000000f300fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000016c0000033ffc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a0056006900650077007300000000000000033f000000bb00fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e100000197000000030000057800000058fc0100000002fb0000000800540069006d00650000000000000005780000027600fffffffb0000000800540069006d00650100000000000004500000000000000000000006100000040500000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730000000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
@@ -202,6 +198,6 @@ Window Geometry:
     collapsed: false
   Views:
     collapsed: false
-  Width: 2552
-  X: 1440
-  Y: 1284
+  Width: 1920
+  X: 2560
+  Y: 0
