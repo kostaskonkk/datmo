@@ -68,6 +68,7 @@ class Ukf: public FilterBase
     //!
     explicit Ukf(std::vector<double> args);
 
+    explicit Ukf();
     //! @brief Destructor for the Ukf class
     //!
     ~Ukf();
@@ -87,6 +88,8 @@ class Ukf: public FilterBase
     //! @param[in] delta - The time step over which to predict.
     //!
     void predict(const double referenceTime, const double delta);
+
+    void predict_ctrm(const double delta);
 
   protected:
     //! @brief The UKF sigma points

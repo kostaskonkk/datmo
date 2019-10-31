@@ -43,7 +43,7 @@
 
 #include <iostream>
 #include <vector>
-
+#include <ros/console.h>
 #include <assert.h>
 
 namespace RobotLocalization
@@ -79,6 +79,12 @@ namespace RobotLocalization
     }
   }
 
+  Ukf::Ukf() :
+    FilterBase(),  // Must initialize filter base!
+    uncorrected_(true)
+  {
+  }
+
   Ukf::~Ukf()
   {
   }
@@ -86,9 +92,14 @@ namespace RobotLocalization
   void Ukf::correct(const Measurement &measurement)
   {
     //FB_DEBUG("---------------------- Ukf::correct ----------------------\n" <<
-             //"State is:\n" << state_ <<
-             //"\nMeasurement is:\n" << measurement.measurement_ <<
-             //"\nMeasurement covariance is:\n" << measurement.covariance_ << "\n");
+	     //"State is:\n" << state_ <<
+	     //"\nMeasurement is:\n" << measurement.measurement_ <<
+	     //"\nMeasurement covariance is:\n" << measurement.covariance_ << "\n");
+
+    ROS_WARN_STREAM("---------------------- Ukf::correct ----------------------\n" <<
+	     "State is:\n" << state_ <<
+	     "\nMeasurement is:\n" << measurement.measurement_ <<
+	     "\nMeasurement covariance is:\n" << measurement.covariance_ << "\n");
 
     // In our implementation, it may be that after we call predict once, we call correct
     // several times in succession (multiple measurements with different time stamps). In
@@ -125,11 +136,11 @@ namespace RobotLocalization
         // Handle nan and inf values in measurements
         if (std::isnan(measurement.measurement_(i)))
         {
-          FB_DEBUG("Value at index " << i << " was nan. Excluding from update.\n");
+          ROS_WARN_STREAM("Value at index " << i << " was nan. Excluding from update.\n");
         }
         else if (std::isinf(measurement.measurement_(i)))
         {
-          FB_DEBUG("Value at index " << i << " was inf. Excluding from update.\n");
+          ROS_WARN_STREAM("Value at index " << i << " was inf. Excluding from update.\n");
         }
         else
         {
@@ -138,7 +149,7 @@ namespace RobotLocalization
       }
     }
 
-    FB_DEBUG("Update indices are:\n" << updateIndices << "\n");
+    ROS_WARN_STREAM("Update indices are:\n" << updateIndices << "\n");
 
     size_t updateSize = updateIndices.size();
 
@@ -392,4 +403,113 @@ namespace RobotLocalization
              "\n\n--------------------- /Ukf::predict ----------------------\n");
   }
 
+  void Ukf::predict_ctrm(const double delta)
+  {
+    ROS_WARN_STREAM("---------------------- Ukf::predict ----------------------\n" <<
+             "delta is " << delta <<
+             "\nstate is " << state_ << "\n");
+
+    double roll = state_(StateMemberRoll);
+    double pitch = state_(StateMemberPitch);
+    double yaw = state_(StateMemberYaw);
+
+    // We'll need these trig calculations a lot.
+    double sp = ::sin(pitch);
+    double cp = ::cos(pitch);
+    double cpi = 1.0 / cp;
+    double tp = sp * cpi;
+
+    double sr = ::sin(roll);
+    double cr = ::cos(roll);
+
+    double sy = ::sin(yaw);
+    double cy = ::cos(yaw);
+
+    //prepareControl(referenceTime, delta);
+
+    // Prepare the transfer function
+    transferFunction_(StateMemberX, StateMemberVx) = cy * cp * delta;
+    transferFunction_(StateMemberX, StateMemberVy) = (cy * sp * sr - sy * cr) * delta;
+    transferFunction_(StateMemberX, StateMemberVz) = (cy * sp * cr + sy * sr) * delta;
+    transferFunction_(StateMemberX, StateMemberAx) = 0.5 * transferFunction_(StateMemberX, StateMemberVx) * delta;
+    transferFunction_(StateMemberX, StateMemberAy) = 0.5 * transferFunction_(StateMemberX, StateMemberVy) * delta;
+    transferFunction_(StateMemberX, StateMemberAz) = 0.5 * transferFunction_(StateMemberX, StateMemberVz) * delta;
+    transferFunction_(StateMemberY, StateMemberVx) = sy * cp * delta;
+    transferFunction_(StateMemberY, StateMemberVy) = (sy * sp * sr + cy * cr) * delta;
+    transferFunction_(StateMemberY, StateMemberVz) = (sy * sp * cr - cy * sr) * delta;
+    transferFunction_(StateMemberY, StateMemberAx) = 0.5 * transferFunction_(StateMemberY, StateMemberVx) * delta;
+    transferFunction_(StateMemberY, StateMemberAy) = 0.5 * transferFunction_(StateMemberY, StateMemberVy) * delta;
+    transferFunction_(StateMemberY, StateMemberAz) = 0.5 * transferFunction_(StateMemberY, StateMemberVz) * delta;
+    transferFunction_(StateMemberZ, StateMemberVx) = -sp * delta;
+    transferFunction_(StateMemberZ, StateMemberVy) = cp * sr * delta;
+    transferFunction_(StateMemberZ, StateMemberVz) = cp * cr * delta;
+    transferFunction_(StateMemberZ, StateMemberAx) = 0.5 * transferFunction_(StateMemberZ, StateMemberVx) * delta;
+    transferFunction_(StateMemberZ, StateMemberAy) = 0.5 * transferFunction_(StateMemberZ, StateMemberVy) * delta;
+    transferFunction_(StateMemberZ, StateMemberAz) = 0.5 * transferFunction_(StateMemberZ, StateMemberVz) * delta;
+    transferFunction_(StateMemberRoll, StateMemberVroll) = delta;
+    transferFunction_(StateMemberRoll, StateMemberVpitch) = sr * tp * delta;
+    transferFunction_(StateMemberRoll, StateMemberVyaw) = cr * tp * delta;
+    transferFunction_(StateMemberPitch, StateMemberVpitch) = cr * delta;
+    transferFunction_(StateMemberPitch, StateMemberVyaw) = -sr * delta;
+    transferFunction_(StateMemberYaw, StateMemberVpitch) = sr * cpi * delta;
+    transferFunction_(StateMemberYaw, StateMemberVyaw) = cr * cpi * delta;
+    transferFunction_(StateMemberVx, StateMemberAx) = delta;
+    transferFunction_(StateMemberVy, StateMemberAy) = delta;
+    transferFunction_(StateMemberVz, StateMemberAz) = delta;
+
+    // (1) Take the square root of a small fraction of the estimateErrorCovariance_ using LL' decomposition
+    weightedCovarSqrt_ = ((STATE_SIZE + lambda_) * estimateErrorCovariance_).llt().matrixL();
+
+    // (2) Compute sigma points *and* pass them through the transfer function to save
+    // the extra loop
+
+    // First sigma point is the current state
+    sigmaPoints_[0] = transferFunction_ * state_;
+
+    // Next STATE_SIZE sigma points are state + weightedCovarSqrt_[ith column]
+    // STATE_SIZE sigma points after that are state - weightedCovarSqrt_[ith column]
+    for (size_t sigmaInd = 0; sigmaInd < STATE_SIZE; ++sigmaInd)
+    {
+      sigmaPoints_[sigmaInd + 1]              = transferFunction_ * (state_ + weightedCovarSqrt_.col(sigmaInd));
+      sigmaPoints_[sigmaInd + 1 + STATE_SIZE] = transferFunction_ * (state_ - weightedCovarSqrt_.col(sigmaInd));
+    }
+
+    // (3) Sum the weighted sigma points to generate a new state prediction
+    state_.setZero();
+    for (size_t sigmaInd = 0; sigmaInd < sigmaPoints_.size(); ++sigmaInd)
+    {
+      state_.noalias() += stateWeights_[sigmaInd] * sigmaPoints_[sigmaInd];
+    }
+
+    // (4) Now us the sigma points and the predicted state to compute a predicted covariance
+    estimateErrorCovariance_.setZero();
+    Eigen::VectorXd sigmaDiff(STATE_SIZE);
+    for (size_t sigmaInd = 0; sigmaInd < sigmaPoints_.size(); ++sigmaInd)
+    {
+      sigmaDiff = (sigmaPoints_[sigmaInd] - state_);
+      estimateErrorCovariance_.noalias() += covarWeights_[sigmaInd] * (sigmaDiff * sigmaDiff.transpose());
+    }
+
+    // (5) Not strictly in the theoretical UKF formulation, but necessary here
+    // to ensure that we actually incorporate the processNoiseCovariance_
+    Eigen::MatrixXd *processNoiseCovariance = &processNoiseCovariance_;
+
+    if (useDynamicProcessNoiseCovariance_)
+    {
+      computeDynamicProcessNoiseCovariance(state_, delta);
+      processNoiseCovariance = &dynamicProcessNoiseCovariance_;
+    }
+
+    estimateErrorCovariance_.noalias() += delta * (*processNoiseCovariance);
+
+    // Keep the angles bounded
+    wrapStateAngles();
+
+    // Mark that we can keep these sigma points
+    uncorrected_ = true;
+
+    ROS_WARN_STREAM("Predicted state is:\n" << state_ <<
+             //"\nPredicted estimate error covariance is:\n" << estimateErrorCovariance_ <<
+             "\n\n--------------------- /Ukf::predict ----------------------\n");
+  }
 }  // namespace RobotLocalization

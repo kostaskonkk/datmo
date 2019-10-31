@@ -11,7 +11,7 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <chrono>
 
-using namespace std;
+//using namespace std;
 using namespace Eigen;
 
 typedef std::pair<double, double> Point;
@@ -64,6 +64,7 @@ public:
 
   LShapeTracker l_shape; 
   KalmanFilter kf_mean;
+  RobotLocalization::Ukf ukf;
 
   double old_thetaL1, old_thetaL2;
   double L1, L2, thetaL1, thetaL2;

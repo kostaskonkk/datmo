@@ -89,28 +89,26 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   //args[0] = 1;//alpha parameter
   //args[1] = 2;//kappa parameter
   //args[2] = 1;//beta parameter
-  RobotLocalization::Ukf ukf(args);
+  RobotLocalization::Ukf ukf_init(args);
 
   int STATE_SIZE = 15;
   Eigen::MatrixXd initialCovar(15, 15);
   initialCovar.setIdentity();
   initialCovar *= 0.5;
-  ukf.setEstimateErrorCovariance(initialCovar);
+  ukf_init.setEstimateErrorCovariance(initialCovar);
 
   //EXPECT_EQ(ukf.getFilter().getEstimateErrorCovariance(), initialCovar);
   
   //EXPECT_EQ(ukf.getFilter().getEstimateErrorCovariance(), initialCovar);
 
   Eigen::VectorXd measurement(STATE_SIZE);
-  for (size_t i = 0; i < STATE_SIZE; ++i)
-  {
+  for (size_t i = 0; i < STATE_SIZE; ++i){
     measurement[i] = i * 0.01 * STATE_SIZE;
   }
 
   Eigen::MatrixXd measurementCovariance(STATE_SIZE, STATE_SIZE);
   measurementCovariance.setIdentity();
-  for (size_t i = 0; i < STATE_SIZE; ++i)
-  {
+  for (size_t i = 0; i < STATE_SIZE; ++i){
     measurementCovariance(i, i) = 1e-9;
   }
 
@@ -122,9 +120,10 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   meas.updateVector_ = updateVector;
   meas.mahalanobisThresh_ = std::numeric_limits<double>::max();
 
-  ukf.correct(meas);
-  //ukf.predict();
+  ukf_init.correct(meas);
+  ukf_init.predict_ctrm(dt);
 
+  this->ukf = ukf_init;
   //// Ensure that measurements are being placed in the queue correctly
   //ros::Time time;
   //time.fromSec(1000);
@@ -188,6 +187,32 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
   y << meanX(), meanY();
   kf_mean.update(y, dt);
 
+  // UKF #######################
+  int STATE_SIZE = 15;
+  Eigen::VectorXd measurement(STATE_SIZE);
+  for (size_t i = 0; i < STATE_SIZE; ++i){
+    measurement[i] = i * 0.01 * STATE_SIZE;
+  }
+
+  Eigen::MatrixXd measurementCovariance(STATE_SIZE, STATE_SIZE);
+  measurementCovariance.setIdentity();
+  for (size_t i = 0; i < STATE_SIZE; ++i){
+    measurementCovariance(i, i) = 1e-9;
+  }
+
+  std::vector<int> updateVector(STATE_SIZE, true);
+
+  RobotLocalization::Measurement meas;
+  meas.measurement_ = measurement;
+  meas.covariance_ = measurementCovariance;
+  meas.updateVector_ = updateVector;
+  meas.mahalanobisThresh_ = std::numeric_limits<double>::max();
+
+  ukf.correct(meas);
+  ukf.predict_ctrm(dt);
+
+  // UKF #######################
+
   populateTrackingMsgs();
 
   //TODO Dynamic Static Classifier
@@ -214,10 +239,9 @@ void Cluster::populateTrackingMsgs(){
     msg_track_mean_kf.odom.pose.covariance[7] = kf_mean.P(1,1);
     msg_track_mean_kf.odom.twist.covariance[0]= kf_mean.P(2,2);
     msg_track_mean_kf.odom.twist.covariance[7]= kf_mean.P(3,3);
-    if (age==1) {
-      ROS_INFO_STREAM("x"<<kf_mean.state()[0]<<"msi"<<msg_track_mean_kf.odom.pose.pose.position.x);
-      
-    }
+    //if (age==1) {
+      //ROS_INFO_STREAM("x"<<kf_mean.state()[0]<<"msi"<<msg_track_mean_kf.odom.pose.pose.position.x);
+    //}
 
     msg_track_box.id = this->id;
     msg_track_box.odom.header.stamp = ros::Time::now();

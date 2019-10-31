@@ -31,6 +31,7 @@ Datmo::Datmo(){
   }
 
 }
+
 Datmo::~Datmo(){
   if (w_exec_times){
   whole.close();

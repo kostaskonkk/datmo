@@ -17,7 +17,7 @@ $argadd src/cluster.cpp
 $argadd src/cluster.hpp
 $argadd src/l_shape_tracker.cpp
 $argadd src/l_shape_tracker.hpp
-edit src/ukf/filter_base.h
+edit src/ukf/ukf.cpp
 set splitbelow splitright
 set nosplitbelow
 set nosplitright
@@ -27,7 +27,7 @@ set winheight=1
 set winminwidth=0
 set winwidth=1
 argglobal
-if bufexists("src/ukf/filter_base.h") | buffer src/ukf/filter_base.h | else | edit src/ukf/filter_base.h | endif
+if bufexists("src/ukf/ukf.cpp") | buffer src/ukf/ukf.cpp | else | edit src/ukf/ukf.cpp | endif
 setlocal fdm=manual
 setlocal fde=0
 setlocal fmr={{{,}}}
@@ -37,22 +37,23 @@ setlocal fml=1
 setlocal fdn=20
 setlocal fen
 silent! normal! zE
-let s:l = 58 - ((3 * winheight(0) + 65) / 131)
+let s:l = 63 - ((23 * winheight(0) + 26) / 53)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-58
-normal! 0
+63
+normal! 07|
 lcd ~/datmo_ws/src/datmo
 tabnext 1
-badd +43 ~/datmo_ws/src/datmo/src/ukf/filter_utilities.h
-badd +19 ~/datmo_ws/src/datmo/src/datmo.cpp
-badd +3 ~/datmo_ws/src/datmo/src/datmo.hpp
-badd +151 ~/datmo_ws/src/datmo/src/cluster.cpp
-badd +20 ~/datmo_ws/src/datmo/src/cluster.hpp
+badd +43 ~/datmo_ws/src/datmo/src/ukf/filter_base.h
+badd +263 ~/datmo_ws/src/datmo/src/datmo.cpp
+badd +20 ~/datmo_ws/src/datmo/src/datmo.hpp
+badd +191 ~/datmo_ws/src/datmo/src/cluster.cpp
+badd +65 ~/datmo_ws/src/datmo/src/cluster.hpp
 badd +1 ~/datmo_ws/src/datmo/src/l_shape_tracker.cpp
 badd +1 ~/datmo_ws/src/datmo/src/l_shape_tracker.hpp
-badd +36 ~/datmo_ws/src/datmo/src/ukf/ukf.h
+badd +43 ~/datmo_ws/src/datmo/src/ukf/filter_utilities.h
+badd +71 ~/datmo_ws/src/datmo/src/ukf/ukf.h
 badd +9 ~/datmo_ws/src/datmo/launch/sim_test.launch
 badd +8 ~/datmo_ws/src/datmo/launch/test.launch
 badd +14 ~/datmo_ws/src/datmo/src/main.cpp
@@ -61,12 +62,11 @@ badd +9 ~/datmo_ws/src/datmo/launch/simulation.launch
 badd +1 ~/datmo_ws/src/datmo/src/datmo.h
 badd +3 ~/datmo_ws/src/localization/launch/mocap_localization.launch
 badd +2 ~/datmo_ws/src/datmo/msg/Track.msg
-badd +109 ~/datmo_ws/src/datmo/src/ukf/filter_base.h
 badd +13 ~/datmo_ws/src/datmo/src/kalman-cpp/kalman.cpp
-badd +86 ~/datmo_ws/src/datmo/src/ukf/ukf.cpp
+badd +292 ~/datmo_ws/src/datmo/src/ukf/ukf.cpp
 badd +76 ~/datmo_ws/src/datmo/src/ukf/filter_common.h
 badd +33 ~/datmo_ws/src/datmo/src/ukf/filter_utilities.cpp
-badd +313 ~/datmo_ws/src/datmo/src/ukf/filter_base.cpp
+badd +357 ~/datmo_ws/src/datmo/src/ukf/filter_base.cpp
 badd +59 ~/datmo_ws/src/robot_localization/test/test_ukf.cpp
 if exists('s:wipebuf') && len(win_findbuf(s:wipebuf)) == 0
   silent exe 'bwipe ' . s:wipebuf
