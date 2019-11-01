@@ -46,6 +46,7 @@ private:
   ros::Publisher pub_tracks_mean;
   ros::Publisher pub_tracks_mean_kf;
   ros::Publisher pub_tracks_box;
+  ros::Publisher pub_tracks_box_ukf;
 
   ros::Subscriber sub_scan;
   sensor_msgs::LaserScan scan;

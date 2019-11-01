@@ -90,20 +90,26 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   //args[1] = 2;//kappa parameter
   //args[2] = 1;//beta parameter
   RobotLocalization::Ukf ukf_init(args);
+  this->ukf = ukf_init;
 
-  int STATE_SIZE = 15;
+  int STATE_SIZE = 6;
   Eigen::MatrixXd initialCovar(STATE_SIZE, STATE_SIZE);
   initialCovar.setIdentity();
   initialCovar *= 0.5;
-  ukf_init.setEstimateErrorCovariance(initialCovar);
+  ukf.setEstimateErrorCovariance(initialCovar);
 
+  Eigen::VectorXd initial_state(6);
+  initial_state<<cx,cy,0,0,0,0;
+  //initial_state = ukf.getState();
+  //ROS_INFO_STREAM("state:"<<initial_state);
+  ukf.setState(initial_state);
 
   Eigen::VectorXd measurement(2);
   //for (size_t i = 0; i < 2; ++i){
     //measurement[i] = i * 0.01;
   //}
-  measurement[0] = meanX();
-  measurement[1] = meanY();
+  measurement[0] = cx;
+  measurement[1] = cy;
 
   Eigen::MatrixXd measurementCovariance(2, 2);
   measurementCovariance.setIdentity();
@@ -119,10 +125,9 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   meas.updateVector_ = updateVector;
   meas.mahalanobisThresh_ = std::numeric_limits<double>::max();
 
-  ukf_init.correct_ctrm(meas);
-  ukf_init.predict_ctrm(dt);
+  ukf.correct_ctrm(meas);
+  ukf.predict_ctrm(dt);
 
-  this->ukf = ukf_init;
   //// Ensure that measurements are being placed in the queue correctly
   //ros::Time time;
   //time.fromSec(1000);
@@ -192,8 +197,8 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
     //measurement[i] = i * 0.01 * STATE_SIZE;
   //}
 
-  measurement[0] = meanX();
-  measurement[1] = meanY();
+  measurement[0] = cx;
+  measurement[1] = cy;
 
   Eigen::MatrixXd measurementCovariance(2, 2);
   measurementCovariance.setIdentity();
@@ -208,6 +213,10 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
   meas.covariance_ = measurementCovariance;
   meas.updateVector_ = updateVector;
   meas.mahalanobisThresh_ = std::numeric_limits<double>::max();
+
+  //Eigen::VectorXd initial_state(8);
+  //initial_state<<meanX(),meanY(),0,0,0,0,0,0;
+  //ukf.setState(initial_state);
 
   ukf.correct_ctrm(meas);
   ukf.predict_ctrm(dt);
@@ -228,7 +237,7 @@ void Cluster::populateTrackingMsgs(){
     msg_track_mean.odom.pose.pose.position.x = meanX();
     msg_track_mean.odom.pose.pose.position.y = meanY();
 
-    //Populate filtered track msg
+    //Populate mean_kf track msg
     msg_track_mean_kf.id = this->id;
     msg_track_mean_kf.odom.header.stamp = ros::Time::now();
     msg_track_mean_kf.odom.header.frame_id = frame_name;
@@ -253,6 +262,20 @@ void Cluster::populateTrackingMsgs(){
     msg_track_box.length = L1;
     msg_track_box.width  = L2;
 
+    //Populate mean_kf track msg
+    msg_track_box_ukf.id = this->id;
+    msg_track_box_ukf.odom.header.stamp = ros::Time::now();
+    msg_track_box_ukf.odom.header.frame_id = frame_name;
+    msg_track_box_ukf.odom.pose.pose.position.x = ukf.getState()[0];
+    msg_track_box_ukf.odom.pose.pose.position.y = ukf.getState()[1];
+    // yaw angle gets put in quaternion
+    msg_track_box_ukf.odom.pose.pose.orientation.x = ukf.getState()[2];
+    msg_track_box_ukf.odom.twist.twist.linear.x = ukf.getState()[3];
+    msg_track_box_ukf.odom.twist.twist.linear.y = ukf.getState()[4];
+    //msg_track_mean_kf.odom.pose.covariance[0] = kf_mean.P(0,0);
+    //msg_track_mean_kf.odom.pose.covariance[7] = kf_mean.P(1,1);
+    //msg_track_mean_kf.odom.twist.covariance[0]= kf_mean.P(2,2);
+    //msg_track_mean_kf.odom.twist.covariance[7]= kf_mean.P(3,3);
 }
 double findTurn(double& new_angle, double& old_angle){
   //https://math.stackexchange.com/questions/1366869/calculating-rotation-direction-between-two-angles
@@ -801,7 +824,7 @@ visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
     geometry_msgs::Point p;
     //p.x = cx; 
     //p.y = cy;
-    ROS_WARN_STREAM("State is:\n"<<ukf.getState()<<"\n");
+    //ROS_WARN_STREAM("State is:\n"<<ukf.getState()<<"\n");
    
     p.x = ukf.getState()[0];
     p.y = ukf.getState()[1];

@@ -30,6 +30,7 @@ public:
   datmo::Track msg_track_mean;
   datmo::Track msg_track_mean_kf;
   datmo::Track msg_track_box;
+  datmo::Track msg_track_box_ukf;
 
   unsigned long int id; //identifier for the cluster 
   unsigned long int age; //age of the cluster 

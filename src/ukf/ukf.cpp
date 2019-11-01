@@ -103,6 +103,7 @@ namespace RobotLocalization
     // Throughout prediction and correction, we attempt to maximize efficiency in Eigen.
     if (!uncorrected_)
     {
+      ROS_INFO_STREAM("It is not uncorrected!!");
       // Take the square root of a small fraction of the estimateErrorCovariance_ using LL' decomposition
       weightedCovarSqrt_ = ((STATE_SIZE + lambda_) * estimateErrorCovariance_).llt().matrixL();
 
@@ -189,7 +190,7 @@ namespace RobotLocalization
       // the absolute value.
       if (measurementCovarianceSubset(i, i) < 0)
       {
-        FB_DEBUG("WARNING: Negative covariance for index " << i <<
+        ROS_WARN_STREAM("WARNING: Negative covariance for index " << i <<
                  " of measurement (value is" << measurementCovarianceSubset(i, i) <<
                  "). Using absolute value...\n");
 
@@ -206,7 +207,7 @@ namespace RobotLocalization
       {
         measurementCovarianceSubset(i, i) = 1e-9;
 
-        FB_DEBUG("WARNING: measurement had very small error covariance for index " <<
+        ROS_WARN_STREAM("WARNING: measurement had very small error covariance for index " <<
                  updateIndices[i] <<
                  ". Adding some noise to maintain filter stability.\n");
       }
@@ -250,9 +251,9 @@ namespace RobotLocalization
     // Wrap angles in the innovation
     for (size_t i = 0; i < updateSize; ++i)
     {
-      if (updateIndices[i] == StateMemberRoll  ||
-          updateIndices[i] == StateMemberPitch ||
-          updateIndices[i] == StateMemberYaw)
+      if (updateIndices[i] == StateMemberYaw) 
+          //||updateIndices[i] == StateMemberRoll  
+          //||updateIndices[i] == StateMemberPitch
       {
         while (innovationSubset(i) < -PI)
         {
@@ -317,10 +318,8 @@ namespace RobotLocalization
     //transferFunction_(StateMemberX, StateMemberVy) = (cy * sp * sr - sy * cr) * delta;
     transferFunction_(StateMemberX, StateMemberVx) = cy * delta;
     transferFunction_(StateMemberX, StateMemberVy) = (cy - sy ) * delta;
-    //transferFunction_(StateMemberX, StateMemberVz) = (cy * sp * cr + sy * sr) * delta;
     //transferFunction_(StateMemberX, StateMemberAx) = 0.5 * transferFunction_(StateMemberX, StateMemberVx) * delta;
     //transferFunction_(StateMemberX, StateMemberAy) = 0.5 * transferFunction_(StateMemberX, StateMemberVy) * delta;
-    //transferFunction_(StateMemberX, StateMemberAz) = 0.5 * transferFunction_(StateMemberX, StateMemberVz) * delta;
     //transferFunction_(StateMemberY, StateMemberVx) = sy * cp * delta;
     //transferFunction_(StateMemberY, StateMemberVy) = (sy * sp * sr + cy * cr) * delta;
     transferFunction_(StateMemberY, StateMemberVx) = sy * delta;
@@ -328,31 +327,15 @@ namespace RobotLocalization
     //transferFunction_(StateMemberY, StateMemberVz) = (sy * sp * cr - cy * sr) * delta;
     //transferFunction_(StateMemberY, StateMemberAx) = 0.5 * transferFunction_(StateMemberY, StateMemberVx) * delta;
     //transferFunction_(StateMemberY, StateMemberAy) = 0.5 * transferFunction_(StateMemberY, StateMemberVy) * delta;
-    //transferFunction_(StateMemberY, StateMemberAz) = 0.5 * transferFunction_(StateMemberY, StateMemberVz) * delta;
-    //transferFunction_(StateMemberZ, StateMemberVx) = -sp * delta;
-    //transferFunction_(StateMemberZ, StateMemberVy) = cp * sr * delta;
-    //transferFunction_(StateMemberZ, StateMemberVz) = cp * cr * delta;
-    //transferFunction_(StateMemberZ, StateMemberAx) = 0.5 * transferFunction_(StateMemberZ, StateMemberVx) * delta;
-    //transferFunction_(StateMemberZ, StateMemberAy) = 0.5 * transferFunction_(StateMemberZ, StateMemberVy) * delta;
-    //transferFunction_(StateMemberZ, StateMemberAz) = 0.5 * transferFunction_(StateMemberZ, StateMemberVz) * delta;
-    //transferFunction_(StateMemberRoll, StateMemberVroll) = delta;
-    //transferFunction_(StateMemberRoll, StateMemberVpitch) = sr * tp * delta;
-    //transferFunction_(StateMemberRoll, StateMemberVyaw) = cr * tp * delta;
-    //transferFunction_(StateMemberPitch, StateMemberVpitch) = cr * delta;
-    //transferFunction_(StateMemberPitch, StateMemberVyaw) = -sr * delta;
-    //transferFunction_(StateMemberYaw, StateMemberVpitch) = sr * cpi * delta;
     //transferFunction_(StateMemberYaw, StateMemberVyaw) = cr * cpi * delta;
     transferFunction_(StateMemberYaw, StateMemberVyaw) = cpi * delta;
     //transferFunction_(StateMemberVx, StateMemberAx) = delta;
     //transferFunction_(StateMemberVy, StateMemberAy) = delta;
-    //transferFunction_(StateMemberVz, StateMemberAz) = delta;
 
     // (1) Take the square root of a small fraction of the estimateErrorCovariance_ using LL' decomposition
     weightedCovarSqrt_ = ((STATE_SIZE + lambda_) * estimateErrorCovariance_).llt().matrixL();
 
-    // (2) Compute sigma points *and* pass them through the transfer function to save
-    // the extra loop
-
+    // (2) Compute sigma points *and* pass them through the transfer function to save the extra loop
     // First sigma point is the current state
     sigmaPoints_[0] = transferFunction_ * state_;
 

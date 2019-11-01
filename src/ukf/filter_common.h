@@ -42,42 +42,42 @@ enum StateMembers
 {
   StateMemberX = 0,
   StateMemberY,
-  StateMemberZ,
-  StateMemberRoll,
-  StateMemberPitch,
+  //StateMemberZ,
+  //StateMemberRoll,
+  //StateMemberPitch,
   StateMemberYaw,
   StateMemberVx,
   StateMemberVy,
-  StateMemberVz,
-  StateMemberVroll,
-  StateMemberVpitch,
+  //StateMemberVz,
+  //StateMemberVroll,
+  //StateMemberVpitch,
   StateMemberVyaw,
-  StateMemberAx,
-  StateMemberAy,
-  StateMemberAz
+  //StateMemberAx,
+  //StateMemberAy,
+  //StateMemberAz
 };
 
 //! @brief Enumeration that defines the control vector
 //!
-enum ControlMembers
-{
-  ControlMemberVx,
-  ControlMemberVy,
-  ControlMemberVz,
-  ControlMemberVroll,
-  ControlMemberVpitch,
-  ControlMemberVyaw
-};
+//enum ControlMembers
+//{
+  //ControlMemberVx,
+  //ControlMemberVy,
+  //ControlMemberVz,
+  //ControlMemberVroll,
+  //ControlMemberVpitch,
+  //ControlMemberVyaw
+//};
 
 //! @brief Global constants that define our state
 //! vector size and offsets to groups of values
 //! within that state.
-const int STATE_SIZE = 15;
+const int STATE_SIZE = 6;
 const int POSITION_OFFSET = StateMemberX;
-const int ORIENTATION_OFFSET = StateMemberRoll;
+//const int ORIENTATION_OFFSET = StateMemberRoll;
 const int POSITION_V_OFFSET = StateMemberVx;
-const int ORIENTATION_V_OFFSET = StateMemberVroll;
-const int POSITION_A_OFFSET = StateMemberAx;
+//const int ORIENTATION_V_OFFSET = StateMemberVroll;
+//const int POSITION_A_OFFSET = StateMemberAx;
 
 //! @brief Pose and twist messages each
 //! contain six variables
