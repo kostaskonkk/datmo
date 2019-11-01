@@ -108,42 +108,6 @@ struct Measurement
 };
 typedef boost::shared_ptr<Measurement> MeasurementPtr;
 
-//! @brief Structure used for storing and comparing filter states
-//!
-//! This structure is useful when higher-level classes need to remember filter history.
-//! Measurement units are assumed to be in meters and radians.
-//! Times are real-valued and measured in seconds.
-//!
-struct FilterState
-{
-  // The time stamp of the most recent measurement for the filter
-  double lastMeasurementTime_;
-
-  // The time stamp of the most recent control term
-  double latestControlTime_;
-
-  // The most recent control vector
-  Eigen::VectorXd latestControl_;
-
-  // The filter state vector
-  Eigen::VectorXd state_;
-
-  // The filter error covariance matrix
-  Eigen::MatrixXd estimateErrorCovariance_;
-
-  // We want the queue to be sorted from latest to earliest timestamps.
-  bool operator()(const FilterState &a, const FilterState &b)
-  {
-    return a.lastMeasurementTime_ < b.lastMeasurementTime_;
-  }
-
-  FilterState() :
-    lastMeasurementTime_(0.0),
-    latestControlTime_(0.0)
-  {}
-};
-typedef boost::shared_ptr<FilterState> FilterStatePtr;
-
 class FilterBase
 {
   public:
@@ -159,32 +123,12 @@ class FilterBase
     //!
     void reset();
 
-    //! @brief Computes a dynamic process noise covariance matrix using the parameterized state
-    //!
-    //! This allows us to, e.g., not increase the pose covariance values when the vehicle is not moving
-    //!
-    //! @param[in] state - The STATE_SIZE state vector that is used to generate the dynamic process noise covariance
-    //!
-    void computeDynamicProcessNoiseCovariance(const Eigen::VectorXd &state, const double delta);
-
     //! @brief Carries out the correct step in the predict/update cycle. This method
     //! must be implemented by subclasses.
     //!
     //! @param[in] measurement - The measurement to fuse with the state estimate
     //!
-    virtual void correct(const Measurement &measurement) = 0;
-
-    //! @brief Returns the control vector currently being used
-    //!
-    //! @return The control vector
-    //!
-    const Eigen::VectorXd& getControl();
-
-    //! @brief Returns the time at which the control term was issued
-    //!
-    //! @return The time the control vector was issued
-    //!
-    double getControlTime();
+    //virtual void correct(const Measurement &measurement) = 0;
 
     //! @brief Gets the value of the debug_ variable.
     //!
@@ -242,33 +186,13 @@ class FilterBase
     //! @param[in] referenceTime - The time at which the prediction is being made
     //! @param[in] delta - The time step over which to predict.
     //!
-    virtual void predict(const double referenceTime, const double delta) = 0;
+    //virtual void predict(const double referenceTime, const double delta) = 0;
 
     //! @brief Does some final preprocessing, carries out the predict/update cycle
     //!
     //! @param[in] measurement - The measurement object to fuse into the filter
     //!
-    virtual void processMeasurement(const Measurement &measurement);
-
-    //! @brief Sets the most recent control term
-    //!
-    //! @param[in] control - The control term to be applied
-    //! @param[in] controlTime - The time at which the control in question was received
-    //!
-    void setControl(const Eigen::VectorXd &control, const double controlTime);
-
-    //! @brief Sets the control update vector and acceleration limits
-    //!
-    //! @param[in] updateVector - The values the control term affects
-    //! @param[in] controlTimeout - Timeout value, in seconds, after which a control is considered stale
-    //! @param[in] accelerationLimits - The acceleration limits for the control variables
-    //! @param[in] accelerationGains - Gains applied to the control term-derived acceleration
-    //! @param[in] decelerationLimits - The deceleration limits for the control variables
-    //! @param[in] decelerationGains - Gains applied to the control term-derived deceleration
-    //!
-    void setControlParams(const std::vector<int> &updateVector, const double controlTimeout,
-      const std::vector<double> &accelerationLimits, const std::vector<double> &accelerationGains,
-      const std::vector<double> &decelerationLimits, const std::vector<double> &decelerationGains);
+    //virtual void processMeasurement(const Measurement &measurement);
 
     //! @brief Sets the filter into debug mode
     //!
@@ -281,12 +205,6 @@ class FilterBase
     //! false, outStream is ignored.
     //!
     void setDebug(const bool debug, std::ostream *outStream = NULL);
-
-    //! @brief Enables dynamic process noise covariance calculation
-    //!
-    //! @param[in] dynamicProcessNoiseCovariance - Whether or not to compute dynamic process noise covariance matrices
-    //!
-    void setUseDynamicProcessNoiseCovariance(const bool dynamicProcessNoiseCovariance);
 
     //! @brief Manually sets the filter's estimate error covariance
     //!
@@ -310,13 +228,6 @@ class FilterBase
     //!
     void setProcessNoiseCovariance(const Eigen::MatrixXd &processNoiseCovariance);
 
-    //! @brief Sets the sensor timeout
-    //!
-    //! @param[in] sensorTimeout - The time, in seconds, for a sensor to be
-    //! considered having timed out
-    //!
-    void setSensorTimeout(const double sensorTimeout);
-
     //! @brief Manually sets the filter's state
     //!
     //! @param[in] state - The state to set as the filter's current state
@@ -330,47 +241,6 @@ class FilterBase
     void validateDelta(double &delta);
 
   protected:
-    //! @brief Method for settings bounds on acceleration values derived from controls
-    //! @param[in] state - The current state variable (e.g., linear X velocity)
-    //! @param[in] control - The current control commanded velocity corresponding to the state variable
-    //! @param[in] accelerationLimit - Limit for acceleration (regardless of driving direction)
-    //! @param[in] accelerationGain - Gain applied to acceleration control error
-    //! @param[in] decelerationLimit - Limit for deceleration (moving towards zero, regardless of driving direction)
-    //! @param[in] decelerationGain - Gain applied to deceleration control error
-    //! @return a usable acceleration estimate for the control vector
-    //!
-    inline double computeControlAcceleration(const double state, const double control, const double accelerationLimit,
-      const double accelerationGain, const double decelerationLimit, const double decelerationGain)
-    {
-      FB_DEBUG("---------- FilterBase::computeControlAcceleration ----------\n");
-
-      const double error = control - state;
-      const bool sameSign = (::fabs(error) <= ::fabs(control) + 0.01);
-      const double setPoint = (sameSign ? control : 0.0);
-      const bool decelerating = ::fabs(setPoint) < ::fabs(state);
-      double limit = accelerationLimit;
-      double gain = accelerationGain;
-
-      if (decelerating)
-      {
-        limit = decelerationLimit;
-        gain = decelerationGain;
-      }
-
-      const double finalAccel = std::min(std::max(gain * error, -limit), limit);
-
-      FB_DEBUG("Control value: " << control << "\n" <<
-               "State value: " << state << "\n" <<
-               "Error: " << error << "\n" <<
-               "Same sign: " << (sameSign ? "true" : "false") << "\n" <<
-               "Set point: " << setPoint << "\n" <<
-               "Decelerating: " << (decelerating ? "true" : "false") << "\n" <<
-               "Limit: " << limit << "\n" <<
-               "Gain: " << gain << "\n" <<
-               "Final is " << finalAccel << "\n");
-
-      return finalAccel;
-    }
 
     //! @brief Keeps the state Euler angles in the range [-pi, pi]
     //!
@@ -385,74 +255,14 @@ class FilterBase
                                            const Eigen::MatrixXd &invCovariance,
                                            const double nsigmas);
 
-    //! @brief Converts the control term to an acceleration to be applied in the prediction step
-    //! @param[in] referenceTime - The time of the update (measurement used in the prediction step)
-    //! @param[in] predictionDelta - The amount of time over which we are carrying out our prediction
-    //!
-    void prepareControl(const double referenceTime, const double predictionDelta);
-
     //! @brief Whether or not we've received any measurements
     //!
     bool initialized_;
 
-    //! @brief Whether or not we apply the control term
-    //!
-    bool useControl_;
-
-    //! @brief If true, uses the robot's vehicle state and the static process noise covariance matrix to generate a
-    //! dynamic process noise covariance matrix
-    //!
-    bool useDynamicProcessNoiseCovariance_;
-
-    //! @brief Tracks the time the filter was last updated using a measurement.
-    //!
     //! This value is used to monitor sensor readings with respect to the sensorTimeout_.
     //! We also use it to compute the time delta values for our prediction step.
     //!
     double lastMeasurementTime_;
-
-    //! @brief The time of reception of the most recent control term
-    //!
-    double latestControlTime_;
-
-    //! @brief Timeout value, in seconds, after which a control is considered stale
-    //!
-    double controlTimeout_;
-
-    //! @brief The updates to the filter - both predict and correct - are driven
-    //! by measurements. If we get a gap in measurements for some reason, we want
-    //! the filter to continue estimating. When this gap occurs, as specified by
-    //! this timeout, we will continue to call predict() at the filter's frequency.
-    //!
-    double sensorTimeout_;
-
-    //! @brief Which control variables are being used (e.g., not every vehicle is controllable in Y or Z)
-    //!
-    std::vector<int> controlUpdateVector_;
-
-    //! @brief Gains applied to acceleration derived from control term
-    //!
-    std::vector<double> accelerationGains_;
-
-    //! @brief Caps the acceleration we apply from control input
-    //!
-    std::vector<double> accelerationLimits_;
-
-    //! @brief Gains applied to deceleration derived from control term
-    //!
-    std::vector<double> decelerationGains_;
-
-    //! @brief Caps the deceleration we apply from control input
-    //!
-    std::vector<double> decelerationLimits_;
-
-    //! @brief Variable that gets updated every time we process a measurement and we have a valid control
-    //!
-    Eigen::VectorXd controlAcceleration_;
-
-    //! @brief Latest control term
-    //!
-    Eigen::VectorXd latestControl_;
 
     //! @brief Holds the last predicted state of the filter
     //!
@@ -468,10 +278,6 @@ class FilterBase
     //! positive-definite property.
     //!
     Eigen::MatrixXd covarianceEpsilon_;
-
-    //! @brief Gets updated when useDynamicProcessNoise_ is true
-    //!
-    Eigen::MatrixXd dynamicProcessNoiseCovariance_;
 
     //! @brief This matrix stores the total error in our position
     //! estimate (the state_ variable).
@@ -508,16 +314,6 @@ class FilterBase
     //! Kalman filter formulation.
     //!
     Eigen::MatrixXd transferFunction_;
-
-    //! @brief The Kalman filter transfer function Jacobian
-    //!
-    //! The transfer function is allowed to be non-linear in an EKF, but
-    //! for propagating (predicting) the covariance matrix, we need to linearize
-    //! it about the current mean (i.e., state). This is done via a Jacobian,
-    //! which calculates partial derivatives of each row of the transfer function
-    //! matrix with respect to each state variable.
-    //!
-    Eigen::MatrixXd transferFunctionJacobian_;
 
     //! @brief Used for outputting debug messages
     //!

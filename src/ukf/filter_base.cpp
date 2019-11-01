@@ -43,28 +43,14 @@ namespace RobotLocalization
 {
   FilterBase::FilterBase() :
     initialized_(false),
-    useControl_(false),
-    useDynamicProcessNoiseCovariance_(false),
     lastMeasurementTime_(0.0),
-    latestControlTime_(0.0),
-    controlTimeout_(0.0),
-    sensorTimeout_(0.0),
-    controlUpdateVector_(TWIST_SIZE, 0),
-    accelerationGains_(TWIST_SIZE, 0.0),
-    accelerationLimits_(TWIST_SIZE, 0.0),
-    decelerationGains_(TWIST_SIZE, 0.0),
-    decelerationLimits_(TWIST_SIZE, 0.0),
-    controlAcceleration_(TWIST_SIZE),
-    latestControl_(TWIST_SIZE),
     predictedState_(STATE_SIZE),
     state_(STATE_SIZE),
     covarianceEpsilon_(STATE_SIZE, STATE_SIZE),
-    dynamicProcessNoiseCovariance_(STATE_SIZE, STATE_SIZE),
     estimateErrorCovariance_(STATE_SIZE, STATE_SIZE),
     identity_(STATE_SIZE, STATE_SIZE),
     processNoiseCovariance_(STATE_SIZE, STATE_SIZE),
     transferFunction_(STATE_SIZE, STATE_SIZE),
-    transferFunctionJacobian_(STATE_SIZE, STATE_SIZE),
     debugStream_(NULL),
     debug_(false)
   {
@@ -82,14 +68,10 @@ namespace RobotLocalization
     // Clear the state and predicted state
     state_.setZero();
     predictedState_.setZero();
-    controlAcceleration_.setZero();
 
     // Prepare the invariant parts of the transfer
     // function
     transferFunction_.setIdentity();
-
-    // Clear the Jacobian
-    transferFunctionJacobian_.setZero();
 
     // Set the estimate error covariance. We want our measurements
     // to be accepted rapidly when the filter starts, so we should
@@ -104,9 +86,6 @@ namespace RobotLocalization
     // It is used to maintain the positive-definite property of the covariance
     covarianceEpsilon_.setIdentity();
     covarianceEpsilon_ *= 0.001;
-
-    // Assume 30Hz from sensor data (configurable)
-    sensorTimeout_ = 0.033333333;
 
     // Initialize our measurement time
     lastMeasurementTime_ = 0;
@@ -130,36 +109,6 @@ namespace RobotLocalization
     processNoiseCovariance_(StateMemberAy, StateMemberAy) = 0.01;
     processNoiseCovariance_(StateMemberAz, StateMemberAz) = 0.015;
 
-    dynamicProcessNoiseCovariance_ = processNoiseCovariance_;
-  }
-
-  void FilterBase::computeDynamicProcessNoiseCovariance(const Eigen::VectorXd &state, const double delta)
-  {
-    // A more principled approach would be to get the current velocity from the state, make a diagonal matrix from it,
-    // and then rotate it to be in the world frame (i.e., the same frame as the pose data). We could then use this
-    // rotated velocity matrix to scale the process noise covariance for the pose variables as
-    // rotatedVelocityMatrix * poseCovariance * rotatedVelocityMatrix'
-    // However, this presents trouble for robots that may incur rotational error as a result of linear motion (and
-    // vice-versa). Instead, we create a diagonal matrix whose diagonal values are the vector norm of the state's
-    // velocity. We use that to scale the process noise covariance.
-    Eigen::MatrixXd velocityMatrix(TWIST_SIZE, TWIST_SIZE);
-    velocityMatrix.setIdentity();
-    velocityMatrix.diagonal() *= state.segment(POSITION_V_OFFSET, TWIST_SIZE).norm();
-
-    dynamicProcessNoiseCovariance_.block<TWIST_SIZE, TWIST_SIZE>(POSITION_OFFSET, POSITION_OFFSET) =
-      velocityMatrix *
-      processNoiseCovariance_.block<TWIST_SIZE, TWIST_SIZE>(POSITION_OFFSET, POSITION_OFFSET) *
-      velocityMatrix.transpose();
-  }
-
-  const Eigen::VectorXd& FilterBase::getControl()
-  {
-    return latestControl_;
-  }
-
-  double FilterBase::getControlTime()
-  {
-    return latestControlTime_;
   }
 
   bool FilterBase::getDebug()
@@ -192,97 +141,9 @@ namespace RobotLocalization
     return processNoiseCovariance_;
   }
 
-  double FilterBase::getSensorTimeout()
-  {
-    return sensorTimeout_;
-  }
-
   const Eigen::VectorXd& FilterBase::getState()
   {
     return state_;
-  }
-
-  void FilterBase::processMeasurement(const Measurement &measurement)
-  {
-    FB_DEBUG("------ FilterBase::processMeasurement (" << measurement.topicName_ << ") ------\n");
-
-    double delta = 0.0;
-
-    // If we've had a previous reading, then go through the predict/update
-    // cycle. Otherwise, set our state and covariance to whatever we get
-    // from this measurement.
-    if (initialized_)
-    {
-      // Determine how much time has passed since our last measurement
-      delta = measurement.time_ - lastMeasurementTime_;
-
-      FB_DEBUG("Filter is already initialized. Carrying out predict/correct loop...\n"
-               "Measurement time is " << std::setprecision(20) << measurement.time_ <<
-               ", last measurement time is " << lastMeasurementTime_ << ", delta is " << delta << "\n");
-
-      // Only want to carry out a prediction if it's
-      // forward in time. Otherwise, just correct.
-      if (delta > 0)
-      {
-        validateDelta(delta);
-        predict(measurement.time_, delta);
-
-        // Return this to the user
-        predictedState_ = state_;
-      }
-
-      correct(measurement);
-    }
-    else
-    {
-      FB_DEBUG("First measurement. Initializing filter.\n");
-
-      // Initialize the filter, but only with the values we're using
-      size_t measurementLength = measurement.updateVector_.size();
-      for (size_t i = 0; i < measurementLength; ++i)
-      {
-        state_[i] = (measurement.updateVector_[i] ? measurement.measurement_[i] : state_[i]);
-      }
-
-      // Same for covariance
-      for (size_t i = 0; i < measurementLength; ++i)
-      {
-        for (size_t j = 0; j < measurementLength; ++j)
-        {
-          estimateErrorCovariance_(i, j) = (measurement.updateVector_[i] && measurement.updateVector_[j] ?
-                                            measurement.covariance_(i, j) :
-                                            estimateErrorCovariance_(i, j));
-        }
-      }
-
-      initialized_ = true;
-    }
-
-    if (delta >= 0.0)
-    {
-      lastMeasurementTime_ = measurement.time_;
-    }
-
-    FB_DEBUG("------ /FilterBase::processMeasurement (" << measurement.topicName_ << ") ------\n");
-  }
-
-  void FilterBase::setControl(const Eigen::VectorXd &control, const double controlTime)
-  {
-    latestControl_ = control;
-    latestControlTime_ = controlTime;
-  }
-
-  void FilterBase::setControlParams(const std::vector<int> &updateVector, const double controlTimeout,
-    const std::vector<double> &accelerationLimits, const std::vector<double> &accelerationGains,
-    const std::vector<double> &decelerationLimits, const std::vector<double> &decelerationGains)
-  {
-    useControl_ = true;
-    controlUpdateVector_ = updateVector;
-    controlTimeout_ = controlTimeout;
-    accelerationLimits_ = accelerationLimits;
-    accelerationGains_ = accelerationGains;
-    decelerationLimits_ = decelerationLimits;
-    decelerationGains_ = decelerationGains;
   }
 
   void FilterBase::setDebug(const bool debug, std::ostream *outStream)
@@ -305,11 +166,6 @@ namespace RobotLocalization
     }
   }
 
-  void FilterBase::setUseDynamicProcessNoiseCovariance(const bool useDynamicProcessNoiseCovariance)
-  {
-    useDynamicProcessNoiseCovariance_ = useDynamicProcessNoiseCovariance;
-  }
-
   void FilterBase::setEstimateErrorCovariance(const Eigen::MatrixXd &estimateErrorCovariance)
   {
     estimateErrorCovariance_ = estimateErrorCovariance;
@@ -323,12 +179,6 @@ namespace RobotLocalization
   void FilterBase::setProcessNoiseCovariance(const Eigen::MatrixXd &processNoiseCovariance)
   {
     processNoiseCovariance_ = processNoiseCovariance;
-    dynamicProcessNoiseCovariance_ = processNoiseCovariance_;
-  }
-
-  void FilterBase::setSensorTimeout(const double sensorTimeout)
-  {
-    sensorTimeout_ = sensorTimeout;
   }
 
   void FilterBase::setState(const Eigen::VectorXd &state)
@@ -344,33 +194,6 @@ namespace RobotLocalization
       FB_DEBUG("Delta was very large. Suspect playing from bag file. Setting to 0.01\n");
 
       delta = 0.01;
-    }
-  }
-
-
-  void FilterBase::prepareControl(const double referenceTime, const double predictionDelta)
-  {
-    controlAcceleration_.setZero();
-
-    if (useControl_)
-    {
-      bool timedOut = ::fabs(referenceTime - latestControlTime_) >= controlTimeout_;
-
-      if (timedOut)
-      {
-        FB_DEBUG("Control timed out. Reference time was " << referenceTime << ", latest control time was " <<
-          latestControlTime_ << ", control timeout was " << controlTimeout_ << "\n");
-      }
-
-      for (size_t controlInd = 0; controlInd < TWIST_SIZE; ++controlInd)
-      {
-        if (controlUpdateVector_[controlInd])
-        {
-          controlAcceleration_(controlInd) = computeControlAcceleration(state_(controlInd + POSITION_V_OFFSET),
-            (timedOut ? 0.0 : latestControl_(controlInd)), accelerationLimits_[controlInd],
-            accelerationGains_[controlInd], decelerationLimits_[controlInd], decelerationGains_[controlInd]);
-        }
-      }
     }
   }
 

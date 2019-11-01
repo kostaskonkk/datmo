@@ -92,27 +92,26 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   RobotLocalization::Ukf ukf_init(args);
 
   int STATE_SIZE = 15;
-  Eigen::MatrixXd initialCovar(15, 15);
+  Eigen::MatrixXd initialCovar(STATE_SIZE, STATE_SIZE);
   initialCovar.setIdentity();
   initialCovar *= 0.5;
   ukf_init.setEstimateErrorCovariance(initialCovar);
 
-  //EXPECT_EQ(ukf.getFilter().getEstimateErrorCovariance(), initialCovar);
-  
-  //EXPECT_EQ(ukf.getFilter().getEstimateErrorCovariance(), initialCovar);
 
-  Eigen::VectorXd measurement(STATE_SIZE);
-  for (size_t i = 0; i < STATE_SIZE; ++i){
-    measurement[i] = i * 0.01 * STATE_SIZE;
-  }
+  Eigen::VectorXd measurement(2);
+  //for (size_t i = 0; i < 2; ++i){
+    //measurement[i] = i * 0.01;
+  //}
+  measurement[0] = meanX();
+  measurement[1] = meanY();
 
-  Eigen::MatrixXd measurementCovariance(STATE_SIZE, STATE_SIZE);
+  Eigen::MatrixXd measurementCovariance(2, 2);
   measurementCovariance.setIdentity();
-  for (size_t i = 0; i < STATE_SIZE; ++i){
+  for (size_t i = 0; i < 2; ++i){
     measurementCovariance(i, i) = 1e-9;
   }
 
-  std::vector<int> updateVector(STATE_SIZE, true);
+  std::vector<int> updateVector(2, true);
 
   RobotLocalization::Measurement meas;
   meas.measurement_ = measurement;
@@ -120,7 +119,7 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   meas.updateVector_ = updateVector;
   meas.mahalanobisThresh_ = std::numeric_limits<double>::max();
 
-  ukf_init.correct(meas);
+  ukf_init.correct_ctrm(meas);
   ukf_init.predict_ctrm(dt);
 
   this->ukf = ukf_init;
@@ -159,7 +158,6 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   populateTrackingMsgs();
 
 }
-
 void Cluster::update(const pointList& new_points, const double dt, const tf::Transform& ego_pose) {
 
   ego_coordinates.first = ego_pose.getOrigin().getX();
@@ -188,19 +186,22 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
   kf_mean.update(y, dt);
 
   // UKF #######################
-  int STATE_SIZE = 15;
-  Eigen::VectorXd measurement(STATE_SIZE);
-  for (size_t i = 0; i < STATE_SIZE; ++i){
-    measurement[i] = i * 0.01 * STATE_SIZE;
-  }
+  //int STATE_SIZE = 2;
+  Eigen::VectorXd measurement(2);
+  //for (size_t i = 0; i < STATE_SIZE; ++i){
+    //measurement[i] = i * 0.01 * STATE_SIZE;
+  //}
 
-  Eigen::MatrixXd measurementCovariance(STATE_SIZE, STATE_SIZE);
+  measurement[0] = meanX();
+  measurement[1] = meanY();
+
+  Eigen::MatrixXd measurementCovariance(2, 2);
   measurementCovariance.setIdentity();
-  for (size_t i = 0; i < STATE_SIZE; ++i){
+  for (size_t i = 0; i < 2; ++i){
     measurementCovariance(i, i) = 1e-9;
   }
 
-  std::vector<int> updateVector(STATE_SIZE, true);
+  std::vector<int> updateVector(2, true);
 
   RobotLocalization::Measurement meas;
   meas.measurement_ = measurement;
@@ -208,7 +209,7 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
   meas.updateVector_ = updateVector;
   meas.mahalanobisThresh_ = std::numeric_limits<double>::max();
 
-  ukf.correct(meas);
+  ukf.correct_ctrm(meas);
   ukf.predict_ctrm(dt);
 
   // UKF #######################
@@ -685,7 +686,6 @@ visualization_msgs::Marker Cluster::getThetaL2VisualisationMessage() {
   arrow_marker.scale.z = 0.01;  
   return arrow_marker;
 }
-
 visualization_msgs::Marker Cluster::getPoseCovariance(){
 
     visualization_msgs::Marker marker;
@@ -793,19 +793,23 @@ visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
     boxcenter_marker.scale.x = 0.1;
     boxcenter_marker.scale.y = 0.1;  
     boxcenter_marker.color.a = 1.0;
-    boxcenter_marker.color.r = 0;
+    boxcenter_marker.color.r = 1;
     boxcenter_marker.color.g = 1;
     boxcenter_marker.color.b = 0;
     boxcenter_marker.id = this->id;
     
     geometry_msgs::Point p;
-    p.x = cx; 
-    p.y = cy;
+    //p.x = cx; 
+    //p.y = cy;
+    ROS_WARN_STREAM("State is:\n"<<ukf.getState()<<"\n");
+   
+    p.x = ukf.getState()[0];
+    p.y = ukf.getState()[1];
+    //p.y = ukf.StateMemberY; 
     boxcenter_marker.points.push_back(p);
 
   return boxcenter_marker;
 }
-
 visualization_msgs::Marker Cluster::getClusterVisualisationMessage() {
   visualization_msgs::Marker cluster_vmsg;
   cluster_vmsg.header.frame_id  = frame_name;

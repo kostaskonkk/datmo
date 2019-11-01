@@ -77,7 +77,8 @@ class Ukf: public FilterBase
     //!
     //! @param[in] measurement - The measurement to fuse with our estimate
     //!
-    void correct(const Measurement &measurement);
+    //void correct(const Measurement &measurement);
+    void correct_ctrm(const Measurement &measurement);
 
     //! @brief Carries out the predict step in the predict/update cycle.
     //!
@@ -87,7 +88,7 @@ class Ukf: public FilterBase
     //! @param[in] referenceTime - The time at which the prediction is being made
     //! @param[in] delta - The time step over which to predict.
     //!
-    void predict(const double referenceTime, const double delta);
+    //void predict(const double referenceTime, const double delta);
 
     void predict_ctrm(const double delta);
 

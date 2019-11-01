@@ -97,7 +97,7 @@ Visualization Manager:
       Namespaces:
         L-Shapes: false
         boundind_boxes: false
-        bounding_box_center: false
+        bounding_box_center: true
         box_models: true
         closest_corner: false
         clustered_points: false
