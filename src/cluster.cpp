@@ -78,7 +78,7 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   //initialise thetaL1 in range [0,2pi]
   LShapeTracker l_shape_tracker(closest_corner_point, L1, L2, normalize_angle(thetaL1), dt);
   l_shape = l_shape_tracker;
-  l_shape.lshapeToBoxModelConversion(cx, cy, L1_box, L2_box, th);
+  l_shape.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
 
   VectorXd x0(n);
   x0 << meanX(), meanY(), 0, 0;
@@ -128,38 +128,6 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   ukf.correct_ctrm(meas);
   ukf.predict_ctrm(dt);
 
-  //// Ensure that measurements are being placed in the queue correctly
-  //ros::Time time;
-  //time.fromSec(1000);
-  //ukf.enqueueMeasurement("odom0",
-       //measurement,
-       //measurementCovariance,
-       //updateVector,
-       //std::numeric_limits<double>::max(),
-       //time);
-
-  //ukf.integrateMeasurements(ros::Time(1001));
-
-
-  //MeasurementPtr meas = MeasurementPtr(new Measurement());
-
-  //meas->topicName_ = topicName;
-  //meas->measurement_ = measurement;
-  //meas->covariance_ = measurementCovariance;
-  //meas->updateVector_ = updateVector;
-  //meas->time_ = time.toSec();
-  //meas->mahalanobisThresh_ = mahalanobisThresh;
-  //meas->latestControl_ = latestControl_;
-  //meas->latestControlTime_ = latestControlTime_.toSec();
-  //ukf.correct(meas)
-  //measurementQueue_.push(meas);
- 
-  //ukf.integrateMeasurements(ros::Time(1001));
-
-  //EXPECT_EQ(ukf.getFilter().getState(), measurement);
-  //EXPECT_EQ(ukf.getFilter().getEstimateErrorCovariance(), measurementCovariance);
-
-  //ukf.getFilter().setEstimateErrorCovariance(initialCovar);
   populateTrackingMsgs();
 
 }
@@ -177,13 +145,12 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
 
   detectCornerPointSwitch(old_thetaL1, thetaL1);
   
-  double norm = normalize_angle(l_shape.shape.state()(2));
+  double norm = normalize_angle(l_shape.shape_kf.state()(2));
   double distance = shortest_angular_distance(norm, thetaL1);
-  double unwrapped_thetaL1 = distance + l_shape.shape.state()(2) ;
+  double unwrapped_thetaL1 = distance + l_shape.shape_kf.state()(2) ;
   
   l_shape.update(closest_corner_point, L1, L2, unwrapped_thetaL1, dt);
-  l_shape.lshapeToBoxModelConversion(cx, cy, L1_box, L2_box, th);
-
+  l_shape.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
   // Update Kalman Filter
   VectorXd y(2);
 
@@ -253,14 +220,17 @@ void Cluster::populateTrackingMsgs(){
       //ROS_INFO_STREAM("x"<<kf_mean.state()[0]<<"msi"<<msg_track_mean_kf.odom.pose.pose.position.x);
     //}
 
-    msg_track_box.id = this->id;
-    msg_track_box.odom.header.stamp = ros::Time::now();
-    msg_track_box.odom.header.frame_id = frame_name;
-    msg_track_box.odom.pose.pose.position.x = cx;
-    msg_track_box.odom.pose.pose.position.y = cy;
-    msg_track_box.odom.pose.pose.orientation.z = thetaL1;
-    msg_track_box.length = L1;
-    msg_track_box.width  = L2;
+    msg_track_box_kf.id = this->id;
+    msg_track_box_kf.odom.header.stamp = ros::Time::now();
+    msg_track_box_kf.odom.header.frame_id = frame_name;
+    msg_track_box_kf.odom.pose.pose.position.x = cx;
+    msg_track_box_kf.odom.pose.pose.position.y = cy;
+    //msg_track_mean_kf.odom.twist.twist.linear.x = cvx;
+    msg_track_box_kf.odom.twist.twist.linear.x = cvx;
+    msg_track_box_kf.odom.twist.twist.linear.y = cvy;
+    msg_track_box_kf.odom.pose.pose.orientation.z = th;
+    msg_track_box_kf.length = L1_box;
+    msg_track_box_kf.width  = L2_box;
 
     //Populate mean_kf track msg
     msg_track_box_ukf.id = this->id;
@@ -269,9 +239,9 @@ void Cluster::populateTrackingMsgs(){
     msg_track_box_ukf.odom.pose.pose.position.x = ukf.getState()[0];
     msg_track_box_ukf.odom.pose.pose.position.y = ukf.getState()[1];
     // yaw angle gets put in quaternion
-    msg_track_box_ukf.odom.pose.pose.orientation.x = ukf.getState()[2];
     msg_track_box_ukf.odom.twist.twist.linear.x = ukf.getState()[3];
     msg_track_box_ukf.odom.twist.twist.linear.y = ukf.getState()[4];
+    msg_track_box_ukf.odom.pose.pose.orientation.z = ukf.getState()[2];
     //msg_track_mean_kf.odom.pose.covariance[0] = kf_mean.P(0,0);
     //msg_track_mean_kf.odom.pose.covariance[7] = kf_mean.P(1,1);
     //msg_track_mean_kf.odom.twist.covariance[0]= kf_mean.P(2,2);

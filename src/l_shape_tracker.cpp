@@ -29,20 +29,24 @@ LShapeTracker::LShapeTracker(const Point& corner_point, const double& L1, const 
   C << 1, 0, 0, 0,
        0, 1, 0, 0;
 
+  Q << 1, 0, 0, 0, 
+       0, 1, 0, 0, 
+       0, 0,10, 0, 
+       0, 0, 0,10;
   Q.setIdentity();
   R.setIdentity();
   P.setIdentity();
 
   KalmanFilter dynamic_kalman_filter(dt, A, C, Q, R, P); 
-  this->dynamic = dynamic_kalman_filter;
+  this->dynamic_kf = dynamic_kalman_filter;
 
   VectorXd x0_dynamic(n);
-  x0_dynamic << corner_point.first, corner_point.second, 0, 0;
-  dynamic.init(0,x0_dynamic);
+  x0_dynamic << corner_point.first, corner_point.second, 0.2, 0.2;
+  dynamic_kf.init(0,x0_dynamic);
 
   // Initialization of Shape Kalman Filter
   n = 4; // Number of states
-  n = 3; // Number of states
+  //n = 3; // Number of states
   m = 3; // Number of measurements
   MatrixXd As(n, n); // System dynamics matrix
   MatrixXd Cs(m, n); // Output matrix
@@ -50,34 +54,25 @@ LShapeTracker::LShapeTracker(const Point& corner_point, const double& L1, const 
   MatrixXd Rs(m, m); // Measurement noise covariance
   MatrixXd Ps(n, n); // Estimate error covariance
       
-  //As<< 1, 0, 0, 0, 
-       //0, 1, 0, 0, 
-       //0, 0, 1,dt, 
-       //0, 0, 0, 1;
+  As<< 1, 0, 0, 0, 
+       0, 1, 0, 0, 
+       0, 0, 1,dt, 
+       0, 0, 0, 1;
 
-  As<< 1, 0, 0, 
-       0, 1, 0, 
-       0, 0, 1; 
-
-  //Cs<< 1, 0, 0, 0,
-       //0, 1, 0, 0,
-       //0, 0, 1, 0;
-  Cs<< 1, 0, 0,
-       0, 1, 0,
-       0, 0, 1;
+  Cs<< 1, 0, 0, 0,
+       0, 1, 0, 0,
+       0, 0, 1, 0;
 
   Qs.setIdentity();
   Rs.setIdentity();
   Ps.setIdentity();
 
   KalmanFilter shape_kalman_filter(dt, As, Cs, Qs, Rs, Ps); 
-  this->shape = shape_kalman_filter;
+  this->shape_kf = shape_kalman_filter;
 
   VectorXd x0_shape(n);
-  //x0_shape << L1, L2, theta, 0;
-  x0_shape << L1, L2, theta;
-  shape.init(0,x0_shape);
-  
+  x0_shape << L1, L2, theta, 0;
+  shape_kf.init(0,x0_shape);
   
 }
 
@@ -86,21 +81,21 @@ void LShapeTracker::update(const Point& corner_point, const double& L1, const do
   // Update Dynamic Kalman Filter
   VectorXd y(2);
   y << corner_point.first, corner_point.second;
-  dynamic.update(y, dt);
+  dynamic_kf.update(y, dt);
 
   // Update Shape Kalman Filter
   VectorXd y_shape(3);
   double L1max, L2max;
-  if(L1 > shape.state()(0)){
+  if(L1 > shape_kf.state()(0)){
     L1max = L1;}
   else{
-    L1max = shape.state()(0);}
-  if(L2 > shape.state()(1)){
+    L1max = shape_kf.state()(0);}
+  if(L2 > shape_kf.state()(1)){
     L2max = L2;}
   else{
-    L2max = shape.state()(1);}
+    L2max = shape_kf.state()(1);}
   y_shape << L1max, L2max, theta;
-  shape.update(y_shape, dt);
+  shape_kf.update(y_shape, dt);
 
 }
 void LShapeTracker::ClockwisePointSwitch(){
@@ -109,21 +104,21 @@ void LShapeTracker::ClockwisePointSwitch(){
   const double pi = 3.141592653589793238463; 
   
   Vector4d new_dynamic_states;
-  Vector3d new_shape_states;
-  new_dynamic_states = dynamic.state();
-  new_shape_states = shape.state();
+  Vector4d new_shape_states;
+  new_dynamic_states = dynamic_kf.state();
+  new_shape_states = shape_kf.state();
   //x = x + L1 * cos(theta);
-  new_dynamic_states(0) = dynamic.state()(0) + shape.state()(0) * cos(shape.state()(2));
+  new_dynamic_states(0) = dynamic_kf.state()(0) + shape_kf.state()(0) * cos(shape_kf.state()(2));
   //y = y + L1 * sin(theta);
-  new_dynamic_states(1) = dynamic.state()(1) + shape.state()(0) * sin(shape.state()(2));
+  new_dynamic_states(1) = dynamic_kf.state()(1) + shape_kf.state()(0) * sin(shape_kf.state()(2));
   //L1 = L2
-  new_shape_states(0) = shape.state()(1);
+  new_shape_states(0) = shape_kf.state()(1);
   //L2 = L1
-  new_shape_states(1) = shape.state()(0);
-  new_shape_states(2) = shape.state()(2) - pi / 2;
+  new_shape_states(1) = shape_kf.state()(0);
+  new_shape_states(2) = shape_kf.state()(2) - pi / 2;
 
-  dynamic.changeStates(new_dynamic_states);
-  shape.changeStates(new_shape_states);
+  dynamic_kf.changeStates(new_dynamic_states);
+  shape_kf.changeStates(new_shape_states);
 }
 void LShapeTracker::CounterClockwisePointSwitch(){
   // Equation 17
@@ -131,36 +126,42 @@ void LShapeTracker::CounterClockwisePointSwitch(){
   const double pi = 3.141592653589793238463; 
   
   Vector4d new_dynamic_states;
-  Vector3d new_shape_states;
-  new_dynamic_states = dynamic.state();
-  new_shape_states = shape.state();
+  Vector4d new_shape_states;
+  new_dynamic_states = dynamic_kf.state();
+  new_shape_states = shape_kf.state();
   //x = x + L1 * cos(theta);
-  new_dynamic_states(0) = dynamic.state()(0) + shape.state()(1) * sin(shape.state()(2));
+  new_dynamic_states(0) = dynamic_kf.state()(0) + shape_kf.state()(1) * sin(shape_kf.state()(2));
   //y = y + L1 * sin(theta);
-  new_dynamic_states(1) = dynamic.state()(1) - shape.state()(1) * cos(shape.state()(2));
+  new_dynamic_states(1) = dynamic_kf.state()(1) - shape_kf.state()(1) * cos(shape_kf.state()(2));
   //L1 = L2
-  new_shape_states(0) = shape.state()(1);
+  new_shape_states(0) = shape_kf.state()(1);
   //L2 = L1
-  new_shape_states(1) = shape.state()(0);
-  new_shape_states(2) = shape.state()(2) + pi / 2;
+  new_shape_states(1) = shape_kf.state()(0);
+  new_shape_states(2) = shape_kf.state()(2) + pi / 2;
 
-  dynamic.changeStates(new_dynamic_states);
-  shape.changeStates(new_shape_states);
+  dynamic_kf.changeStates(new_dynamic_states);
+  shape_kf.changeStates(new_shape_states);
 }
 
 void LShapeTracker::changeStates(const Eigen::Vector4d& new_dynamic_states,const Eigen::Vector3d& new_shape_states ){
-  dynamic.changeStates(new_dynamic_states);
-  shape.changeStates(new_shape_states);
+  dynamic_kf.changeStates(new_dynamic_states);
+  shape_kf.changeStates(new_shape_states);
 }
 
-void LShapeTracker::lshapeToBoxModelConversion(double& x, double& y, double& L1, double& L2, double& th){
-  //Equations 30 and 31 of "L-Shape Model Switching-Based precise motion tracking of moving vehicles"
-  th = shape.state()(2);
-  L1 = shape.state()(0);
-  L2 = shape.state()(1);
-  double ex = (L1 * cos(th) + L2 * sin(th)) /2;
-  double ey = (L1 * sin(th) - L2 * cos(th)) /2;
-  x = dynamic.state()(0) + ex;
-  y = dynamic.state()(1) + ey;
+void LShapeTracker::lshapeToBoxModelConversion(double& x, double& y,double& vx, double& vy, double& L1, double& L2, double& theta, double& omega){
+  L1 = shape_kf.state()(0);
+  L2 = shape_kf.state()(1);
+  theta = shape_kf.state()(2);
+  omega = shape_kf.state()(3);
+  //Equations 30 of "L-Shape Model Switching-Based precise motion tracking of moving vehicles"
+  double ex = (L1 * cos(theta) + L2 * sin(theta)) /2;
+  double ey = (L1 * sin(theta) - L2 * cos(theta)) /2;
+  x = dynamic_kf.state()(0) + ex;
+  y = dynamic_kf.state()(1) + ey;
+
+  //Equations 31 of "L-Shape Model Switching-Based precise motion tracking of moving vehicles"
+  //TODO test the complete equation also
+  vx = dynamic_kf.state()(2);
+  vy = dynamic_kf.state()(3);
 
 }

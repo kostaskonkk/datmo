@@ -29,7 +29,7 @@ public:
 
   datmo::Track msg_track_mean;
   datmo::Track msg_track_mean_kf;
-  datmo::Track msg_track_box;
+  datmo::Track msg_track_box_kf;
   datmo::Track msg_track_box_ukf;
 
   unsigned long int id; //identifier for the cluster 
@@ -69,7 +69,7 @@ public:
 
   double old_thetaL1, old_thetaL2;
   double L1, L2, thetaL1, thetaL2;
-  double cx, cy, L1_box, L2_box, th; 
+  double cx, cy, cvx, cvy, L1_box, L2_box, th, comega; 
 
 private:
 

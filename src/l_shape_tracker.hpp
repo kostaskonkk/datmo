@@ -2,6 +2,7 @@
 
 #include "kalman-cpp/kalman.hpp"
 #include <Eigen/Dense>
+//#include <math.h>       [> atan2 <]
 
 using namespace std;
 using namespace Eigen;
@@ -16,13 +17,13 @@ public:
 
   void update(const Point& ,const double& ,const double& ,const double& ,const double& );
 
-  void lshapeToBoxModelConversion(double& x, double& y, double& L1, double& L2, double& th);
+  void lshapeToBoxModelConversion(double& x, double& y, double& vx, double& vy, double& L1, double& L2, double& th, double& omega);
   void ClockwisePointSwitch();
   void CounterClockwisePointSwitch();
   void changeStates(const Eigen::Vector4d& new_dynamic_states,const Eigen::Vector3d& new_shape_states);
 
-  KalmanFilter dynamic;
-  KalmanFilter shape;
+  KalmanFilter dynamic_kf;
+  KalmanFilter shape_kf;
 
 
 private:
