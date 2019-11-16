@@ -70,12 +70,13 @@ public:
   double old_thetaL1, old_thetaL2;
   double L1, L2, thetaL1, thetaL2;
   double cx, cy, cvx, cvy, L1_box, L2_box, th, comega; 
+  double orientation, length, width;
 
 private:
 
   pointList new_cluster;
   vector<Point> corner_list;
-
+  tf2::Quaternion quaternion; //used for transformations between quaternions and angles
   vector<Point> l1l2; //save coordinates of the three points that define the lines
 
   // mean value of the cluster
@@ -84,6 +85,7 @@ private:
 
   Point closest_corner_point;
   
+
   visualization_msgs::Marker boxcenter_marker_;
   void calcMean(const pointList& ); //Find the mean value of the cluster
   void rectangleFitting(const pointList& ); //Search-Based Rectangle Fitting 
@@ -92,4 +94,15 @@ private:
   Point lineIntersection(double& , double& , double& , double& , double& , double& );
   double perpendicularDistance(const Point&, const Point&, const Point&);
   void ramerDouglasPeucker(const vector<Point>&, double, vector<Point>&);
+  /*! \brief Finds orientations of tracked object
+   *
+   * Given the orientation of L1 the other three angles of the rectangle are calculated.
+   * Then they are compared with the speed of the object, to estimate it's direction.
+   *
+   * \angle angle of one edge of the box
+   * \vx velocity in the x axis
+   * \vy velocity in the y axis
+   * \orientation orientation of tracked object, based on it's speed
+   */
+  double findOrientation(const double& angle, const double& vx, const double& vy);
 };

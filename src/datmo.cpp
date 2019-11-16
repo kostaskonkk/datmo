@@ -57,7 +57,14 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
     tf::StampedTransform ego_pose;
     tf_listener.lookupTransform(world_frame, lidar_frame, ros::Time(0), ego_pose);
     
-    dt = (ros::Time::now() - time).toSec();
+    //TODO implement correctly varying calculation of dt
+    //Implementation below misbehaves at the beginning of the program
+    //dt = (ros::Time::now() - time).toSec();
+    //if( dt > 1){
+      //ROS_WARN_STREAM("Time between measurements measure at: "<<dt<<" seconds.");
+    //}
+    dt = 0.8;
+
     if (time > ros::Time::now()){clusters.clear();}
     time = ros::Time::now();
     auto start = chrono::steady_clock::now();

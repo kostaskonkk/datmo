@@ -115,6 +115,7 @@ void LShapeTracker::ClockwisePointSwitch(){
   new_shape_states(0) = shape_kf.state()(1);
   //L2 = L1
   new_shape_states(1) = shape_kf.state()(0);
+
   new_shape_states(2) = shape_kf.state()(2) - pi / 2;
 
   dynamic_kf.changeStates(new_dynamic_states);

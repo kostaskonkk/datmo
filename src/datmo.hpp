@@ -60,9 +60,9 @@ private:
   double dt;
   ros::Time time;
 
-  unsigned long int cg       = 1;//group counter to be used as id of the clusters
   //initialised as one, because 0 index take the msgs that fail to be initialized
-  unsigned long int cclusters= 0;//counter for the cluster objects to be used as id for the markers
+  unsigned long int cg       = 1;//group counter to be used as id of the clusters
+  unsigned long int cclusters= 1;//counter for the cluster objects to be used as id for the markers
 
   //Parameters
   double dth;
