@@ -41,12 +41,11 @@ LShapeTracker::LShapeTracker(const Point& corner_point, const double& L1, const 
   this->dynamic_kf = dynamic_kalman_filter;
 
   VectorXd x0_dynamic(n);
-  x0_dynamic << corner_point.first, corner_point.second, 0.2, 0.2;
+  x0_dynamic << corner_point.first, corner_point.second, 0, 0;
   dynamic_kf.init(0,x0_dynamic);
 
   // Initialization of Shape Kalman Filter
   n = 4; // Number of states
-  //n = 3; // Number of states
   m = 3; // Number of measurements
   MatrixXd As(n, n); // System dynamics matrix
   MatrixXd Cs(m, n); // Output matrix

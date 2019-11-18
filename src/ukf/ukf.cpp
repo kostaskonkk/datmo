@@ -252,8 +252,6 @@ namespace RobotLocalization
     for (size_t i = 0; i < updateSize; ++i)
     {
       if (updateIndices[i] == StateMemberYaw) 
-          //||updateIndices[i] == StateMemberRoll  
-          //||updateIndices[i] == StateMemberPitch
       {
         while (innovationSubset(i) < -PI)
         {
@@ -295,42 +293,36 @@ namespace RobotLocalization
              //"delta is " << delta <<
              //"\nstate is " << state_ << "\n");
 
-    //double roll = state_(StateMemberRoll);
-    //double pitch = state_(StateMemberPitch);
     double yaw = state_(StateMemberYaw);
 
     // We'll need these trig calculations a lot.
-    //double sp = ::sin(pitch);
-    //double cp = ::cos(pitch);
     double cpi = 1.0;
-    //double tp = sp * cpi;
-
-    //double sr = ::sin(roll);
-    //double cr = ::cos(roll);
-
     double sy = ::sin(yaw);
     double cy = ::cos(yaw);
 
-    //prepareControl(referenceTime, delta);
-
     // Prepare the transfer function
-    //transferFunction_(StateMemberX, StateMemberVx) = cy * cp * delta;
-    //transferFunction_(StateMemberX, StateMemberVy) = (cy * sp * sr - sy * cr) * delta;
-    transferFunction_(StateMemberX, StateMemberVx) = cy * delta;
-    transferFunction_(StateMemberX, StateMemberVy) = (cy - sy ) * delta;
-    //transferFunction_(StateMemberX, StateMemberAx) = 0.5 * transferFunction_(StateMemberX, StateMemberVx) * delta;
-    //transferFunction_(StateMemberX, StateMemberAy) = 0.5 * transferFunction_(StateMemberX, StateMemberVy) * delta;
-    //transferFunction_(StateMemberY, StateMemberVx) = sy * cp * delta;
-    //transferFunction_(StateMemberY, StateMemberVy) = (sy * sp * sr + cy * cr) * delta;
-    transferFunction_(StateMemberY, StateMemberVx) = sy * delta;
-    transferFunction_(StateMemberY, StateMemberVy) = (sy + cy) * delta;
-    //transferFunction_(StateMemberY, StateMemberVz) = (sy * sp * cr - cy * sr) * delta;
-    //transferFunction_(StateMemberY, StateMemberAx) = 0.5 * transferFunction_(StateMemberY, StateMemberVx) * delta;
-    //transferFunction_(StateMemberY, StateMemberAy) = 0.5 * transferFunction_(StateMemberY, StateMemberVy) * delta;
-    //transferFunction_(StateMemberYaw, StateMemberVyaw) = cr * cpi * delta;
-    transferFunction_(StateMemberYaw, StateMemberVyaw) = cpi * delta;
-    //transferFunction_(StateMemberVx, StateMemberAx) = delta;
-    //transferFunction_(StateMemberVy, StateMemberAy) = delta;
+    //transferFunction_(StateMemberX, StateMemberVx) = cy * delta;
+    //transferFunction_(StateMemberX, StateMemberVy) = (cy - sy ) * delta;
+    //transferFunction_(StateMemberY, StateMemberVx) = sy * delta;
+    //transferFunction_(StateMemberY, StateMemberVy) = (sy + cy) * delta;
+    //transferFunction_(StateMemberYaw, StateMemberVyaw) = delta;
+
+    //Nonlinear Coordinated Turn with Polar Velocity
+    double dy = state_(StateMemberVyaw);
+    double y  = state_(StateMemberYaw);
+    double sdyt = sin(dy * delta/2);
+    double cydyt = cos(dy * delta/2);
+    double sydyt = sin(dy * delta/2);
+    if (dy == 0) {
+      transferFunction_(StateMemberX, StateMemberVx) = 0;
+      transferFunction_(StateMemberY, StateMemberVx) = 0;
+    }
+    else{
+      transferFunction_(StateMemberX, StateMemberVx) = (2/dy)*sdyt*cos(y + dy*delta/2);
+      transferFunction_(StateMemberY, StateMemberVx) = (2/dy)*sdyt*sin(y + dy*delta/2);
+    }
+    transferFunction_(StateMemberYaw, StateMemberVyaw) = delta;
+    
 
     // (1) Take the square root of a small fraction of the estimateErrorCovariance_ using LL' decomposition
     weightedCovarSqrt_ = ((STATE_SIZE + lambda_) * estimateErrorCovariance_).llt().matrixL();

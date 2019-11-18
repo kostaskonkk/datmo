@@ -53,7 +53,6 @@ public:
   pair<int, int> dur_size_rectangle_fitting;
 
   void update(const pointList&, const double dt, const tf::Transform& ego_pose);
-  void populateTrackingMsgs();
   void detectCornerPointSwitch();
   void detectCornerPointSwitch(double& from, double& to);
   bool red_flag, green_flag, blue_flag;
@@ -87,6 +86,7 @@ private:
   
 
   visualization_msgs::Marker boxcenter_marker_;
+  void populateTrackingMsgs(const double& dt);
   void calcMean(const pointList& ); //Find the mean value of the cluster
   void rectangleFitting(const pointList& ); //Search-Based Rectangle Fitting 
   double areaCriterion(const VectorXd&, const VectorXd& );

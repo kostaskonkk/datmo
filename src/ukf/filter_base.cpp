@@ -33,10 +33,6 @@
 #include "filter_base.h"
 #include "filter_common.h"
 
-#include <iomanip>
-#include <iostream>
-#include <limits>
-#include <sstream>
 #include <vector>
 
 namespace RobotLocalization
@@ -95,19 +91,10 @@ namespace RobotLocalization
     processNoiseCovariance_.setZero();
     processNoiseCovariance_(StateMemberX, StateMemberX) = 0.05;
     processNoiseCovariance_(StateMemberY, StateMemberY) = 0.05;
-    //processNoiseCovariance_(StateMemberZ, StateMemberZ) = 0.06;
-    //processNoiseCovariance_(StateMemberRoll, StateMemberRoll) = 0.03;
-    //processNoiseCovariance_(StateMemberPitch, StateMemberPitch) = 0.03;
     processNoiseCovariance_(StateMemberYaw, StateMemberYaw) = 0.06;
     processNoiseCovariance_(StateMemberVx, StateMemberVx) = 0.025;
     processNoiseCovariance_(StateMemberVy, StateMemberVy) = 0.025;
-    //processNoiseCovariance_(StateMemberVz, StateMemberVz) = 0.04;
-    //processNoiseCovariance_(StateMemberVroll, StateMemberVroll) = 0.01;
-    //processNoiseCovariance_(StateMemberVpitch, StateMemberVpitch) = 0.01;
     processNoiseCovariance_(StateMemberVyaw, StateMemberVyaw) = 0.02;
-    //processNoiseCovariance_(StateMemberAx, StateMemberAx) = 0.01;
-    //processNoiseCovariance_(StateMemberAy, StateMemberAy) = 0.01;
-    //processNoiseCovariance_(StateMemberAz, StateMemberAz) = 0.015;
 
   }
 
@@ -146,26 +133,6 @@ namespace RobotLocalization
     return state_;
   }
 
-  void FilterBase::setDebug(const bool debug, std::ostream *outStream)
-  {
-    if (debug)
-    {
-      if (outStream != NULL)
-      {
-        debugStream_ = outStream;
-        debug_ = true;
-      }
-      else
-      {
-        debug_ = false;
-      }
-    }
-    else
-    {
-      debug_ = false;
-    }
-  }
-
   void FilterBase::setEstimateErrorCovariance(const Eigen::MatrixXd &estimateErrorCovariance)
   {
     estimateErrorCovariance_ = estimateErrorCovariance;
@@ -199,8 +166,6 @@ namespace RobotLocalization
 
   void FilterBase::wrapStateAngles()
   {
-    //state_(StateMemberRoll)  = FilterUtilities::clampRotation(state_(StateMemberRoll));
-    //state_(StateMemberPitch) = FilterUtilities::clampRotation(state_(StateMemberPitch));
     state_(StateMemberYaw)   = FilterUtilities::clampRotation(state_(StateMemberYaw));
   }
 
