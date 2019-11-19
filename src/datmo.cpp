@@ -22,7 +22,7 @@ Datmo::Datmo(){
 
   if (w_exec_times) {
     whole.open ("/home/kostas/results/exec_time/whole.csv");
-    whole << ("nano,milli\n");
+    whole << ("nano,milli,objects\n");
     clustering.open ("/home/kostas/results/exec_time/clustering.csv");
     clustering << ("nano\n");
     rect_fitting.open("/home/kostas/results/exec_time/rect_fitting.csv");
@@ -220,7 +220,7 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
        auto diff = chrono::steady_clock::now() - start;
        auto diff_nano = chrono::duration_cast<chrono::nanoseconds>(diff);
        auto diff_milli = chrono::duration_cast<chrono::milliseconds>(diff);
-       whole << diff_nano.count()<<","<<diff_milli.count()<<"\n";
+       whole << diff_nano.count()<<","<<diff_milli.count()<<","<<clusters.size()<<"\n";
      }
   }
   else{ //If the tf is not possible init all states at 0
