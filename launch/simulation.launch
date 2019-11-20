@@ -7,7 +7,7 @@
       <param name="lidar_frame" value="center_laser_link" />
       <param name="world_frame" value="map" />
       <param name="threshold_distance" value="1.6" />
-      <param name="euclidean_distance" value="1.5" />
+      <param name="euclidean_distance" value="3" />
       <param name="pub_markers" value="true" />
    </node>
 
