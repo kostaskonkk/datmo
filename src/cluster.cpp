@@ -84,9 +84,8 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   rectangleFitting(new_points);
   old_thetaL1 = thetaL1;
   old_thetaL2 = thetaL2;
-  //initialise thetaL1 in range [0,2pi]
   LShapeTracker l_shape_tracker(closest_corner_point, L1, L2, normalize_angle(thetaL1), dt);
-  l_shape = l_shape_tracker;
+  this->l_shape = l_shape_tracker;
   l_shape.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
   orientation = findOrientation(th, cvx, cvy);
 
@@ -94,13 +93,15 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   x0 << meanX(), meanY(), 0, 0, orientation, 0;
   kf_mean.init(0,x0);
 
+
+
   //Unscented Kalman Filter
   std::vector<double> args{0.001, 0, 2};
   //args[0] = 1;//alpha parameter
   //args[1] = 2;//kappa parameter
   //args[2] = 1;//beta parameter
   RobotLocalization::Ukf ukf_init(args);
-  this->ukf = ukf_init;
+  //this->ukf = ukf_init;
 
   int STATE_SIZE = 6;
   Eigen::MatrixXd initialCovar(STATE_SIZE, STATE_SIZE);
@@ -109,16 +110,20 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   initialCovar(3,3) *= 3;
   initialCovar(4,4) *= 3;
   initialCovar(5,5) *= 3;
-  ukf.setEstimateErrorCovariance(initialCovar);
+  ukf_init.setEstimateErrorCovariance(initialCovar);
 
   Eigen::VectorXd initial_state(6);
-  initial_state<<cx,cy,orientation,0,0,0;
-  ukf.setState(initial_state);
+  initial_state<<closest_corner_point.first,closest_corner_point.second,orientation,0,0,0;
+  ukf_init.setState(initial_state);
 
-  ukf.predict_ctrm(dt);
+  ukf_init.predict_ctrm(dt);
+
+
+  //float ukf_beta  = 2;    //beta parameter
+  LShapeTrackerUKF l_shape_tracker_ukf(ukf_init);
+  this->l_shape_ukf = l_shape_tracker_ukf;
 
   populateTrackingMsgs(dt);
-
 }
 
 void Cluster::update(const pointList& new_points, const double dt, const tf::Transform& ego_pose) {
@@ -142,7 +147,7 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
   l_shape.update(closest_corner_point, L1, L2, unwrapped_thetaL1, dt);
   l_shape.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
   orientation = findOrientation(th, cvx, cvy);
-  ROS_INFO_STREAM("Orientation: "<<orientation);
+  //ROS_INFO_STREAM("Orientation: "<<orientation);
   
 
   // Update Kalman Filter
@@ -154,8 +159,8 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
   // UKF #######################
   Eigen::VectorXd measurement(6);
 
-  measurement[0] = cx;
-  measurement[1] = cy;
+  measurement[0] = closest_corner_point.first;
+  measurement[1] = closest_corner_point.second;
   measurement[2] = orientation;
 
   Eigen::MatrixXd measurementCovariance(6, 6);
@@ -173,12 +178,7 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
   meas.updateVector_ = updateVector;
   meas.mahalanobisThresh_ = std::numeric_limits<double>::max();
 
-  //Eigen::VectorXd initial_state(8);
-  //initial_state<<meanX(),meanY(),0,0,0,0,0,0;
-  //ukf.setState(initial_state);
-
-  ukf.correct_ctrm(meas);
-  ukf.predict_ctrm(dt);
+  l_shape_ukf.update(meas, dt);
 
   // UKF #######################
 
@@ -230,16 +230,16 @@ void Cluster::populateTrackingMsgs(const double& dt){
     msg_track_box_kf.length = L1_box;
     msg_track_box_kf.width  = L2_box;
 
-    quaternion.setRPY(0,0,ukf.getState()[2]);
+    quaternion.setRPY(0,0, l_shape_ukf.ukf.getState()[2]);
     msg_track_box_ukf.id = this->id;
     msg_track_box_ukf.odom.header.stamp = ros::Time::now();
     msg_track_box_ukf.odom.header.frame_id = frame_name;
-    msg_track_box_ukf.odom.pose.pose.position.x    = ukf.getState()[0];
-    msg_track_box_ukf.odom.pose.pose.position.y    = ukf.getState()[1];
+    msg_track_box_ukf.odom.pose.pose.position.x    = l_shape_ukf.ukf.getState()[0];
+    msg_track_box_ukf.odom.pose.pose.position.y    = l_shape_ukf.ukf.getState()[1];
     msg_track_box_ukf.odom.pose.pose.orientation = tf2::toMsg(quaternion);
-    msg_track_box_ukf.odom.twist.twist.linear.x    = ukf.getState()[3];
-    msg_track_box_ukf.odom.twist.twist.linear.y    = ukf.getState()[4];
-    msg_track_box_ukf.odom.twist.twist.angular.z   = ukf.getState()[5];
+    msg_track_box_ukf.odom.twist.twist.linear.x    = l_shape_ukf.ukf.getState()[3];
+    msg_track_box_ukf.odom.twist.twist.linear.y    = l_shape_ukf.ukf.getState()[4];
+    msg_track_box_ukf.odom.twist.twist.angular.z   = l_shape_ukf.ukf.getState()[5];
 
 }
 double findTurn(double& new_angle, double& old_angle){

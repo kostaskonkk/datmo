@@ -2,6 +2,7 @@
 #include <ros/ros.h>
 #include "kalman-cpp/kalman.hpp"
 #include "l_shape_tracker.hpp"
+#include "l_shape_tracker_ukf.hpp"
 #include <Eigen/Dense>
 #include <tf/transform_listener.h>
 #include <visualization_msgs/Marker.h>
@@ -11,7 +12,6 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <chrono>
 
-//using namespace std;
 using namespace Eigen;
 
 typedef std::pair<double, double> Point;
@@ -63,6 +63,7 @@ public:
   double meanY() { return mean_values.second;};
 
   LShapeTracker l_shape; 
+  LShapeTrackerUKF l_shape_ukf; 
   KalmanFilter kf_mean;
   RobotLocalization::Ukf ukf;
 

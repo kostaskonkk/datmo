@@ -131,7 +131,7 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
     //Update Tracked Clusters
     //#pragma omp parallel for
     for(unsigned int p=0; p<pairs.size();++p){
-        clusters[pairs[p].first].update(point_clusters[pairs[p].second], 0.1, ego_pose);
+        clusters[pairs[p].first].update(point_clusters[pairs[p].second], dt, ego_pose);
     }
        
      //Delete Not Associated Clusters

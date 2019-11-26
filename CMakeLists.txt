@@ -24,9 +24,7 @@ OPTION (USE_OpenMP "Use OpenMP" OFF)
 IF(USE_OpenMP)
   FIND_PACKAGE(OpenMP)
   IF(OPENMP_FOUND)
-    #SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    #SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
   ENDIF()
 ENDIF()
 
@@ -57,6 +55,6 @@ include_directories(
 )
 
 
-add_executable(datmo  src/l_shape_tracker.cpp src/main.cpp src/kalman-cpp/kalman.cpp src/datmo.cpp src/cluster.cpp src/ukf/ukf.cpp src/ukf/filter_base.cpp src/ukf/filter_utilities.cpp)
+add_executable(datmo  src/l_shape_tracker_ukf.cpp src/l_shape_tracker.cpp src/main.cpp src/kalman-cpp/kalman.cpp src/datmo.cpp src/cluster.cpp src/ukf/ukf.cpp src/ukf/filter_base.cpp src/ukf/filter_utilities.cpp)
 add_dependencies(datmo ${catkin_EXPORTED_TARGETS})
 target_link_libraries(datmo ${catkin_LIBRARIES})
