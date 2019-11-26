@@ -138,7 +138,7 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
   calcMean(new_points);
   rectangleFitting(new_points);
 
-  detectCornerPointSwitch(old_thetaL1, thetaL1);
+  l_shape.detectCornerPointSwitch(old_thetaL1, thetaL1);
   
   double norm = normalize_angle(l_shape.shape_kf.state()(2));
   double distance = shortest_angular_distance(norm, thetaL1);
@@ -242,39 +242,7 @@ void Cluster::populateTrackingMsgs(const double& dt){
     msg_track_box_ukf.odom.twist.twist.angular.z   = l_shape_ukf.ukf.getState()[5];
 
 }
-double findTurn(double& new_angle, double& old_angle){
-  //https://math.stackexchange.com/questions/1366869/calculating-rotation-direction-between-two-angles
-  //const double pi = 3.141592653589793238463; 
-  double theta_pro = new_angle - old_angle;
-  double turn = 0;
-  if(-M_PI<=theta_pro && theta_pro <= M_PI){
-    turn = theta_pro;}
-  else if(theta_pro > M_PI){
-    turn = theta_pro - 2*M_PI;}
-  else if(theta_pro < -M_PI){
-    turn = theta_pro + 2*M_PI;}
-  return turn;
-}
-void Cluster::detectCornerPointSwitch(double& from, double& to){
-  //Corner Point Switch Detection
-  blue_flag= false;
-  red_flag = false;
-  green_flag=false;
-  
-  double turn = findTurn(from, to);
-    //blue_flag = true;
-    if(turn <-0.6){
-      l_shape.CounterClockwisePointSwitch();
-      //red_flag = true;
-    }
-    else if(turn > 0.6){
-      l_shape.ClockwisePointSwitch();
-      //green_flag= true;
-    }
-    //ROS_INFO_STREAM("state - L1)"<<findTurn( l_shape.shape.state()(2), thetaL1));
-    //a = 0;
 
-}
 void Cluster::rectangleFitting(const pointList& new_cluster){
   //This function is based on ¨Efficient L-Shape Fitting for
   //Vehicle Detection Using Laser Scanners¨

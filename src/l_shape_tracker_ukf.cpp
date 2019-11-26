@@ -45,7 +45,7 @@ void LShapeTrackerUKF::ClockwisePointSwitch(){
   //dynamic_kf.changeStates(new_dynamic_states);
   //shape_kf.changeStates(new_shape_states);
 }
-//void LShapeTrackerUKF::CounterClockwisePointSwitch(){
+void LShapeTrackerUKF::CounterClockwisePointSwitch(){
   //// Equation 17
 
   //const double pi = 3.141592653589793238463; 
@@ -89,4 +89,30 @@ void LShapeTrackerUKF::ClockwisePointSwitch(){
   //vx = dynamic_kf.state()(2);
   //vy = dynamic_kf.state()(3);
 
-//}
+}
+
+double LShapeTrackerUKF::findTurn(double& new_angle, double& old_angle){
+  //https://math.stackexchange.com/questions/1366869/calculating-rotation-direction-between-two-angles
+  double theta_pro = new_angle - old_angle;
+  double turn = 0;
+  if(-M_PI<=theta_pro && theta_pro <= M_PI){
+    turn = theta_pro;}
+  else if(theta_pro > M_PI){
+    turn = theta_pro - 2*M_PI;}
+  else if(theta_pro < -M_PI){
+    turn = theta_pro + 2*M_PI;}
+  return turn;
+}
+
+void LShapeTrackerUKF::detectCornerPointSwitch(double& from, double& to){
+  //Corner Point Switch Detection
+  
+  double turn = this->findTurn(from, to);
+    if(turn <-0.6){
+     this->CounterClockwisePointSwitch();
+    }
+    else if(turn > 0.6){
+     this->ClockwisePointSwitch();
+    }
+
+}

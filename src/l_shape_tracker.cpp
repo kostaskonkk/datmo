@@ -165,3 +165,30 @@ void LShapeTracker::lshapeToBoxModelConversion(double& x, double& y,double& vx, 
   vy = dynamic_kf.state()(3);
 
 }
+
+double LShapeTracker::findTurn(double& new_angle, double& old_angle){
+  //https://math.stackexchange.com/questions/1366869/calculating-rotation-direction-between-two-angles
+  //const double pi = 3.141592653589793238463; 
+  double theta_pro = new_angle - old_angle;
+  double turn = 0;
+  if(-M_PI<=theta_pro && theta_pro <= M_PI){
+    turn = theta_pro;}
+  else if(theta_pro > M_PI){
+    turn = theta_pro - 2*M_PI;}
+  else if(theta_pro < -M_PI){
+    turn = theta_pro + 2*M_PI;}
+  return turn;
+}
+
+void LShapeTracker::detectCornerPointSwitch(double& from, double& to){
+  //Corner Point Switch Detection
+  
+  double turn = this->findTurn(from, to);
+    if(turn <-0.6){
+     this->CounterClockwisePointSwitch();
+    }
+    else if(turn > 0.6){
+     this->ClockwisePointSwitch();
+    }
+
+}

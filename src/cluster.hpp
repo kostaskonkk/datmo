@@ -53,8 +53,6 @@ public:
   pair<int, int> dur_size_rectangle_fitting;
 
   void update(const pointList&, const double dt, const tf::Transform& ego_pose);
-  void detectCornerPointSwitch();
-  void detectCornerPointSwitch(double& from, double& to);
   bool red_flag, green_flag, blue_flag;
 
   std::pair<double, double> mean() { return mean_values; }; //Return mean of cluster.
