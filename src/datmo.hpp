@@ -67,6 +67,7 @@ private:
   //Parameters
   double dth;
   double euclidean_distance;
+  int max_cluster_size;
   bool p_marker_pub;
   bool w_exec_times;
   string lidar_frame;

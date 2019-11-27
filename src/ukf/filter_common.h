@@ -48,22 +48,20 @@ enum StateMembers
   StateMemberVyaw,
 };
 
-//! @brief Enumeration that defines the control vector
-//!
 
 //! @brief Global constants that define our state
 //! vector size and offsets to groups of values
 //! within that state.
 const int STATE_SIZE = 6;
-const int POSITION_OFFSET = StateMemberX;
-const int POSITION_V_OFFSET = StateMemberVx;
+//const int POSITION_OFFSET = StateMemberX;
+//const int POSITION_V_OFFSET = StateMemberVx;
 
 //! @brief Pose and twist messages each
 //! contain six variables
-const int POSE_SIZE = 6;
-const int TWIST_SIZE = 6;
-const int POSITION_SIZE = 3;
-const int ORIENTATION_SIZE = 3;
+//const int POSE_SIZE = 6;
+//const int TWIST_SIZE = 6;
+//const int POSITION_SIZE = 3;
+//const int ORIENTATION_SIZE = 3;
 
 //! @brief Common variables
 const double PI = 3.141592653589793;

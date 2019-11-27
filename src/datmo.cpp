@@ -7,11 +7,12 @@ Datmo::Datmo(){
 
   n_private.param("lidar_frame", lidar_frame, string("laser"));
   n_private.param("world_frame", world_frame, string("map"));
+  ROS_INFO_STREAM("The lidar_frame is: "<< lidar_frame<<" and the world_frame is: "<< world_frame<< ".\n");
   n_private.param("threshold_distance", dth, 0.2);
+  n_private.param("max_cluster_size", max_cluster_size, 360);
   n_private.param("euclidean_distance", euclidean_distance, 0.25);
   n_private.param("pub_markers", p_marker_pub, false);
   n_private.param("write_execution_times", w_exec_times, false);
-
 
   pub_tracks_mean    = n.advertise<datmo::TrackArray>("tracks/mean", 10);
   pub_tracks_mean_kf = n.advertise<datmo::TrackArray>("tracks/mean_kf", 10);
@@ -154,7 +155,7 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
 
     // Initialisation of new Cluster Objects
     for(unsigned int i=0; i<point_clusters.size();++i){
-      if(g_matched[i] == false){
+      if(g_matched[i] == false && point_clusters[i].size()< max_cluster_size){
         Cluster cl(cclusters, point_clusters[i], dt, world_frame, ego_pose);
         cclusters++;
         clusters.push_back(cl);

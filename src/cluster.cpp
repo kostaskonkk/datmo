@@ -120,7 +120,7 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
 
 
   //float ukf_beta  = 2;    //beta parameter
-  LShapeTrackerUKF l_shape_tracker_ukf(ukf_init);
+  LShapeTrackerUKF l_shape_tracker_ukf(ukf_init, L1, L2, normalize_angle(thetaL1), dt);
   this->l_shape_ukf = l_shape_tracker_ukf;
 
   populateTrackingMsgs(dt);
@@ -145,7 +145,8 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
   double unwrapped_thetaL1 = distance + l_shape.shape_kf.state()(2) ;
   
   l_shape.update(closest_corner_point, L1, L2, unwrapped_thetaL1, dt);
-  l_shape.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
+  //l_shape.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
+  l_shape_ukf.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
   orientation = findOrientation(th, cvx, cvy);
   //ROS_INFO_STREAM("Orientation: "<<orientation);
   
@@ -178,7 +179,7 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
   meas.updateVector_ = updateVector;
   meas.mahalanobisThresh_ = std::numeric_limits<double>::max();
 
-  l_shape_ukf.update(meas, dt);
+  l_shape_ukf.update(meas, L1, L2, unwrapped_thetaL1, dt);
 
   // UKF #######################
 

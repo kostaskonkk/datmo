@@ -94,7 +94,7 @@ void LShapeTracker::update(const Point& corner_point, const double& L1, const do
   dynamic_kf.update(y, dt);
 
   // Update Shape Kalman Filter
-  Vector3d y_shape;
+  Vector3d shape_measurements;
   double L1max, L2max;
   if(L1 > shape_kf.state()(0)){
     L1max = L1;}
@@ -104,8 +104,8 @@ void LShapeTracker::update(const Point& corner_point, const double& L1, const do
     L2max = L2;}
   else{
     L2max = shape_kf.state()(1);}
-  y_shape << L1max, L2max, theta;
-  shape_kf.update(y_shape, dt);
+  shape_measurements << L1max, L2max, theta;
+  shape_kf.update(shape_measurements, dt);
 
 }
 void LShapeTracker::ClockwisePointSwitch(){
@@ -167,11 +167,6 @@ void LShapeTracker::CounterClockwisePointSwitch(){
   new_shape_states(1) = shape_kf.state()(0);
   new_shape_states(2) = shape_kf.state()(2) + pi / 2;
 
-  dynamic_kf.changeStates(new_dynamic_states);
-  shape_kf.changeStates(new_shape_states);
-}
-
-void LShapeTracker::changeStates(const Vector6d& new_dynamic_states,const Vector4d& new_shape_states ){
   dynamic_kf.changeStates(new_dynamic_states);
   shape_kf.changeStates(new_shape_states);
 }
