@@ -223,10 +223,10 @@ void Cluster::populateTrackingMsgs(const double& dt){
     msg_track_box_kf.odom.header.frame_id = frame_name;
     msg_track_box_kf.odom.pose.pose.position.x = cx;
     msg_track_box_kf.odom.pose.pose.position.y = cy;
+    msg_track_box_kf.odom.pose.pose.orientation.z = th;
     msg_track_box_kf.odom.twist.twist.linear.x = cvx;
     msg_track_box_kf.odom.twist.twist.linear.y = cvy;
-    msg_track_box_kf.odom.twist.twist.angular.z   =l_shape.shape_kf.state()[3];
-    msg_track_box_kf.odom.pose.pose.orientation.z = th;
+    msg_track_box_kf.odom.twist.twist.angular.z   = comega;
     msg_track_box_kf.length = L1_box;
     msg_track_box_kf.width  = L2_box;
 
@@ -540,7 +540,8 @@ double Cluster::findOrientation(const double& angle, const double& vx, const dou
   angles.push_back(angle_norm + pi);
   angles.push_back(angle_norm + pi/2);
   angles.push_back(angle_norm + 3*pi/2);
-  double vsp = tan(vy/vx);
+
+  double vsp = atan2(vy,vx);
   double min = 1.56;
   double distance;
   double orientation;
@@ -560,9 +561,10 @@ double Cluster::findOrientation(const double& angle, const double& vx, const dou
     }
   } 
   
-  return orientation;
-  //ROS_INFO_STREAM("th_sp: "<<vsp<<", th: "<<th<<", th+pi/2: "<<th1<<", th+pi: "<<th2<<", th+3pi/2: "<<th3);
   //ROS_INFO_STREAM("th_sp: "<<vsp<<", orientation: "<<orientation);
+  //ROS_INFO_STREAM("th_sp: "<<vsp<<", vy: "<<vy<<", vx: "<<vx);
+  //ROS_INFO_STREAM("th_sp: "<<vsp<<", th: "<<th<<", th+pi/2: "<<th1<<", th+pi: "<<th2<<", th+3pi/2: "<<th3);
+  return orientation;
   
 }
 visualization_msgs::Marker Cluster::getThetaBoxVisualisationMessage() {

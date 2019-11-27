@@ -39,10 +39,10 @@ LShapeTracker::LShapeTracker(const Point& corner_point, const double& L1, const 
 
   Q << 1, 0, 0, 0, 0, 0,
        0, 1, 0, 0, 0, 0,
-       0, 0,10, 0, 0, 0,
-       0, 0, 0,10, 0, 0,
-       0, 0, 0, 0,99, 0,
-       0, 0, 0, 0, 0,99;
+       0, 0,300, 0, 0, 0,
+       0, 0, 0,300, 0, 0,
+       0, 0, 0, 0,500, 0,
+       0, 0, 0, 0, 0,500;
   //Q.setIdentity();
   R.setIdentity();
   R *= 0.1;

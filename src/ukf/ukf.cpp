@@ -296,27 +296,27 @@ namespace RobotLocalization
     double cy = ::cos(yaw);
 
     // Prepare the transfer function
-    //transferFunction_(StateMemberX, StateMemberVx) = cy * delta;
-    //transferFunction_(StateMemberX, StateMemberVy) = (cy - sy ) * delta;
-    //transferFunction_(StateMemberY, StateMemberVx) = sy * delta;
-    //transferFunction_(StateMemberY, StateMemberVy) = (sy + cy) * delta;
-    //transferFunction_(StateMemberYaw, StateMemberVyaw) = delta;
-
-    //Nonlinear Coordinated Turn with Polar Velocity
-    double dy = state_(StateMemberVyaw);
-    double y  = state_(StateMemberYaw);
-    double sdyt = sin(dy * delta/2);
-    double cydyt = cos(dy * delta/2);
-    double sydyt = sin(dy * delta/2);
-    if (dy == 0) {
-      transferFunction_(StateMemberX, StateMemberVx) = 0;
-      transferFunction_(StateMemberY, StateMemberVx) = 0;
-    }
-    else{
-      transferFunction_(StateMemberX, StateMemberVx) = (2/dy)*sdyt*cos(y + dy*delta/2);
-      transferFunction_(StateMemberY, StateMemberVx) = (2/dy)*sdyt*sin(y + dy*delta/2);
-    }
+    transferFunction_(StateMemberX, StateMemberVx) = cy * delta;
+    transferFunction_(StateMemberX, StateMemberVy) = (cy - sy ) * delta;
+    transferFunction_(StateMemberY, StateMemberVx) = sy * delta;
+    transferFunction_(StateMemberY, StateMemberVy) = (sy + cy) * delta;
     transferFunction_(StateMemberYaw, StateMemberVyaw) = delta;
+
+    /////Nonlinear Coordinated Turn with Polar Velocity
+    //double dy = state_(StateMemberVyaw);
+    //double y  = state_(StateMemberYaw);
+    //double sdyt = sin(dy * delta/2);
+    //double cydyt = cos(dy * delta/2);
+    //double sydyt = sin(dy * delta/2);
+    //if (dy == 0) {
+      //transferFunction_(StateMemberX, StateMemberVx) = 0;
+      //transferFunction_(StateMemberY, StateMemberVx) = 0;
+    //}
+    //else{
+      //transferFunction_(StateMemberX, StateMemberVx) = (2/dy)*sdyt*cos(y + dy*delta/2);
+      //transferFunction_(StateMemberY, StateMemberVx) = (2/dy)*sdyt*sin(y + dy*delta/2);
+    //}
+    //transferFunction_(StateMemberYaw, StateMemberVyaw) = delta;
     
 
     // (1) Take the square root of a small fraction of the estimateErrorCovariance_ using LL' decomposition
