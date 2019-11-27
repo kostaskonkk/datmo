@@ -33,18 +33,12 @@
 #include "ukf.h"
 #include "filter_common.h"
 
-#include <XmlRpcException.h>
-
-#include <sstream>
-#include <iomanip>
 #include <limits>
 
 #include <Eigen/Cholesky>
 
-#include <iostream>
 #include <vector>
 #include <ros/console.h>
-#include <assert.h>
 
 namespace RobotLocalization
 {
@@ -287,6 +281,7 @@ namespace RobotLocalization
                "\n\n---------------------- /Ukf::correct ----------------------\n");
     }
   }
+
   void Ukf::predict_ctrm(const double delta)
   {
     //ROS_WARN_STREAM("---------------------- Ukf::predict ----------------------\n" <<

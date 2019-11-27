@@ -8,7 +8,7 @@
     <!--<node pkg="rosbag" type="record" name="recorder" output="screen" args="-O /home/kostas/results/exp.bag /tf /poseupdate /odometry/wheel_imu /odometry/map /mocap_pose /tracks/mean /tracks/mean_kf /tracks/box_kf /tracks/box_ukf /robot_1 /robot_2" />-->
 
 
-    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find datmo)/config/experiment.rviz" />
+    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find datmo)/config/datmo.rviz" />
 
    <node pkg="datmo" type="datmo" name="datmo" >
       <param name="write_execution_times" value="true" />

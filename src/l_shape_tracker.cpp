@@ -13,7 +13,7 @@ LShapeTracker::LShapeTracker(const Point& corner_point, const double& L1, const 
 
 
   // Initialization of Dynamic Kalman Filter
-  int n = 4; // Number of states
+  int n = 6; // Number of states
   int m = 2; // Number of measurements
   MatrixXd A(n, n); // System dynamics matrix
   MatrixXd C(m, n); // Output matrix
@@ -21,27 +21,38 @@ LShapeTracker::LShapeTracker(const Point& corner_point, const double& L1, const 
   MatrixXd R(m, m); // Measurement noise covariance
   MatrixXd P(n, n); // Estimate error covariance
       
-  A << 1, 0,dt, 0, 
-       0, 1, 0,dt, 
-       0, 0, 1, 0, 
-       0, 0, 0, 1;
+  //A << 1, 0,dt, 0, 
+       //0, 1, 0,dt, 
+       //0, 0, 1, 0, 
+       //0, 0, 0, 1;
+       //
+  double ddt = dt*dt/2;
+  A << 1, 0,dt, 0, ddt,   0, 
+       0, 1, 0,dt,   0, ddt, 
+       0, 0, 1, 0,  dt,   0, 
+       0, 0, 0, 1,   0,  dt,
+       0, 0, 0, 0,   1,   0, 
+       0, 0, 0, 0,   0,   1;
 
-  C << 1, 0, 0, 0,
-       0, 1, 0, 0;
+  C << 1, 0, 0, 0, 0, 0,
+       0, 1, 0, 0, 0, 0;
 
-  Q << 1, 0, 0, 0, 
-       0, 1, 0, 0, 
-       0, 0,10, 0, 
-       0, 0, 0,10;
-  Q.setIdentity();
+  Q << 1, 0, 0, 0, 0, 0,
+       0, 1, 0, 0, 0, 0,
+       0, 0,10, 0, 0, 0,
+       0, 0, 0,10, 0, 0,
+       0, 0, 0, 0,99, 0,
+       0, 0, 0, 0, 0,99;
+  //Q.setIdentity();
   R.setIdentity();
+  R *= 0.1;
   P.setIdentity();
 
   KalmanFilter dynamic_kalman_filter(dt, A, C, Q, R, P); 
   this->dynamic_kf = dynamic_kalman_filter;
 
   VectorXd x0_dynamic(n);
-  x0_dynamic << corner_point.first, corner_point.second, 0, 0;
+  x0_dynamic << corner_point.first, corner_point.second, 0, 0, 0, 0;
   dynamic_kf.init(0,x0_dynamic);
 
   // Initialization of Shape Kalman Filter
@@ -78,12 +89,12 @@ LShapeTracker::LShapeTracker(const Point& corner_point, const double& L1, const 
 void LShapeTracker::update(const Point& corner_point, const double& L1, const double& L2, const double& theta, const double& dt) {
 
   // Update Dynamic Kalman Filter
-  VectorXd y(2);
+  Vector2d y;
   y << corner_point.first, corner_point.second;
   dynamic_kf.update(y, dt);
 
   // Update Shape Kalman Filter
-  VectorXd y_shape(3);
+  Vector3d y_shape;
   double L1max, L2max;
   if(L1 > shape_kf.state()(0)){
     L1max = L1;}
@@ -102,7 +113,7 @@ void LShapeTracker::ClockwisePointSwitch(){
 
   const double pi = 3.141592653589793238463; 
   
-  Vector4d new_dynamic_states;
+  Vector6d new_dynamic_states;
   Vector4d new_shape_states;
   new_dynamic_states = dynamic_kf.state();
   new_shape_states = shape_kf.state();
@@ -110,6 +121,14 @@ void LShapeTracker::ClockwisePointSwitch(){
   new_dynamic_states(0) = dynamic_kf.state()(0) + shape_kf.state()(0) * cos(shape_kf.state()(2));
   //y = y + L1 * sin(theta);
   new_dynamic_states(1) = dynamic_kf.state()(1) + shape_kf.state()(0) * sin(shape_kf.state()(2));
+  //vx = vx - L1 * omega * sin(theta);
+  new_dynamic_states(2) = dynamic_kf.state()(2) - shape_kf.state()(0) * shape_kf.state()(3) *  sin(shape_kf.state()(2));
+  //vy = vy + L1 * omega * cos(theta);
+  new_dynamic_states(3) = dynamic_kf.state()(3) + shape_kf.state()(0) * shape_kf.state()(3) *  cos(shape_kf.state()(2));
+  //ax = ax - L1 * omega^2 * cos(theta);
+  new_dynamic_states(4) = dynamic_kf.state()(4) - shape_kf.state()(0) * pow(shape_kf.state()(3),2) *  cos(shape_kf.state()(2));
+  //ay = ay - L1 * omega^2 * sin(theta);
+  new_dynamic_states(5) = dynamic_kf.state()(5) - shape_kf.state()(0) * pow(shape_kf.state()(3),2) *  sin(shape_kf.state()(2));
   //L1 = L2
   new_shape_states(0) = shape_kf.state()(1);
   //L2 = L1
@@ -125,14 +144,23 @@ void LShapeTracker::CounterClockwisePointSwitch(){
 
   const double pi = 3.141592653589793238463; 
   
-  Vector4d new_dynamic_states;
+  Vector6d new_dynamic_states;
   Vector4d new_shape_states;
   new_dynamic_states = dynamic_kf.state();
   new_shape_states = shape_kf.state();
-  //x = x + L1 * cos(theta);
+  //x = x + L2 * sin(theta);
   new_dynamic_states(0) = dynamic_kf.state()(0) + shape_kf.state()(1) * sin(shape_kf.state()(2));
-  //y = y + L1 * sin(theta);
+  //y = y - L2 * cos(theta);
   new_dynamic_states(1) = dynamic_kf.state()(1) - shape_kf.state()(1) * cos(shape_kf.state()(2));
+  //vx = vx + L2 * omega * cos(theta);
+  new_dynamic_states(2) = dynamic_kf.state()(2) + shape_kf.state()(1) * shape_kf.state()(3) *  cos(shape_kf.state()(2));
+  //vy = vy + L2 * omega * sin(theta);
+  new_dynamic_states(3) = dynamic_kf.state()(3) + shape_kf.state()(1) * shape_kf.state()(3) *  sin(shape_kf.state()(2));
+  //ax = ax - L2 * omega^2 * cos(theta);
+  new_dynamic_states(4) = dynamic_kf.state()(4) - shape_kf.state()(1) * pow(shape_kf.state()(3),2) *  sin(shape_kf.state()(2));
+  //ay = ay - L2 * omega^2 * sin(theta);
+  new_dynamic_states(5) = dynamic_kf.state()(5) + shape_kf.state()(1) * pow(shape_kf.state()(3),2) *  cos(shape_kf.state()(2));
+
   //L1 = L2
   new_shape_states(0) = shape_kf.state()(1);
   //L2 = L1
@@ -143,7 +171,7 @@ void LShapeTracker::CounterClockwisePointSwitch(){
   shape_kf.changeStates(new_shape_states);
 }
 
-void LShapeTracker::changeStates(const Eigen::Vector4d& new_dynamic_states,const Eigen::Vector3d& new_shape_states ){
+void LShapeTracker::changeStates(const Vector6d& new_dynamic_states,const Vector4d& new_shape_states ){
   dynamic_kf.changeStates(new_dynamic_states);
   shape_kf.changeStates(new_shape_states);
 }
