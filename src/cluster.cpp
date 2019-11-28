@@ -139,14 +139,14 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
   rectangleFitting(new_points);
 
   l_shape.detectCornerPointSwitch(old_thetaL1, thetaL1);
+  l_shape_ukf.detectCornerPointSwitch(old_thetaL1, thetaL1);
   
   double norm = normalize_angle(l_shape.shape_kf.state()(2));
   double distance = shortest_angular_distance(norm, thetaL1);
   double unwrapped_thetaL1 = distance + l_shape.shape_kf.state()(2) ;
   
   l_shape.update(closest_corner_point, L1, L2, unwrapped_thetaL1, dt);
-  //l_shape.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
-  l_shape_ukf.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
+  l_shape.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
   orientation = findOrientation(th, cvx, cvy);
   //ROS_INFO_STREAM("Orientation: "<<orientation);
   
@@ -180,6 +180,7 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
   meas.mahalanobisThresh_ = std::numeric_limits<double>::max();
 
   l_shape_ukf.update(meas, L1, L2, unwrapped_thetaL1, dt);
+  //l_shape_ukf.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
 
   // UKF #######################
 

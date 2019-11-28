@@ -12,7 +12,6 @@ set shortmess=aoO
 argglobal
 %argdel
 $argadd src/cluster.cpp
-edit src/cluster.hpp
 set splitbelow splitright
 set nosplitbelow
 wincmd t
@@ -20,47 +19,35 @@ set winminheight=0
 set winheight=1
 set winminwidth=0
 set winwidth=1
-argglobal
-setlocal fdm=manual
-setlocal fde=0
-setlocal fmr={{{,}}}
-setlocal fdi=#
-setlocal fdl=0
-setlocal fml=1
-setlocal fdn=20
-setlocal fen
-silent! normal! zE
-let s:l = 64 - ((46 * winheight(0) + 26) / 53)
-if s:l < 1 | let s:l = 1 | endif
-exe s:l
-normal! zt
-64
-normal! 030|
 tabnext 1
-badd +53 src/cluster.hpp
-badd +151 src/cluster.cpp
+badd +302 src/ukf/ukf.cpp
+badd +106 src/cluster.cpp
+badd +106 src/cluster.hpp
 badd +17 src/ukf/filter_common.h
 badd +3 src/datmo.cpp
 badd +65 src/datmo.hpp
 badd +7 launch/sim_test.launch
-badd +120 src/l_shape_tracker.cpp
+badd +45 src/l_shape_tracker.cpp
 badd +66 src/kalman-cpp/kalman.hpp
-badd +26 src/ukf/ukf.cpp
-badd +57 src/ukf/filter_base.cpp
+badd +1 src/ukf/filter_base.cpp
 badd +48 src/kalman-cpp/kalman.cpp
 badd +22 src/l_shape_tracker_ukf.cpp
 badd +12 src/l_shape_tracker_ukf.hpp
 badd +56 CMakeLists.txt
 badd +24 src/l_shape_tracker.hpp
-badd +0 l_shape_tracker.cpp:datmo/CMakeFiles/datmo.dir/build.make
+badd +1 l_shape_tracker.cpp:datmo/CMakeFiles/datmo.dir/build.make
 badd +1 CMakeFiles/Makefile2
 badd +1 Makefile
-badd +0 b\ src/l_shape_tracker.cpp
+badd +1 b\ src/l_shape_tracker.cpp
+badd +120 src/ukf/ukf.h
+badd +1 ~/.vimrc
+badd +1 datmo/CMakeFiles/datmo.dir/build.make
+badd +304 src/ukf/filter_base.h
 if exists('s:wipebuf') && len(win_findbuf(s:wipebuf)) == 0
   silent exe 'bwipe ' . s:wipebuf
 endif
 unlet! s:wipebuf
-set winheight=1 winwidth=20 shortmess=filnxtToOS
+set winheight=1 winwidth=20 shortmess=filnxtToOSc
 set winminheight=1 winminwidth=1
 let s:sx = expand("<sfile>:p:r")."x.vim"
 if file_readable(s:sx)
