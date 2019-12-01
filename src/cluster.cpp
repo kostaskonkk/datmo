@@ -113,7 +113,7 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   ukf_init.setEstimateErrorCovariance(initialCovar);
 
   Eigen::VectorXd initial_state(6);
-  initial_state<<closest_corner_point.first,closest_corner_point.second,orientation,0,0,0;
+  initial_state<<closest_corner_point.first,closest_corner_point.second,normalize_angle(thetaL1),0,0,0;
   ukf_init.setState(initial_state);
 
   ukf_init.predict_ctrm(dt);
@@ -123,6 +123,9 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   LShapeTrackerUKF l_shape_tracker_ukf(ukf_init, L1, L2, normalize_angle(thetaL1), dt);
   this->l_shape_ukf = l_shape_tracker_ukf;
 
+  //l_shape_ukf.lshapeToBoxModelConversion(cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, L1_box_ukf, L2_box_ukf, th_ukf, comega_ukf);
+  l_shape_ukf.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
+  
   populateTrackingMsgs(dt);
 }
 
@@ -148,21 +151,19 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
   l_shape.update(closest_corner_point, L1, L2, unwrapped_thetaL1, dt);
   l_shape.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
   orientation = findOrientation(th, cvx, cvy);
-  //ROS_INFO_STREAM("Orientation: "<<orientation);
-  
 
   // Update Kalman Filter
   VectorXd y(3);
-
   y << meanX(), meanY(), orientation;
   kf_mean.update(y, dt);
+
 
   // UKF #######################
   Eigen::VectorXd measurement(6);
 
   measurement[0] = closest_corner_point.first;
   measurement[1] = closest_corner_point.second;
-  measurement[2] = orientation;
+  measurement[2] = unwrapped_thetaL1;
 
   Eigen::MatrixXd measurementCovariance(6, 6);
   measurementCovariance.setIdentity();
@@ -180,7 +181,8 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
   meas.mahalanobisThresh_ = std::numeric_limits<double>::max();
 
   l_shape_ukf.update(meas, L1, L2, unwrapped_thetaL1, dt);
-  //l_shape_ukf.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
+  //l_shape_ukf.lshapeToBoxModelConversion(cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, L1_box_ukf, L2_box_ukf, th_ukf, comega_ukf);
+  l_shape_ukf.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
 
   // UKF #######################
 
@@ -193,18 +195,21 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
 
 void Cluster::populateTrackingMsgs(const double& dt){
 
-    quaternion.setRPY(0,0,orientation);
     msg_track_mean.id = this->id;
     msg_track_mean.odom.header.stamp = ros::Time::now();
     msg_track_mean.odom.header.frame_id = frame_name;
     msg_track_mean.odom.pose.pose.position.x = meanX();
     msg_track_mean.odom.pose.pose.position.y = meanY();
-    msg_track_mean.odom.pose.pose.orientation = tf2::toMsg(quaternion);
     msg_track_mean.length = length;
     msg_track_mean.width  = width;
-    msg_track_mean.odom.twist.twist.linear.x = (mean_values.first- previous_mean_values.first)/dt;
-    msg_track_mean.odom.twist.twist.linear.y = (mean_values.second- previous_mean_values.second)/dt;
-
+    double dvx = (mean_values.first- previous_mean_values.first)/dt;
+    double dvy = (mean_values.second- previous_mean_values.second)/dt;
+    msg_track_mean.odom.twist.twist.linear.x = dvx;
+    msg_track_mean.odom.twist.twist.linear.y = dvy; 
+    orientation = findOrientation(thetaL1, dvx, dvy);
+    quaternion.setRPY(0,0,orientation);
+    msg_track_mean.odom.pose.pose.orientation = tf2::toMsg(quaternion);
+    
     quaternion.setRPY(0,0,kf_mean.state()[4]);
     msg_track_mean_kf.id = this->id;
     msg_track_mean_kf.odom.header.stamp = ros::Time::now();
@@ -220,28 +225,29 @@ void Cluster::populateTrackingMsgs(const double& dt){
     msg_track_mean_kf.odom.twist.covariance[0]= kf_mean.P(2,2);
     msg_track_mean_kf.odom.twist.covariance[7]= kf_mean.P(3,3);
 
+    quaternion.setRPY(0,0,th);
     msg_track_box_kf.id = this->id;
     msg_track_box_kf.odom.header.stamp = ros::Time::now();
     msg_track_box_kf.odom.header.frame_id = frame_name;
     msg_track_box_kf.odom.pose.pose.position.x = cx;
     msg_track_box_kf.odom.pose.pose.position.y = cy;
-    msg_track_box_kf.odom.pose.pose.orientation.z = th;
+    msg_track_box_kf.odom.pose.pose.orientation = tf2::toMsg(quaternion);
     msg_track_box_kf.odom.twist.twist.linear.x = cvx;
     msg_track_box_kf.odom.twist.twist.linear.y = cvy;
     msg_track_box_kf.odom.twist.twist.angular.z   = comega;
     msg_track_box_kf.length = L1_box;
     msg_track_box_kf.width  = L2_box;
 
-    quaternion.setRPY(0,0, l_shape_ukf.ukf.getState()[2]);
+    quaternion.setRPY(0,0, th_ukf);
     msg_track_box_ukf.id = this->id;
     msg_track_box_ukf.odom.header.stamp = ros::Time::now();
     msg_track_box_ukf.odom.header.frame_id = frame_name;
-    msg_track_box_ukf.odom.pose.pose.position.x    = l_shape_ukf.ukf.getState()[0];
-    msg_track_box_ukf.odom.pose.pose.position.y    = l_shape_ukf.ukf.getState()[1];
+    msg_track_box_ukf.odom.pose.pose.position.x    = cx_ukf;
+    msg_track_box_ukf.odom.pose.pose.position.y    = cy_ukf;
     msg_track_box_ukf.odom.pose.pose.orientation = tf2::toMsg(quaternion);
-    msg_track_box_ukf.odom.twist.twist.linear.x    = l_shape_ukf.ukf.getState()[3];
-    msg_track_box_ukf.odom.twist.twist.linear.y    = l_shape_ukf.ukf.getState()[4];
-    msg_track_box_ukf.odom.twist.twist.angular.z   = l_shape_ukf.ukf.getState()[5];
+    msg_track_box_ukf.odom.twist.twist.linear.x    = cx_ukf;
+    msg_track_box_ukf.odom.twist.twist.linear.y    = cy_ukf;
+    msg_track_box_ukf.odom.twist.twist.angular.z   = comega_ukf;
 
 }
 
@@ -566,7 +572,8 @@ double Cluster::findOrientation(const double& angle, const double& vx, const dou
   //ROS_INFO_STREAM("th_sp: "<<vsp<<", orientation: "<<orientation);
   //ROS_INFO_STREAM("th_sp: "<<vsp<<", vy: "<<vy<<", vx: "<<vx);
   //ROS_INFO_STREAM("th_sp: "<<vsp<<", th: "<<th<<", th+pi/2: "<<th1<<", th+pi: "<<th2<<", th+3pi/2: "<<th3);
-  return orientation;
+  double normalized = normalize_angle(orientation);
+  return normalized;
   
 }
 visualization_msgs::Marker Cluster::getThetaBoxVisualisationMessage() {

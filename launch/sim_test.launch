@@ -4,11 +4,16 @@
   <node pkg="rosbag" type="play" name="player" required="true" output="log" args="-r 1 --clock /home/kostas/Dropbox/experiments/simulation/double_lane_change.bag"/>
   <node pkg="rosbag" type="record" name="recorder" output="screen" args="-O /home/kostas/results/sim.bag /ego_pose /prius_fast /prius_slow /tracks/mean /tracks/mean_kf /tracks/box_kf /tracks/box_ukf "/>
 
-  <include file="$(find datmo)/launch/simulation.launch"/>
+  <node name="rviz" pkg="rviz" type="rviz" required="true" args="-d $(find datmo)/config/simulation.rviz" />
 
-  <!--<node pkg="localization" type="sim_local" name="localization"/>-->
-
-  <arg name="rvizconfig" default="$(find datmo)/config/simulation.rviz" />
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(arg rvizconfig)" required="false" />
+   <node pkg="datmo" type="datmo" name="datmo" >
+      <param name="max_cluster_size" value="500" />
+      <param name="lidar_frame" value="center_laser_link" />
+      <param name="world_frame" value="map" />
+      <param name="threshold_distance" value="1" />
+      <param name="euclidean_distance" value="1.7" />
+      <param name="pub_markers" value="true" />
+      <param name="write_execution_times" value="true" />
+   </node>
 
 </launch>

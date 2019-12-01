@@ -115,6 +115,7 @@ void LShapeTrackerUKF::CounterClockwisePointSwitch(){
   new_ukf_states(Vy) = ukf.getState()(Vy)+ L2 * ukf.getState()(Vyaw) * sin(ukf.getState()(Yaw));
   new_ukf_states(Yaw) = ukf.getState()(Yaw) + pi / 2;
 
+  ROS_INFO_STREAM("previous: "<<ukf.getState()(Yaw)<<"new: "<< new_ukf_states(Yaw));
   //L1 = L2
   new_shape_states(0) = L2;
   //L2 = L1
@@ -135,6 +136,8 @@ void LShapeTrackerUKF::lshapeToBoxModelConversion(double& x, double& y,double& v
   double ey = (L1 * sin(theta) - L2 * cos(theta)) /2;
   x = ukf.getState()(X) + ex;
   y = ukf.getState()(Y) + ey;
+  //x = ukf.getState()(X);
+  //y = ukf.getState()(Y);
 
   //Equations 31 of "L-Shape Model Switching-Based precise motion tracking of moving vehicles"
   //TODO test the complete equation also

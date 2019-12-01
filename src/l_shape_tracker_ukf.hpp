@@ -2,6 +2,7 @@
 
 #include "kalman-cpp/kalman.hpp"
 #include <Eigen/Dense>
+#include <ros/console.h>
 #include "ukf/ukf.h"
 
 using namespace Eigen;

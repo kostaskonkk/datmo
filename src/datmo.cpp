@@ -64,7 +64,7 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
     //if( dt > 1){
       //ROS_WARN_STREAM("Time between measurements measure at: "<<dt<<" seconds.");
     //}
-    dt = 0.8;
+    dt = 0.08;
 
     if (time > ros::Time::now()){clusters.clear();}
     time = ros::Time::now();
