@@ -2,4 +2,4 @@
 .gitignore
 tags
 .ycm_extra_conf.py
-*.sw
+*.swp
