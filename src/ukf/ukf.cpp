@@ -86,8 +86,8 @@ namespace RobotLocalization
   void Ukf::correct_ctrm(const Measurement &measurement)
   {
     //ROS_WARN_STREAM("---------------------- Ukf::correct ----------------------\n" <<
-			 //"State is:\n" << state_ <<
-			 //"\nMeasurement is:\n" << measurement.measurement_ << "\n");
+       //"State is:\n" << state_ <<
+       //"\nMeasurement is:\n" << measurement.measurement_ << "\n");
        //"\nMeasurement covariance is:\n" << measurement.covariance_ <<
        
 
@@ -296,10 +296,14 @@ namespace RobotLocalization
     double cy = ::cos(yaw);
 
     // Prepare the transfer function
-    transferFunction_(StateMemberX, StateMemberVx) = cy * delta;
-    transferFunction_(StateMemberX, StateMemberVy) = (cy - sy ) * delta;
-    transferFunction_(StateMemberY, StateMemberVx) = sy * delta;
-    transferFunction_(StateMemberY, StateMemberVy) = (sy + cy) * delta;
+    //transferFunction_(StateMemberX, StateMemberVx) = cy * delta;
+    //transferFunction_(StateMemberX, StateMemberVy) = (cy - sy ) * delta;
+    transferFunction_(StateMemberX, StateMemberVx) = delta;
+    //transferFunction_(StateMemberX, StateMemberVy) = delta;
+    //transferFunction_(StateMemberY, StateMemberVx) = sy * delta;
+    //transferFunction_(StateMemberY, StateMemberVy) = (sy + cy) * delta;
+    //transferFunction_(StateMemberY, StateMemberVx) = delta;
+    transferFunction_(StateMemberY, StateMemberVy) = delta;
     transferFunction_(StateMemberYaw, StateMemberVyaw) = delta;
 
     /////Nonlinear Coordinated Turn with Polar Velocity
