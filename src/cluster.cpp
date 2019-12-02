@@ -107,13 +107,15 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   Eigen::MatrixXd initialCovar(STATE_SIZE, STATE_SIZE);
   initialCovar.setIdentity();
   initialCovar *= 1;
+  initialCovar(2,2) *= 10;
   initialCovar(3,3) *= 3;
   initialCovar(4,4) *= 3;
   initialCovar(5,5) *= 3;
   ukf_init.setEstimateErrorCovariance(initialCovar);
 
   Eigen::VectorXd initial_state(6);
-  initial_state<<closest_corner_point.first,closest_corner_point.second,normalize_angle(thetaL1),0,0,0;
+  //initial_state<<closest_corner_point.first,closest_corner_point.second,normalize_angle(thetaL1),0,0,0;
+  initial_state<<closest_corner_point.first,closest_corner_point.second,0,0,0,0;
   ukf_init.setState(initial_state);
 
   ukf_init.predict_ctrm(dt);
@@ -123,8 +125,7 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   LShapeTrackerUKF l_shape_tracker_ukf(ukf_init, L1, L2, normalize_angle(thetaL1), dt);
   this->l_shape_ukf = l_shape_tracker_ukf;
 
-  //l_shape_ukf.lshapeToBoxModelConversion(cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, L1_box_ukf, L2_box_ukf, th_ukf, comega_ukf);
-  l_shape_ukf.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
+  l_shape_ukf.lshapeToBoxModelConversion(cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, L1_box_ukf, L2_box_ukf, th_ukf, psi_ukf, comega_ukf);
   
   populateTrackingMsgs(dt);
 }
@@ -163,12 +164,13 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
 
   measurement[0] = closest_corner_point.first;
   measurement[1] = closest_corner_point.second;
-  measurement[2] = unwrapped_thetaL1;
+  //measurement[2] = unwrapped_thetaL1;
 
   Eigen::MatrixXd measurementCovariance(6, 6);
   measurementCovariance.setIdentity();
 
   std::vector<int> updateVector(6, true);
+  updateVector[2]=false;
   updateVector[3]=false;
   updateVector[4]=false;
   updateVector[5]=false;
@@ -181,8 +183,7 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
   meas.mahalanobisThresh_ = std::numeric_limits<double>::max();
 
   l_shape_ukf.update(meas, L1, L2, unwrapped_thetaL1, dt);
-  //l_shape_ukf.lshapeToBoxModelConversion(cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, L1_box_ukf, L2_box_ukf, th_ukf, comega_ukf);
-  l_shape_ukf.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
+  l_shape_ukf.lshapeToBoxModelConversion(cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, L1_box_ukf, L2_box_ukf, th_ukf, psi_ukf, comega_ukf);
 
   // UKF #######################
 
@@ -225,20 +226,21 @@ void Cluster::populateTrackingMsgs(const double& dt){
     msg_track_mean_kf.odom.twist.covariance[0]= kf_mean.P(2,2);
     msg_track_mean_kf.odom.twist.covariance[7]= kf_mean.P(3,3);
 
-    quaternion.setRPY(0,0,th);
     msg_track_box_kf.id = this->id;
     msg_track_box_kf.odom.header.stamp = ros::Time::now();
     msg_track_box_kf.odom.header.frame_id = frame_name;
     msg_track_box_kf.odom.pose.pose.position.x = cx;
     msg_track_box_kf.odom.pose.pose.position.y = cy;
-    msg_track_box_kf.odom.pose.pose.orientation = tf2::toMsg(quaternion);
     msg_track_box_kf.odom.twist.twist.linear.x = cvx;
     msg_track_box_kf.odom.twist.twist.linear.y = cvy;
+    psi = findOrientation(th, cvx, cvy);
+    quaternion.setRPY(0, 0, psi);
+    msg_track_box_kf.odom.pose.pose.orientation = tf2::toMsg(quaternion);
     msg_track_box_kf.odom.twist.twist.angular.z   = comega;
     msg_track_box_kf.length = L1_box;
     msg_track_box_kf.width  = L2_box;
 
-    quaternion.setRPY(0,0, th_ukf);
+    quaternion.setRPY(0,0, psi_ukf);
     msg_track_box_ukf.id = this->id;
     msg_track_box_ukf.odom.header.stamp = ros::Time::now();
     msg_track_box_ukf.odom.header.frame_id = frame_name;
@@ -392,13 +394,13 @@ visualization_msgs::Marker Cluster::getBoundingBoxVisualisationMessage() {
 
   return bb_msg;
 }
-visualization_msgs::Marker Cluster::getBoxModelVisualisationMessage() {
+visualization_msgs::Marker Cluster::getBoxModelKFVisualisationMessage() {
   
   visualization_msgs::Marker bb_msg;
 
   bb_msg.header.stamp = ros::Time::now();
   bb_msg.header.frame_id  = frame_name;
-  bb_msg.ns = "box_models";
+  bb_msg.ns = "box_models_kf";
   bb_msg.action = visualization_msgs::Marker::ADD;
   bb_msg.pose.orientation.w = 1.0;
   bb_msg.type = visualization_msgs::Marker::LINE_STRIP;
@@ -434,6 +436,54 @@ visualization_msgs::Marker Cluster::getBoxModelVisualisationMessage() {
   y = + L2_box/2;
   p.x = cx + x*cos(th) - y*sin(th);
   p.y = cy + x*sin(th) + y*cos(th);
+  bb_msg.points.push_back(p);
+  
+  return bb_msg;
+  
+}
+
+visualization_msgs::Marker Cluster::getBoxModelUKFVisualisationMessage() {
+  
+  visualization_msgs::Marker bb_msg;
+
+  bb_msg.header.stamp = ros::Time::now();
+  bb_msg.header.frame_id  = frame_name;
+  bb_msg.ns = "box_models_ukf";
+  bb_msg.action = visualization_msgs::Marker::ADD;
+  bb_msg.pose.orientation.w = 1.0;
+  bb_msg.type = visualization_msgs::Marker::LINE_STRIP;
+  bb_msg.id = this->id;
+  bb_msg.scale.x = 0.05; //line width
+  bb_msg.color.g = g;
+  bb_msg.color.b = b;
+  bb_msg.color.r = r;
+  bb_msg.color.a = a;
+
+  geometry_msgs::Point p;
+  double x = L1_box_ukf/2;
+  double y = L2_box_ukf/2;
+  p.x = cx + x*cos(th_ukf) - y*sin(th_ukf);
+  p.y = cy + x*sin(th_ukf) + y*cos(th_ukf);
+  bb_msg.points.push_back(p);
+  x = + L1_box_ukf/2;
+  y = - L2_box_ukf/2;
+  p.x = cx + x*cos(th_ukf) - y*sin(th_ukf);
+  p.y = cy + x*sin(th_ukf) + y*cos(th_ukf);
+  bb_msg.points.push_back(p);
+  x = - L1_box_ukf/2;
+  y = - L2_box_ukf/2;
+  p.x = cx + x*cos(th_ukf) - y*sin(th_ukf);
+  p.y = cy + x*sin(th_ukf) + y*cos(th_ukf);
+  bb_msg.points.push_back(p);
+  x = - L1_box_ukf/2;
+  y = + L2_box_ukf/2;
+  p.x = cx + x*cos(th_ukf) - y*sin(th_ukf);
+  p.y = cy + x*sin(th_ukf) + y*cos(th_ukf);
+  bb_msg.points.push_back(p);
+  x = + L1_box_ukf/2;
+  y = + L2_box_ukf/2;
+  p.x = cx + x*cos(th_ukf) - y*sin(th_ukf);
+  p.y = cy + x*sin(th_ukf) + y*cos(th_ukf);
   bb_msg.points.push_back(p);
   
   return bb_msg;

@@ -183,7 +183,8 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
         marker_array.markers.push_back(clusters[i].getThetaBoxVisualisationMessage());
         marker_array.markers.push_back(clusters[i].getClusterVisualisationMessage());
         marker_array.markers.push_back(clusters[i].getBoundingBoxVisualisationMessage());
-        marker_array.markers.push_back(clusters[i].getBoxModelVisualisationMessage());
+        marker_array.markers.push_back(clusters[i].getBoxModelKFVisualisationMessage());
+        marker_array.markers.push_back(clusters[i].getBoxModelUKFVisualisationMessage());
         marker_array.markers.push_back(clusters[i].getClosestCornerPointVisualisationMessage());
         marker_array.markers.push_back(clusters[i].getLShapeVisualisationMessage());
         marker_array.markers.push_back(clusters[i].getPoseCovariance());

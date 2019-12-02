@@ -34,7 +34,6 @@
 #define ROBOT_LOCALIZATION_UKF_H
 
 #include "filter_base.h"
-
 #include <fstream>
 #include <vector>
 #include <set>

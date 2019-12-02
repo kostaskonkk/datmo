@@ -45,7 +45,8 @@ public:
   visualization_msgs::Marker getThetaL1VisualisationMessage();
   visualization_msgs::Marker getThetaBoxVisualisationMessage();
   visualization_msgs::Marker getBoundingBoxVisualisationMessage();
-  visualization_msgs::Marker getBoxModelVisualisationMessage();
+  visualization_msgs::Marker getBoxModelKFVisualisationMessage();
+  visualization_msgs::Marker getBoxModelUKFVisualisationMessage();
   visualization_msgs::Marker getLShapeVisualisationMessage();
   visualization_msgs::Marker getPoseCovariance();
 
@@ -67,8 +68,8 @@ public:
 
   double old_thetaL1, old_thetaL2;
   double L1, L2, thetaL1, thetaL2;
-  double cx, cy, cvx, cvy, L1_box, L2_box, th, comega; 
-  double cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, L1_box_ukf, L2_box_ukf, th_ukf, comega_ukf; 
+  double cx, cy, cvx, cvy, L1_box, L2_box, th, psi, comega; 
+  double cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, L1_box_ukf, L2_box_ukf, th_ukf, psi_ukf, comega_ukf; 
   double orientation, length, width;
 
 private:

@@ -80,15 +80,18 @@ void LShapeTrackerUKF::ClockwisePointSwitch(){
   //y = y + L1 * sin(theta);
   new_ukf_states(Y)  = ukf.getState()(Y) + L1 * sin(ukf.getState()(Yaw));
   //vx = vx - L1 * omega * sin(theta);
-  new_ukf_states(Vx) = ukf.getState()(Vx)- L1 * ukf.getState()(Vyaw) * sin(ukf.getState()(Yaw));
+  new_ukf_states(Vx) = ukf.getState()(Vx)- L1 * ukf.getState()(Vyaw) * sin(shape_kf.state()(2));
   //vy = vy + L1 * omega * cos(theta);
-  new_ukf_states(Vy) = ukf.getState()(Vy)+ L1 * ukf.getState()(Vyaw) * cos(ukf.getState()(Yaw));
-  new_ukf_states(Yaw) = ukf.getState()(Yaw) - pi / 2;
+  new_ukf_states(Vy) = ukf.getState()(Vy)+ L1 * ukf.getState()(Vyaw) * cos(shape_kf.state()(2));
+
 
   //L1 = L2
   new_shape_states(0) = L2;
   //L2 = L1
   new_shape_states(1) = L1;
+
+  new_shape_states(2) = shape_kf.state()(2) - pi / 2;
+  //new_ukf_states(Yaw) = ukf.getState()(Yaw) - pi / 2;
 
   ukf.setState(new_ukf_states);
   shape_kf.changeStates(new_shape_states);
@@ -110,26 +113,30 @@ void LShapeTrackerUKF::CounterClockwisePointSwitch(){
   //y = y - L2 * cos(theta);
   new_ukf_states(Y)  = ukf.getState()(Y) - L2 * cos(ukf.getState()(Yaw));
   //vx = vx + L2 * omega * cos(theta);
-  new_ukf_states(Vx) = ukf.getState()(Vx)+ L2 * ukf.getState()(Vyaw) * cos(ukf.getState()(Yaw));
+  new_ukf_states(Vx) = ukf.getState()(Vx)+ L2 * ukf.getState()(Vyaw) * cos(shape_kf.state()(2));
   //vy = vy + L2 * omega * sin(theta);
-  new_ukf_states(Vy) = ukf.getState()(Vy)+ L2 * ukf.getState()(Vyaw) * sin(ukf.getState()(Yaw));
-  new_ukf_states(Yaw) = ukf.getState()(Yaw) + pi / 2;
+  new_ukf_states(Vy) = ukf.getState()(Vy)+ L2 * ukf.getState()(Vyaw) * sin(shape_kf.state()(2));
 
-  ROS_INFO_STREAM("previous: "<<ukf.getState()(Yaw)<<"new: "<< new_ukf_states(Yaw));
+
+  //ROS_INFO_STREAM("previous: "<<ukf.getState()(Yaw)<<"new: "<< new_ukf_states(Yaw));
   //L1 = L2
   new_shape_states(0) = L2;
   //L2 = L1
   new_shape_states(1) = L1;
+
+  //new_ukf_states(Yaw) = ukf.getState()(Yaw) + pi / 2;
+  new_shape_states(2) = shape_kf.state()(2) + pi / 2;
 
   ukf.setState(new_ukf_states);
   shape_kf.changeStates(new_shape_states);
 
 }
 
-void LShapeTrackerUKF::lshapeToBoxModelConversion(double& x, double& y,double& vx, double& vy, double& L1, double& L2, double& theta, double& omega){
+void LShapeTrackerUKF::lshapeToBoxModelConversion(double& x, double& y,double& vx, double& vy, double& L1, double& L2, double& theta, double& psi, double& omega){
   L1 = shape_kf.state()(0);
   L2 = shape_kf.state()(1);
-  theta = ukf.getState()(Yaw);
+  theta = shape_kf.state()(2);
+  psi = ukf.getState()(Yaw);
   omega = ukf.getState()(Vyaw);
   //Equations 30 of "L-Shape Model Switching-Based precise motion tracking of moving vehicles"
   double ex = (L1 * cos(theta) + L2 * sin(theta)) /2;
