@@ -4,7 +4,6 @@
 #include <vector>
 #include <random>
 #include <algorithm> // for sort(), min()
-
 #include <chrono>
 #include <iostream>
 #include <fstream>

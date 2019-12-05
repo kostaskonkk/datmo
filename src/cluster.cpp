@@ -275,6 +275,8 @@ void Cluster::populateTrackingMsgs(const double& dt){
     msg_track_box_ukf.odom.twist.twist.linear.x    = cvx_ukf;
     msg_track_box_ukf.odom.twist.twist.linear.y    = cvy_ukf;
     msg_track_box_ukf.odom.twist.twist.angular.z   = comega_ukf;
+    msg_track_box_ukf.length = L1_box_ukf;
+    msg_track_box_ukf.width  = L2_box_ukf;
 
 }
 
@@ -396,12 +398,12 @@ visualization_msgs::Marker Cluster::getBoundingBoxVisualisationMessage() {
   visualization_msgs::Marker bb_msg;
   bb_msg.header.stamp = ros::Time::now();
   bb_msg.header.frame_id  = frame_name;
-  bb_msg.ns = "boundind_boxes";
+  bb_msg.ns = "bounding_boxes";
   bb_msg.action = visualization_msgs::Marker::ADD;
   bb_msg.pose.orientation.w = 1.0;
   bb_msg.type = visualization_msgs::Marker::LINE_STRIP;
   bb_msg.id = this->id;
-  bb_msg.scale.x = 0.03; //line width
+  bb_msg.scale.x = 0.3; //line width
   bb_msg.color.g = this->g;
   bb_msg.color.b = this->b;
   bb_msg.color.r = this->r;
@@ -525,9 +527,9 @@ visualization_msgs::Marker Cluster::getLShapeVisualisationMessage() {
   l1l2_msg.pose.orientation.w = 1.0;
   l1l2_msg.type = visualization_msgs::Marker::LINE_STRIP;
   l1l2_msg.id = this->id;
-  l1l2_msg.scale.x = 0.1; //line width
-  l1l2_msg.color.r = 0;
-  l1l2_msg.color.g = 1;
+  l1l2_msg.scale.x = 0.3; //line width
+  l1l2_msg.color.r = 1;
+  l1l2_msg.color.g = 0;
   l1l2_msg.color.b = 0;
   l1l2_msg.color.a = 1.0;
   
@@ -808,8 +810,8 @@ visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
   corner_msg.ns = "closest_corner";
   corner_msg.action = visualization_msgs::Marker::ADD;
   corner_msg.pose.orientation.w = 1.0;    
-  corner_msg.scale.x = 0.1;
-  corner_msg.scale.y = 0.1;  
+  corner_msg.scale.x = 0.3;
+  corner_msg.scale.y = 0.3;  
   corner_msg.color.a = 1.0;
   corner_msg.color.g = 0.0;
   corner_msg.color.b = 0.0;
@@ -898,8 +900,8 @@ visualization_msgs::Marker Cluster::getLineVisualisationMessage() {
   line_msg.pose.orientation.w = 1.0;
   line_msg.type = visualization_msgs::Marker::LINE_STRIP;
   line_msg.id = this->id;
-  line_msg.scale.x = 0.1; //line width
-  line_msg.lifetime = ros::Duration(0.09);
+  line_msg.scale.x = 0.2; //line width
+  //line_msg.lifetime = ros::Duration(0.09);
   line_msg.color.g = this->g;
   line_msg.color.b = this->b;
   line_msg.color.r = this->r;
@@ -912,7 +914,7 @@ visualization_msgs::Marker Cluster::getLineVisualisationMessage() {
 
 
   vector<Point> pointListOut;
-  Cluster::ramerDouglasPeucker(new_cluster, 0.1, pointListOut);
+  Cluster::ramerDouglasPeucker(new_cluster, 1, pointListOut);
   geometry_msgs::Point p;
   for(unsigned int k =0 ;k<pointListOut.size();++k){
     p.x = pointListOut[k].first;

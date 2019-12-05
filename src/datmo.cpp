@@ -185,11 +185,11 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
         marker_array.markers.push_back(clusters[i].getBoundingBoxVisualisationMessage());
         marker_array.markers.push_back(clusters[i].getBoxModelKFVisualisationMessage());
         marker_array.markers.push_back(clusters[i].getBoxModelUKFVisualisationMessage());
-        marker_array.markers.push_back(clusters[i].getClosestCornerPointVisualisationMessage());
         marker_array.markers.push_back(clusters[i].getLShapeVisualisationMessage());
+        marker_array.markers.push_back(clusters[i].getClosestCornerPointVisualisationMessage());
+        marker_array.markers.push_back(clusters[i].getLineVisualisationMessage());
         marker_array.markers.push_back(clusters[i].getPoseCovariance());
-      };
-
+      }; 
       if (w_exec_times){
         
         //rect_fitting << clusters[i].getRectangleFittingExecutionTime().first<<",";
@@ -237,27 +237,23 @@ void Datmo::visualiseGroupedPoints(const vector<pointList>& point_clusters){
   //Populate grouped points message
   visualization_msgs::Marker gpoints;
   gpoints.header.frame_id = world_frame;
-  gpoints.header.stamp = ros::Time(0);
+  gpoints.header.stamp = ros::Time::now();
   gpoints.ns = "clustered_points";
   gpoints.action = visualization_msgs::Marker::ADD;
   gpoints.pose.orientation.w = 1.0;
   gpoints.type = visualization_msgs::Marker::POINTS;
   // POINTS markers use x and y scale for width/height respectively
-  gpoints.scale.x = 0.13;
-  gpoints.scale.y = 0.13;
+  gpoints.scale.x = 0.2;
+  gpoints.scale.y = 0.2;
   for(unsigned int i=0; i<point_clusters.size(); ++i){
 
     gpoints.id = cg;
     cg++;
-
-    float randomg = rand() / double(RAND_MAX);
-    float randomb = rand() / double(RAND_MAX);
-    float randomr = rand() / double(RAND_MAX);
-    gpoints.color.g = randomg;
-    gpoints.color.b = randomb;
-    gpoints.color.r = randomr;
+    gpoints.color.g = rand() / double(RAND_MAX);
+    gpoints.color.b = rand() / double(RAND_MAX);
+    gpoints.color.r = rand() / double(RAND_MAX);
     gpoints.color.a = 1.0;
-    gpoints.lifetime = ros::Duration(0.08);
+    //gpoints.lifetime = ros::Duration(0.08);
     for(unsigned int j=0; j<point_clusters[i].size(); ++j){
       geometry_msgs::Point p;
       p.x = point_clusters[i][j].first;
