@@ -9,7 +9,7 @@
   <node pkg="rosbag" type="record" name="recorder" output="screen" args="-O /home/kostas/results/experiment/test.bag /tf /tracks/mean /tracks/mean_kf /tracks/box_kf /tracks/box_ukf /ego_pose /red_pose" />
 
   <node type="rviz" name="rviz" pkg="rviz" args="-d $(find datmo)/config/experiment.rviz" />
-  <node pkg="tf2_ros" type="static_transform_publisher" name="link_laser" args="0 0 0 -1.56 0 0 /ego_pose /laser" />
+  <node pkg="tf2_ros" type="static_transform_publisher" name="link_laser" args="0 0 0 0 0 0 /ego_pose /laser" />
 
    <node pkg="datmo" type="datmo" name="datmo" >
       <param name="write_execution_times" value="true" />
