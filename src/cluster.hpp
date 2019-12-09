@@ -91,7 +91,7 @@ private:
   void calcMean(const pointList& ); //Find the mean value of the cluster
   void rectangleFitting(const pointList& ); //Search-Based Rectangle Fitting 
   double areaCriterion(const VectorXd&, const VectorXd& );
-  double closenessCriterion(const VectorXd& ,const VectorXd&, const float& );
+  double closenessCriterion(const VectorXd& ,const VectorXd&, const double& );
   Point lineIntersection(double& , double& , double& , double& , double& , double& );
   double perpendicularDistance(const Point&, const Point&, const Point&);
   void ramerDouglasPeucker(const vector<Point>&, double, vector<Point>&);

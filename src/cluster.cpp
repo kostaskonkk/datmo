@@ -215,7 +215,7 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
   old_thetaL1 = thetaL1;
   old_thetaL2 = thetaL2;
   if(l_shape.shape_kf.state()(0) != l_shape_ukf.shape_kf.state()(0)){
-    ROS_INFO_STREAM("kf L1: "<<l_shape.shape_kf.state()(1)<< "ukfL1"<<l_shape_ukf.shape_kf.state()(1) );
+    //ROS_INFO_STREAM("kf L1: "<<l_shape.shape_kf.state()(1)<< "ukfL1"<<l_shape_ukf.shape_kf.state()(1) );
   }
 }
 
@@ -297,7 +297,7 @@ void Cluster::rectangleFitting(const pointList& new_cluster){
   unsigned int i =0;
   th = 0.0;
   //TODO make d configurable through Rviz
-  unsigned int d = 40;
+  unsigned int d = 200;
   ArrayX2d Q(d,2);
   float step = (3.14/2)/d;
   //#pragma omp parallel for
@@ -403,7 +403,8 @@ visualization_msgs::Marker Cluster::getBoundingBoxVisualisationMessage() {
   bb_msg.pose.orientation.w = 1.0;
   bb_msg.type = visualization_msgs::Marker::LINE_STRIP;
   bb_msg.id = this->id;
-  bb_msg.scale.x = 0.3; //line width
+  //bb_msg.scale.x = 0.3; //line width
+  bb_msg.scale.x = 0.008; //line width
   bb_msg.color.g = this->g;
   bb_msg.color.b = this->b;
   bb_msg.color.r = this->r;
@@ -432,7 +433,7 @@ visualization_msgs::Marker Cluster::getBoxModelKFVisualisationMessage() {
   bb_msg.pose.orientation.w = 1.0;
   bb_msg.type = visualization_msgs::Marker::LINE_STRIP;
   bb_msg.id = this->id;
-  bb_msg.scale.x = 0.05; //line width
+  bb_msg.scale.x = 0.02; //line width
   bb_msg.color.g = g;
   bb_msg.color.b = b;
   bb_msg.color.r = r;
@@ -468,7 +469,6 @@ visualization_msgs::Marker Cluster::getBoxModelKFVisualisationMessage() {
   return bb_msg;
   
 }
-
 visualization_msgs::Marker Cluster::getBoxModelUKFVisualisationMessage() {
   
   visualization_msgs::Marker bb_msg;
@@ -527,9 +527,11 @@ visualization_msgs::Marker Cluster::getLShapeVisualisationMessage() {
   l1l2_msg.pose.orientation.w = 1.0;
   l1l2_msg.type = visualization_msgs::Marker::LINE_STRIP;
   l1l2_msg.id = this->id;
-  l1l2_msg.scale.x = 0.3; //line width
+  //l1l2_msg.scale.x = 0.3; //line width
+  l1l2_msg.scale.x = 0.1; //line width
   l1l2_msg.color.r = 1;
   l1l2_msg.color.g = 0;
+  l1l2_msg.scale.x = 0.1; //line width
   l1l2_msg.color.b = 0;
   l1l2_msg.color.a = 1.0;
   
@@ -571,7 +573,7 @@ double Cluster::areaCriterion(const VectorXd& C1, const VectorXd& C2){
   return a; 
 
 }
-double Cluster::closenessCriterion(const VectorXd& C1, const VectorXd& C2, const float& d0){
+double Cluster::closenessCriterion(const VectorXd& C1, const VectorXd& C2, const double& d0){
   //Algorithm 4 of ¨Efficient L-Shape Fitting for Vehicle Detection Using Laser Scanners¨
 
   double c1_max, c1_min, c2_max, c2_min;
@@ -600,18 +602,8 @@ double Cluster::closenessCriterion(const VectorXd& C1, const VectorXd& C2, const
   double d, min;
   double b =0 ;
   for (int i = 0; i < D1.size(); ++i) {
-    if (D1(i) < D2(i)) {
-      min = D1(i);
-    }
-    else{
-      min = D2(i);
-    } 
-    if (min>d0) {
-      d =  min;
-    }
-    else{
-      d = d0;
-    } 
+    min = std::min(D1(i),D2(i));
+    d = std::max(min,d0);
     b = b + 1/d;
   }
  
@@ -699,7 +691,7 @@ visualization_msgs::Marker Cluster::getThetaL1VisualisationMessage() {
   arrow_marker.pose.position.x = closest_corner_point.first;
   arrow_marker.pose.position.y = closest_corner_point.second;
   arrow_marker.pose.position.z = 0;
-  arrow_marker.scale.x = 0.2;
+  arrow_marker.scale.x = 0.1;
   arrow_marker.scale.y = 0.1;  
   arrow_marker.scale.z = 0.001;  
  
@@ -726,7 +718,7 @@ visualization_msgs::Marker Cluster::getThetaL2VisualisationMessage() {
   arrow_marker.pose.orientation = tf2::toMsg(quat_theta);
   arrow_marker.pose.position.x = closest_corner_point.first;
   arrow_marker.pose.position.y = closest_corner_point.second;
-  arrow_marker.scale.x = 0.2;
+  arrow_marker.scale.x = 0.1;
   arrow_marker.scale.y = 0.1;  
   arrow_marker.scale.z = 0.01;  
   return arrow_marker;
@@ -810,8 +802,10 @@ visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
   corner_msg.ns = "closest_corner";
   corner_msg.action = visualization_msgs::Marker::ADD;
   corner_msg.pose.orientation.w = 1.0;    
-  corner_msg.scale.x = 0.3;
-  corner_msg.scale.y = 0.3;  
+  //corner_msg.scale.x = 0.3;
+  //corner_msg.scale.y = 0.3;  
+  corner_msg.scale.x = 0.05;
+  corner_msg.scale.y = 0.05;  
   corner_msg.color.a = 1.0;
   corner_msg.color.g = 0.0;
   corner_msg.color.b = 0.0;
@@ -866,8 +860,8 @@ visualization_msgs::Marker Cluster::getClusterVisualisationMessage() {
   cluster_vmsg.action = visualization_msgs::Marker::ADD;
   cluster_vmsg.pose.orientation.w = 1.0;
   cluster_vmsg.type = visualization_msgs::Marker::POINTS;
-  cluster_vmsg.scale.x = 0.08;
-  cluster_vmsg.scale.y = 0.08;
+  cluster_vmsg.scale.x = 0.02;
+  cluster_vmsg.scale.y = 0.02;
   //cluster_vmsg.lifetime = ros::Duration(0.09);
   cluster_vmsg.id = this->id;
 
@@ -900,7 +894,8 @@ visualization_msgs::Marker Cluster::getLineVisualisationMessage() {
   line_msg.pose.orientation.w = 1.0;
   line_msg.type = visualization_msgs::Marker::LINE_STRIP;
   line_msg.id = this->id;
-  line_msg.scale.x = 0.2; //line width
+  //line_msg.scale.x = 0.2; //line width
+  line_msg.scale.x = 0.1; //line width
   //line_msg.lifetime = ros::Duration(0.09);
   line_msg.color.g = this->g;
   line_msg.color.b = this->b;
@@ -914,7 +909,8 @@ visualization_msgs::Marker Cluster::getLineVisualisationMessage() {
 
 
   vector<Point> pointListOut;
-  Cluster::ramerDouglasPeucker(new_cluster, 1, pointListOut);
+  //Cluster::ramerDouglasPeucker(new_cluster, 1, pointListOut);
+  Cluster::ramerDouglasPeucker(new_cluster, 0.1, pointListOut);
   geometry_msgs::Point p;
   for(unsigned int k =0 ;k<pointListOut.size();++k){
     p.x = pointListOut[k].first;

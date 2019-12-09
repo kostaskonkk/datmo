@@ -176,6 +176,7 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
       track_array_box_ukf.tracks.push_back(clusters[i].msg_track_box_ukf);
      
       if (p_marker_pub){
+        marker_array.markers.push_back(clusters[i].getClosestCornerPointVisualisationMessage());
         marker_array.markers.push_back(clusters[i].getBoundingBoxCenterVisualisationMessage());
         marker_array.markers.push_back(clusters[i].getArrowVisualisationMessage());
         marker_array.markers.push_back(clusters[i].getThetaL1VisualisationMessage());
@@ -186,7 +187,6 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
         marker_array.markers.push_back(clusters[i].getBoxModelKFVisualisationMessage());
         marker_array.markers.push_back(clusters[i].getBoxModelUKFVisualisationMessage());
         marker_array.markers.push_back(clusters[i].getLShapeVisualisationMessage());
-        marker_array.markers.push_back(clusters[i].getClosestCornerPointVisualisationMessage());
         marker_array.markers.push_back(clusters[i].getLineVisualisationMessage());
         marker_array.markers.push_back(clusters[i].getPoseCovariance());
       }; 
@@ -243,8 +243,8 @@ void Datmo::visualiseGroupedPoints(const vector<pointList>& point_clusters){
   gpoints.pose.orientation.w = 1.0;
   gpoints.type = visualization_msgs::Marker::POINTS;
   // POINTS markers use x and y scale for width/height respectively
-  gpoints.scale.x = 0.2;
-  gpoints.scale.y = 0.2;
+  gpoints.scale.x = 0.01;
+  gpoints.scale.y = 0.01;
   for(unsigned int i=0; i<point_clusters.size(); ++i){
 
     gpoints.id = cg;
@@ -267,7 +267,6 @@ void Datmo::visualiseGroupedPoints(const vector<pointList>& point_clusters){
   pub_marker_array.publish(marker_array);
 
 }
-
 void Datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<pointList> &clusters){
   scan = *scan_in;
 
@@ -281,6 +280,7 @@ void Datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<p
     }
   }
   const int c_points = cpoints;
+  //ROS_INFO_STREAM("points: "<<c_points);
 
   int j = 0;
   vector< vector<float> > polar(c_points +1 ,vector<float>(2)); //c_points+1 for wrapping
@@ -296,6 +296,8 @@ void Datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<p
   //Complete the circle
   polar[c_points][0] = polar[0][0];
   polar[c_points][1] = polar[0][1];
+
+  ROS_INFO_STREAM("polar: "<<polar[c_points][0]);
 
   float d;
 
@@ -327,7 +329,8 @@ void Datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<p
   //If the last(first also) point is clustered and the first is not, make the first clustered
   if(clustered2[c_points] && !clustered2[0]){
      clustered2[0] = true;
-     clustered1[0] = false;
+     clustered1[0] = true;
+     //clustered1[0] = false;
   }
   
   //Going through the points and finding the beginning of clusters and number of points
@@ -369,8 +372,8 @@ void Datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<p
       if(j== len && fl == true) fl = false;
       if (fl == true)
       {
-        x = polar[j][0] * cos(polar[j][1]); //x = r × cos( θ )
-        y = polar[j][0] * sin(polar[j][1]); //y = r × sin( θ )
+        x = polar[j][0] * cos(polar[j][1]);       //x = r × cos( θ )
+        y = polar[j][0] * sin(polar[j][1]);       //y = r × sin( θ )
       }
       else{
        x = polar[j-len][0] *cos(polar[j-len][1]); //x = r × cos( θ )
@@ -381,7 +384,6 @@ void Datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<p
     }
     clusters.push_back(cluster);
   }
-
 }
 
 void Datmo::transformPointList(const pointList& in, pointList& out){
