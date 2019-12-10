@@ -285,7 +285,7 @@ void Datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<p
   int j = 0;
   vector< vector<float> > polar(c_points +1 ,vector<float>(2)); //c_points+1 for wrapping
   for(unsigned int i = 0; i<scan.ranges.size(); ++i){
-    if(isinf(scan.ranges[i]) == 0){
+    if(!isinf(scan.ranges[i])){
 
       polar[j][0] = scan.ranges[i]; //first column is the range 
       polar[j][1] = scan.angle_min + i*scan.angle_increment; //second angle in rad
@@ -294,10 +294,9 @@ void Datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<p
   }
 
   //Complete the circle
-  polar[c_points][0] = polar[0][0];
-  polar[c_points][1] = polar[0][1];
+  polar[c_points] = polar[0];
 
-  ROS_INFO_STREAM("polar: "<<polar[c_points][0]);
+  //ROS_INFO_STREAM("polar: "<<polar[c_points][0]);
 
   float d;
 
@@ -305,7 +304,7 @@ void Datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<p
   //float k = 0.01;
 
  //Find clusters based on adaptive threshold distance
- //Probably I should create two flags, since two consecutive points can belong to two independent clusters
+ //There are two flags, since two consecutive points can belong to two independent clusters
   vector<bool> clustered1(c_points+1 ,false); //change to true when it is the first of the cluster
   vector<bool> clustered2(c_points+1 ,false); // change to true when it is clustered by another one
 
@@ -323,15 +322,15 @@ void Datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<p
     if(d<dth) {
       clustered1[i] = true; //both points belong to clusters
       clustered2[i+1] = true;}
-    // else clustered[i] = false;
   }
 
   //If the last(first also) point is clustered and the first is not, make the first clustered
-  if(clustered2[c_points] && !clustered2[0]){
-     clustered2[0] = true;
-     clustered1[0] = true;
-     //clustered1[0] = false;
-  }
+  //if(clustered2[c_points] && !clustered2[0]){
+  //if(clustered2[c_points]){
+     //clustered2[0] = true;
+  //}
+  clustered2[0] = clustered2[c_points];
+  //ROS_INFO_STREAM("1: "<<clustered1[0]<<"2: "<<clustered2[0]);
   
   //Going through the points and finding the beginning of clusters and number of points
   vector<int> begin; //saving the first index of a cluster

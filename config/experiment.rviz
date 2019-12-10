@@ -91,7 +91,7 @@ Visualization Manager:
       Namespaces:
         L-Shapes: false
         bounding_box_center: false
-        bounding_boxes: true
+        bounding_boxes: false
         box_models_kf: false
         box_models_ukf: false
         closest_corner: false
@@ -213,5 +213,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 2560
-  X: 3360
-  Y: 568
+  X: 1440
+  Y: 552

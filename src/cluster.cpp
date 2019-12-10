@@ -574,7 +574,7 @@ double Cluster::areaCriterion(const VectorXd& C1, const VectorXd& C2){
 
 }
 double Cluster::closenessCriterion(const VectorXd& C1, const VectorXd& C2, const double& d0){
-  //Algorithm 4 of ¨Efficient L-Shape Fitting for Vehicle Detection Using Laser Scanners¨
+  //Algorithm 4 of "Efficient L-Shape Fitting for Vehicle Detection Using Laser Scanners"
 
   double c1_max, c1_min, c2_max, c2_min;
   c1_max = C1.maxCoeff();

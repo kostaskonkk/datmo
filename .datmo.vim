@@ -20,8 +20,8 @@ set winheight=1
 set winminwidth=0
 set winwidth=1
 tabnext 1
-badd +302 src/ukf/ukf.cpp
 badd +106 src/cluster.cpp
+badd +302 src/ukf/ukf.cpp
 badd +106 src/cluster.hpp
 badd +17 src/ukf/filter_common.h
 badd +3 src/datmo.cpp
@@ -54,6 +54,7 @@ if file_readable(s:sx)
   exe "source " . fnameescape(s:sx)
 endif
 let &so = s:so_save | let &siso = s:siso_save
+nohlsearch
 let g:this_session = v:this_session
 let g:this_obsession = v:this_session
 doautoall SessionLoadPost
