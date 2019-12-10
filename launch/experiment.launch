@@ -5,7 +5,7 @@
     <!--<include file="$(find localization)/launch/localization.launch"/>-->
     <!--<include file="$(find localization)/launch/mocap_localization.launch"/>-->
 
-    <node pkg="rosbag" type="play" name="player" required="true" output="screen" args="-s 17 -r 0.2 -u 1.2 -l --clock /home/kostas/experiments/dsv/$(arg bag)"/>
+    <node pkg="rosbag" type="play" name="player" required="true" output="screen" args="-s 17 -r 0.2 -u 1.2 -l --clock $(find datmo)/examples/$(arg bag)"/>
   <!--<node pkg="rosbag" type="play" name="player" required="true" output="screen" args=" -r 1 -clock /home/kostas/experiments/dsv/$(arg bag)"/>-->
   <node pkg="rosbag" type="record" name="recorder" output="screen" args="-O /home/kostas/results/experiment/overtakes.bag /tf /tracks/mean /tracks/mean_kf /tracks/box_kf /tracks/box_ukf /ego_pose /red_pose" />
 
