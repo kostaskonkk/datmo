@@ -280,7 +280,6 @@ void Datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<p
     }
   }
   const int c_points = cpoints;
-  //ROS_INFO_STREAM("points: "<<c_points);
 
   int j = 0;
   vector< vector<float> > polar(c_points +1 ,vector<float>(2)); //c_points+1 for wrapping
@@ -296,14 +295,12 @@ void Datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<p
   //Complete the circle
   polar[c_points] = polar[0];
 
-  //ROS_INFO_STREAM("polar: "<<polar[c_points][0]);
-
+  //Find clusters based on adaptive threshold distance
   float d;
 
   //dth = 0.25 * (tp_dth+1)/64 ;// 1 for simulation, 0.2 worked quite good fo
   //float k = 0.01;
 
- //Find clusters based on adaptive threshold distance
  //There are two flags, since two consecutive points can belong to two independent clusters
   vector<bool> clustered1(c_points+1 ,false); //change to true when it is the first of the cluster
   vector<bool> clustered2(c_points+1 ,false); // change to true when it is clustered by another one
@@ -324,13 +321,7 @@ void Datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<p
       clustered2[i+1] = true;}
   }
 
-  //If the last(first also) point is clustered and the first is not, make the first clustered
-  //if(clustered2[c_points] && !clustered2[0]){
-  //if(clustered2[c_points]){
-     //clustered2[0] = true;
-  //}
   clustered2[0] = clustered2[c_points];
-  //ROS_INFO_STREAM("1: "<<clustered1[0]<<"2: "<<clustered2[0]);
   
   //Going through the points and finding the beginning of clusters and number of points
   vector<int> begin; //saving the first index of a cluster
@@ -344,16 +335,27 @@ void Datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<p
       begin.push_back(i);
       nclus.push_back(1);
       while(clustered2[i+1] == true && clustered1[i+1] == true ){
-        i++;
-        ++nclus.back();
-        if(i==c_points-1 && flag == true){
-          i = -1;
-          flag = false;
-        }
+	i++;
+	++nclus.back();
+	if(i==c_points-1 && flag == true){
+	  i = -1;
+	  flag = false;
+	}
       }
-      ++nclus.back();
+      ++nclus.back();//take care of 0 1 flags - last of the cluster
     }
   i++;
+  }
+  // take care of last point being beginning of cluster
+  if(clustered1[cpoints-1]== true and clustered2[c_points-1] == false){
+      begin.push_back(cpoints-1);
+      nclus.push_back(1);
+      i = 0;
+      while(clustered2[i] == true && clustered1[i] == true ){
+	i++;
+	++nclus.back();
+      }
+
   }
 
   polar.pop_back(); //remove the wrapping element
