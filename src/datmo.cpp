@@ -10,7 +10,6 @@ Datmo::Datmo(){
   n_private.param("threshold_distance", dth, 0.2);
   n_private.param("euclidean_distance", euclidean_distance, 0.25);
   n_private.param("pub_markers", p_marker_pub, false);
-  n_private.param("write_execution_times", w_exec_times, false);
 
 
   pub_tracks_mean    = n.advertise<datmo::TrackArray>("tracks/mean", 10);
@@ -19,25 +18,8 @@ Datmo::Datmo(){
   pub_marker_array   = n.advertise<visualization_msgs::MarkerArray>("marker_array", 10);
   sub_scan = n.subscribe("/scan", 1, &Datmo::callback, this);
 
-  if (w_exec_times) {
-    whole.open ("/home/kostas/results/exec_time/whole.csv");
-    whole << ("nano,milli\n");
-    clustering.open ("/home/kostas/results/exec_time/clustering.csv");
-    clustering << ("nano\n");
-    rect_fitting.open("/home/kostas/results/exec_time/rect_fitting.csv");
-    rect_fitting << ("dur_nano,num_points\n");
-    testing.open("/home/kostas/results/exec_time/testing.csv");
-    testing << ("clusters\n");
-  }
-
 }
 Datmo::~Datmo(){
-  if (w_exec_times){
-  whole.close();
-  clustering.close();
-  rect_fitting.close();
-  testing.close();
-  }
 }
 void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
 
@@ -71,10 +53,6 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
       point_clusters.push_back(point_cluster);
     }
 
-    if (w_exec_times) {
-      auto cl_dur_nano = chrono::duration_cast<chrono::nanoseconds>(chrono::steady_clock::now() - start);
-      clustering << cl_dur_nano.count()<<"\n";
-    }
 
     // Cluster Association based on the Euclidean distance
     // I should check first all the distances and then associate based on the closest distance
@@ -178,11 +156,6 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
         marker_array.markers.push_back(clusters[i].getPoseCovariance());
       };
 
-      if (w_exec_times){
-        
-        //rect_fitting << clusters[i].getRectangleFittingExecutionTime().first<<",";
-        rect_fitting << clusters[i].getRectangleFittingExecutionTime().first<<"\n";
-      }
     }
     //ros::Time before_time;
     //before_time = ros::Time::now();
@@ -204,13 +177,6 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
     // ROS_INFO_STREAM("Time"<<ros::Time::now()<<"clusters: "<<clusters.size() << "Filters: "<<filters.size());
 
 
-     if (w_exec_times) {
-       //Store the time difference between start and end
-       auto diff = chrono::steady_clock::now() - start;
-       auto diff_nano = chrono::duration_cast<chrono::nanoseconds>(diff);
-       auto diff_milli = chrono::duration_cast<chrono::milliseconds>(diff);
-       whole << diff_nano.count()<<","<<diff_milli.count()<<"\n";
-     }
   }
   else{ //If the tf is not possible init all states at 0
     ROS_WARN_STREAM("No transform could be found between "<<lidar_frame<<" and "<<world_frame);
