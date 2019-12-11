@@ -297,7 +297,7 @@ void Cluster::rectangleFitting(const pointList& new_cluster){
   unsigned int i =0;
   th = 0.0;
   //TODO make d configurable through Rviz
-  unsigned int d = 200;
+  unsigned int d = 50;
   ArrayX2d Q(d,2);
   float step = (3.14/2)/d;
   //#pragma omp parallel for

@@ -207,11 +207,11 @@ void LShapeTracker::detectCornerPointSwitch(double& from, double& to){
   //Corner Point Switch Detection
   
   double turn = this->findTurn(from, to);
-    if(turn <-0.78){
+    if(turn <-0.8){
      this->CounterClockwisePointSwitch();
      //ROS_INFO_STREAM("from: "<<from<<"to: "<<to);
     }
-    else if(turn > 0.78){
+    else if(turn > 0.6){
      this->ClockwisePointSwitch();
     }
 
