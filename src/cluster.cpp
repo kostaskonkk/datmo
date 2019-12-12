@@ -262,8 +262,10 @@ void Cluster::populateTrackingMsgs(const double& dt){
     quaternion.setRPY(0, 0, psi);
     msg_track_box_kf.odom.pose.pose.orientation = tf2::toMsg(quaternion);
     msg_track_box_kf.odom.twist.twist.angular.z   = comega;
-    msg_track_box_kf.length = L1_box;
-    msg_track_box_kf.width  = L2_box;
+    //msg_track_box_kf.length = L1_box;
+    //msg_track_box_kf.width  = L2_box;
+    msg_track_box_kf.length = length;
+    msg_track_box_kf.width  = width;
 
     quaternion.setRPY(0,0, psi_ukf);
     msg_track_box_ukf.id = this->id;
@@ -275,8 +277,23 @@ void Cluster::populateTrackingMsgs(const double& dt){
     msg_track_box_ukf.odom.twist.twist.linear.x    = cvx_ukf;
     msg_track_box_ukf.odom.twist.twist.linear.y    = cvy_ukf;
     msg_track_box_ukf.odom.twist.twist.angular.z   = comega_ukf;
-    msg_track_box_ukf.length = L1_box_ukf;
-    msg_track_box_ukf.width  = L2_box_ukf;
+    //msg_track_box_ukf.length = L1_box_ukf;
+    //msg_track_box_ukf.width  = L2_box_ukf;
+    
+    //if (abs(psi_ukf - th_ukf) < 0.2){
+    if (!test){
+      msg_track_box_ukf.length = L1_box_ukf;
+      msg_track_box_ukf.width  = L2_box_ukf;
+
+      test_color_1 =1.0;
+      test_color_2 =0.0;
+    }
+    else{
+      msg_track_box_ukf.length = L2_box_ukf;
+      msg_track_box_ukf.width  = L1_box_ukf;
+      test_color_1 =0.0;
+      test_color_2 =1.0;
+    }
 
 }
 
@@ -473,18 +490,18 @@ visualization_msgs::Marker Cluster::getBoxModelUKFVisualisationMessage() {
   
   visualization_msgs::Marker bb_msg;
 
-  bb_msg.header.stamp = ros::Time::now();
-  bb_msg.header.frame_id  = frame_name;
-  bb_msg.ns = "box_models_ukf";
-  bb_msg.action = visualization_msgs::Marker::ADD;
+  bb_msg.header.stamp       = ros::Time::now();
+  bb_msg.header.frame_id    = frame_name;
+  bb_msg.ns                 = "box_models_ukf";
+  bb_msg.action             = visualization_msgs::Marker::ADD;
   bb_msg.pose.orientation.w = 1.0;
-  bb_msg.type = visualization_msgs::Marker::LINE_STRIP;
-  bb_msg.id = this->id;
-  bb_msg.scale.x = 0.05; //line width
-  bb_msg.color.g = g;
-  bb_msg.color.b = b;
-  bb_msg.color.r = r;
-  bb_msg.color.a = a;
+  bb_msg.type               = visualization_msgs::Marker::LINE_STRIP;
+  bb_msg.id                 = this->id;
+  bb_msg.scale.x            = 0.05; //line width
+  bb_msg.color.g            = g;
+  bb_msg.color.b            = b;
+  bb_msg.color.r            = r;
+  bb_msg.color.a            = a;
 
   geometry_msgs::Point p;
   double x = L1_box_ukf/2;
@@ -622,22 +639,27 @@ double Cluster::findOrientation(const double& angle, const double& vx, const dou
   double min = 1.56;
   double distance;
   double orientation;
+  int    pos;
   for (unsigned int i = 0; i < 4; ++i) {
     distance = abs(shortest_angular_distance(vsp,angles[i]));
     if (distance < min){ 
       min = distance;
       orientation = normalize_angle(angles[i]);
-      if(i<2){
-        length = L1_box;
-        width  = L2_box;
-      }
-      else{
-        length = L2_box;
-        width  = L1_box;
-      }
+      pos = i;
     }
+
   } 
-  
+  if(pos ==0 || pos==1){
+    test = false;
+    length = L1_box;
+    width  = L2_box;
+  }
+  else{
+    test = true;
+    length = L2_box;
+    width  = L1_box;
+  }
+
   //ROS_INFO_STREAM("th_sp: "<<vsp<<", orientation: "<<orientation);
   //ROS_INFO_STREAM("th_sp: "<<vsp<<", vy: "<<vy<<", vx: "<<vx);
   //ROS_INFO_STREAM("th_sp: "<<vsp<<", th: "<<th<<", th+pi/2: "<<th1<<", th+pi: "<<th2<<", th+3pi/2: "<<th3);
@@ -648,21 +670,21 @@ double Cluster::findOrientation(const double& angle, const double& vx, const dou
 visualization_msgs::Marker Cluster::getThetaBoxVisualisationMessage() {
 
   visualization_msgs::Marker arrow_marker;
-  arrow_marker.type = visualization_msgs::Marker::ARROW;
-  arrow_marker.header.stamp = ros::Time::now();
-  arrow_marker.ns = "thetaBox";
-  arrow_marker.action = visualization_msgs::Marker::ADD;
-  arrow_marker.color.a = 1.0;
-  arrow_marker.color.g = this->g;
-  arrow_marker.color.b = this->b;
-  arrow_marker.color.r = this->g;
-  arrow_marker.id = this->id;
+  arrow_marker.type            = visualization_msgs::Marker::ARROW;
+  arrow_marker.header.stamp    = ros::Time::now();
+  arrow_marker.ns              = "thetaBox";
+  arrow_marker.action          = visualization_msgs::Marker::ADD;
+  arrow_marker.color.a         = 1.0;
+  arrow_marker.color.g         = this->g;
+  arrow_marker.color.b         = this->b;
+  arrow_marker.color.r         = this->g;
+  arrow_marker.id              = this->id;
   arrow_marker.pose.position.x = cx;
   arrow_marker.pose.position.y = cy;
   arrow_marker.pose.position.z = 0;
-  arrow_marker.scale.x = 0.8;
-  arrow_marker.scale.y = 0.3;  
-  arrow_marker.scale.z = 0.1;  
+  arrow_marker.scale.x         = 0.8;
+  arrow_marker.scale.y         = 0.3;
+  arrow_marker.scale.z         = 0.1;
 
   arrow_marker.header.frame_id = frame_name;
 
@@ -675,53 +697,55 @@ visualization_msgs::Marker Cluster::getThetaBoxVisualisationMessage() {
 visualization_msgs::Marker Cluster::getThetaL1VisualisationMessage() {
 
   visualization_msgs::Marker arrow_marker;
-  arrow_marker.type = visualization_msgs::Marker::ARROW;
-  arrow_marker.header.stamp = ros::Time::now();
-  arrow_marker.ns = "thetaL1";
-  arrow_marker.action = visualization_msgs::Marker::ADD;
-  arrow_marker.color.a = 1.0;
-  arrow_marker.color.g = 0;
-  arrow_marker.color.b = 0;
-  arrow_marker.color.r = 1;
-  arrow_marker.id = this->id;
-
   arrow_marker.header.frame_id = frame_name;
+  arrow_marker.type            = visualization_msgs::Marker::ARROW;
+  arrow_marker.header.stamp    = ros::Time::now();
+  arrow_marker.ns              = "thetaL1";
+  arrow_marker.action          = visualization_msgs::Marker::ADD;
+  arrow_marker.color.a         = 1.0;
+  arrow_marker.color.g         = 0;
+  arrow_marker.color.b         = 0;
+  //arrow_marker.color.r         = 1;
+  arrow_marker.color.r         = test_color_1;
+  arrow_marker.id              = this->id;
+
   tf2::Quaternion quat_theta;
   quat_theta.setRPY(0,0,thetaL1);
   arrow_marker.pose.orientation = tf2::toMsg(quat_theta);
-  arrow_marker.pose.position.x = closest_corner_point.first;
-  arrow_marker.pose.position.y = closest_corner_point.second;
-  arrow_marker.pose.position.z = 0;
-  arrow_marker.scale.x = 0.1;
-  arrow_marker.scale.y = 0.1;  
-  arrow_marker.scale.z = 0.001;  
+  arrow_marker.pose.position.x  = closest_corner_point.first;
+  arrow_marker.pose.position.y  = closest_corner_point.second;
+  arrow_marker.pose.position.z  = 0;
+  arrow_marker.scale.x          = 0.1;
+  arrow_marker.scale.y          = 0.1;
+  arrow_marker.scale.z          = 0.001;
  
   return arrow_marker;
 }
 visualization_msgs::Marker Cluster::getThetaL2VisualisationMessage() {
 
   visualization_msgs::Marker arrow_marker;
-  arrow_marker.type = visualization_msgs::Marker::ARROW;
+  arrow_marker.type              = visualization_msgs::Marker::ARROW;
   //arrow_marker.header.frame_id = frame_name;
-  arrow_marker.header.stamp = ros::Time::now();
-  arrow_marker.ns = "thetaL2";
-  arrow_marker.action = visualization_msgs::Marker::ADD;
-  arrow_marker.color.a = 1.0;
-  arrow_marker.color.g = 1;
-  arrow_marker.color.b = 0;
-  arrow_marker.color.r = 0;
-  arrow_marker.id = this->id;
+  arrow_marker.header.stamp      = ros::Time::now();
+  arrow_marker.ns                = "thetaL2";
+  arrow_marker.action            = visualization_msgs::Marker::ADD;
+  arrow_marker.color.a           = 1.0;
+  //arrow_marker.color.g         = 1;
+  arrow_marker.color.g           = 0;
+  arrow_marker.color.b           = 0;
+  arrow_marker.color.r           = test_color_2;
+  arrow_marker.id                = this->id;
 
   arrow_marker.header.frame_id = frame_name;
   tf2::Quaternion quat_theta;
   quat_theta.setRPY(0,0,thetaL2);
   //quat_theta.normalize();
   arrow_marker.pose.orientation = tf2::toMsg(quat_theta);
-  arrow_marker.pose.position.x = closest_corner_point.first;
-  arrow_marker.pose.position.y = closest_corner_point.second;
-  arrow_marker.scale.x = 0.1;
-  arrow_marker.scale.y = 0.1;  
-  arrow_marker.scale.z = 0.01;  
+  arrow_marker.pose.position.x  = closest_corner_point.first;
+  arrow_marker.pose.position.y  = closest_corner_point.second;
+  arrow_marker.scale.x          = 0.1;
+  arrow_marker.scale.y          = 0.1;
+  arrow_marker.scale.z          = 0.01;
   return arrow_marker;
 }
 visualization_msgs::Marker Cluster::getPoseCovariance(){

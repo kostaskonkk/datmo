@@ -72,6 +72,9 @@ public:
   double cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, L1_box_ukf, L2_box_ukf, th_ukf, psi_ukf, comega_ukf; 
   double orientation, length, width;
 
+  double test_color_1, test_color_2;
+  bool test;
+
 private:
 
   pointList new_cluster;
