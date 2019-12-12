@@ -93,6 +93,7 @@ void LShapeTrackerUKF::ClockwisePointSwitch(){
   //new_ukf_states(Yaw) = ukf.getState()(Yaw) - pi / 2;
 
   ukf.setState(new_ukf_states);
+  //ukf.predict_ctrm(0.0);
   shape_kf.changeStates(new_shape_states);
 
 }
@@ -128,6 +129,7 @@ void LShapeTrackerUKF::CounterClockwisePointSwitch(){
   new_shape_states(2) = shape_kf.state()(2) + pi / 2;
 
   ukf.setState(new_ukf_states);
+  //ukf.predict_ctrm(0.0);
   shape_kf.changeStates(new_shape_states);
 
 }
@@ -168,11 +170,11 @@ void LShapeTrackerUKF::detectCornerPointSwitch(double& from, double& to, const d
   //Corner Point Switch Detection
   
   double turn = this->findTurn(from, to);
-    if(turn <-0.6){
+    if(turn <-0.7){
      this->CounterClockwisePointSwitch();
      ukf.predict_ctrm(dt);
     }
-    else if(turn > 0.6){
+    else if(turn > 0.7){
      this->ClockwisePointSwitch();
      ukf.predict_ctrm(dt);
     }

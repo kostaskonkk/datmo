@@ -32,11 +32,8 @@
 
 #include "ukf.h"
 #include "filter_common.h"
-
 #include <limits>
-
 #include <Eigen/Cholesky>
-
 #include <vector>
 #include <ros/console.h>
 
@@ -124,21 +121,23 @@ namespace RobotLocalization
     {
       if (measurement.updateVector_[i])
       {
-        // Handle nan and inf values in measurements
-        if (std::isnan(measurement.measurement_(i)))
-        {
-          ROS_WARN_STREAM("Value at index " << i << " was nan. Excluding from update.\n");
-        }
-        else if (std::isinf(measurement.measurement_(i)))
-        {
-          ROS_WARN_STREAM("Value at index " << i << " was inf. Excluding from update.\n");
-        }
-        else
-        {
-          updateIndices.push_back(i);
-        }
+         //Handle nan and inf values in measurements
+        //if (std::isnan(measurement.measurement_(i)))
+        //{
+          //ROS_WARN_STREAM("Value at index " << i << " was nan. Excluding from update.\n");
+        //}
+        //else if (std::isinf(measurement.measurement_(i)))
+        //{
+          //ROS_WARN_STREAM("Value at index " << i << " was inf. Excluding from update.\n");
+        //}
+        //else
+        //{
+          //updateIndices.push_back(i);
+        //}
+        updateIndices.push_back(i);
       }
     }
+    //ROS_INFO_STREAM("updateVector: "<<measurement.updateVector_.size()<<"indices: "<<updateIndices.size());
 
     //ROS_WARN_STREAM("Update indices are:\n" << updateIndices << "\n");
 
@@ -182,14 +181,14 @@ namespace RobotLocalization
       // Handle negative (read: bad) covariances in the measurement. Rather
       // than exclude the measurement or make up a covariance, just take
       // the absolute value.
-      if (measurementCovarianceSubset(i, i) < 0)
-      {
-        ROS_WARN_STREAM("WARNING: Negative covariance for index " << i <<
-                 " of measurement (value is" << measurementCovarianceSubset(i, i) <<
-                 "). Using absolute value...\n");
+      //if (measurementCovarianceSubset(i, i) < 0)
+      //{
+        //ROS_WARN_STREAM("WARNING: Negative covariance for index " << i <<
+                 //" of measurement (value is" << measurementCovarianceSubset(i, i) <<
+                 //"). Using absolute value...\n");
 
-        measurementCovarianceSubset(i, i) = ::fabs(measurementCovarianceSubset(i, i));
-      }
+        //measurementCovarianceSubset(i, i) = ::fabs(measurementCovarianceSubset(i, i));
+      //}
 
       // If the measurement variance for a given variable is very
       // near 0 (as in e-50 or so) and the variance for that
@@ -197,14 +196,14 @@ namespace RobotLocalization
       // the Kalman gain computation will blow up. Really, no
       // measurement can be completely without error, so add a small
       // amount in that case.
-      if (measurementCovarianceSubset(i, i) < 1e-9)
-      {
-        measurementCovarianceSubset(i, i) = 1e-9;
+      //if (measurementCovarianceSubset(i, i) < 1e-9)
+      //{
+        //measurementCovarianceSubset(i, i) = 1e-9;
 
-        ROS_WARN_STREAM("WARNING: measurement had very small error covariance for index " <<
-                 updateIndices[i] <<
-                 ". Adding some noise to maintain filter stability.\n");
-      }
+        //ROS_WARN_STREAM("WARNING: measurement had very small error covariance for index " <<
+                 //updateIndices[i] <<
+                 //". Adding some noise to maintain filter stability.\n");
+      //}
     }
 
     // The state-to-measurement function, h, will now be a measurement_size x full_state_size
@@ -223,7 +222,7 @@ namespace RobotLocalization
     for (size_t sigmaInd = 0; sigmaInd < sigmaPoints_.size(); ++sigmaInd)
     {
       sigmaPointMeasurements[sigmaInd] = stateToMeasurementSubset * sigmaPoints_[sigmaInd];
-      predictedMeasurement.noalias() += stateWeights_[sigmaInd] * sigmaPointMeasurements[sigmaInd];
+      predictedMeasurement.noalias()  += stateWeights_[sigmaInd]  * sigmaPointMeasurements[sigmaInd];
     }
 
     // (2) Use the sigma point measurements and predicted measurement to compute a predicted
@@ -260,8 +259,8 @@ namespace RobotLocalization
     }
 
     // (5) Check Mahalanobis distance of innovation
-    if (checkMahalanobisThreshold(innovationSubset, invInnovCov, measurement.mahalanobisThresh_))
-    {
+    //if (checkMahalanobisThreshold(innovationSubset, invInnovCov, measurement.mahalanobisThresh_))
+    //{
       state_.noalias() += kalmanGainSubset * innovationSubset;
 
       // (6) Compute the new estimate error covariance P = P - (K * P_zz * K')
@@ -272,39 +271,37 @@ namespace RobotLocalization
       // Mark that we need to re-compute sigma points for successive corrections
       uncorrected_ = false;
 
-      FB_DEBUG("Predicated measurement covariance is:\n" << predictedMeasCovar <<
-               "\nCross covariance is:\n" << crossCovar <<
-               "\nKalman gain subset is:\n" << kalmanGainSubset <<
-               "\nInnovation:\n" << innovationSubset <<
-               "\nCorrected full state is:\n" << state_ <<
-               "\nCorrected full estimate error covariance is:\n" << estimateErrorCovariance_ <<
-               "\n\n---------------------- /Ukf::correct ----------------------\n");
-    }
+      //FB_DEBUG("Predicated measurement covariance is:\n" << predictedMeasCovar <<
+               //"\nCross covariance is:\n" << crossCovar <<
+               //"\nKalman gain subset is:\n" << kalmanGainSubset <<
+               //"\nInnovation:\n" << innovationSubset <<
+               //"\nCorrected full state is:\n" << state_ <<
+               //"\nCorrected full estimate error covariance is:\n" << estimateErrorCovariance_ <<
+               //"\n\n---------------------- /Ukf::correct ----------------------\n");
+    //}
   }
 
   void Ukf::predict_ctrm(const double delta)
   {
-    //ROS_WARN_STREAM("---------------------- Ukf::predict ----------------------\n" <<
-             //"delta is " << delta <<
-             //"\nstate is " << state_ << "\n");
+    ROS_WARN_STREAM("---------------------- Ukf::predict ----------------------\n" <<
+             "delta is " << delta <<
+             "\nstate is " << state_ << "\n");
 
     double yaw = state_(StateMemberYaw);
-
-    // We'll need these trig calculations a lot.
     double cpi = 1.0;
     double sy = ::sin(yaw);
     double cy = ::cos(yaw);
 
     // Prepare the transfer function
-    //transferFunction_(StateMemberX, StateMemberVx) = cy * delta;
-    //transferFunction_(StateMemberX, StateMemberVy) = (cy - sy ) * delta;
     transferFunction_(StateMemberX, StateMemberVx) = delta;
-    //transferFunction_(StateMemberX, StateMemberVy) = delta;
-    //transferFunction_(StateMemberY, StateMemberVx) = sy * delta;
-    //transferFunction_(StateMemberY, StateMemberVy) = (sy + cy) * delta;
-    //transferFunction_(StateMemberY, StateMemberVx) = delta;
     transferFunction_(StateMemberY, StateMemberVy) = delta;
     transferFunction_(StateMemberYaw, StateMemberVyaw) = delta;
+    
+    //transferFunction_(StateMemberX, StateMemberVx) = cy * delta;
+    //transferFunction_(StateMemberX, StateMemberVy) = (cy - sy ) * delta;
+    //transferFunction_(StateMemberY, StateMemberVx) = sy * delta;
+    //transferFunction_(StateMemberY, StateMemberVy) = (sy + cy) * delta;
+    //transferFunction_(StateMemberYaw, StateMemberVyaw) = delta;
 
     /////Nonlinear Coordinated Turn with Polar Velocity
     //double dy = state_(StateMemberVyaw);
@@ -312,13 +309,14 @@ namespace RobotLocalization
     //double sdyt = sin(dy * delta/2);
     //double cydyt = cos(dy * delta/2);
     //double sydyt = sin(dy * delta/2);
+
     //if (dy == 0) {
-      //transferFunction_(StateMemberX, StateMemberVx) = 0;
-      //transferFunction_(StateMemberY, StateMemberVx) = 0;
+      //transferFunction_(StateMemberX, StateMemberV) = 0;
+      //transferFunction_(StateMemberY, StateMemberV) = 0;
     //}
     //else{
-      //transferFunction_(StateMemberX, StateMemberVx) = (2/dy)*sdyt*cos(y + dy*delta/2);
-      //transferFunction_(StateMemberY, StateMemberVx) = (2/dy)*sdyt*sin(y + dy*delta/2);
+      //transferFunction_(StateMemberX, StateMemberV) = (2/dy)*sdyt*cos(y + dy*delta/2);
+      //transferFunction_(StateMemberY, StateMemberV) = (2/dy)*sdyt*sin(y + dy*delta/2);
     //}
     //transferFunction_(StateMemberYaw, StateMemberVyaw) = delta;
     

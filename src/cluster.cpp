@@ -96,7 +96,8 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
 
 
   //Unscented Kalman Filter
-  std::vector<double> args{0.001, 0, 2};
+  //std::vector<double> args{0.001, 0, 2};
+  std::vector<double> args{2, 2, 2};
   //args[0] = 1;//alpha parameter
   //args[1] = 2;//kappa parameter
   //args[2] = 1;//beta parameter
@@ -106,11 +107,11 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   int STATE_SIZE = 6;
   Eigen::MatrixXd initialCovar(STATE_SIZE, STATE_SIZE);
   initialCovar.setIdentity();
-  initialCovar *= 1;
-  initialCovar(2,2) *= 1;
-  initialCovar(3,3) *= 100;
-  initialCovar(4,4) *= 100;
-  initialCovar(5,5) *= 100;
+  initialCovar *= 0.01;
+  initialCovar(2,2) *= 1000;
+  initialCovar(3,3) *= 1000;
+  initialCovar(4,4) *= 1;
+  initialCovar(5,5) *= 10;
   ukf_init.setEstimateErrorCovariance(initialCovar);
 
   Eigen::VectorXd initial_state(6);
@@ -166,20 +167,20 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
     Eigen::VectorXd measurement(3);
 
     measurement[0] = closest_corner_point.first;
-    measurement[1] = closest_corner_point.second;
-    measurement[2] = findOrientation(unwrapped_thetaL1, cvx_ukf, cvy_ukf);
+    measurement[1] = closest_corner_point.second;    //measurement[2] = findOrientation(unwrapped_thetaL1, cvx_ukf, cvy_ukf);
+    measurement[2] = findOrientation(unwrapped_thetaL1, cvx, cvy);
 
     Eigen::MatrixXd measurementCovariance(3, 3);
     measurementCovariance.setIdentity();
-    measurementCovariance *= 0.1;
+    measurementCovariance *= 0.01;
 
     std::vector<int> updateVector(6, false);
     updateVector[0]=true;
     updateVector[1]=true;
     updateVector[2]=true;
 
-    meas.measurement_ = measurement;
-    meas.covariance_ = measurementCovariance;
+    meas.measurement_  = measurement;
+    meas.covariance_   = measurementCovariance;
     meas.updateVector_ = updateVector;
   }
   else{
@@ -190,7 +191,7 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
 
     Eigen::MatrixXd measurementCovariance(2, 2);
     measurementCovariance.setIdentity();
-    measurementCovariance *= 0.1;
+    measurementCovariance *= 0.01;
 
     std::vector<int> updateVector(6, false);
     updateVector[0]=true;
@@ -202,7 +203,6 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
   }
 
   meas.mahalanobisThresh_ = std::numeric_limits<double>::max();
-
 
   l_shape_ukf.update(meas, L1, L2, unwrapped_thetaL1, dt);
   l_shape_ukf.lshapeToBoxModelConversion(cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, L1_box_ukf, L2_box_ukf, th_ukf, psi_ukf, comega_ukf);
@@ -666,7 +666,8 @@ visualization_msgs::Marker Cluster::getThetaBoxVisualisationMessage() {
 
   arrow_marker.header.frame_id = frame_name;
 
-  quaternion.setRPY(0,0,orientation);
+  //quaternion.setRPY(0,0,orientation);
+  quaternion.setRPY(0,0,psi_ukf);
   arrow_marker.pose.orientation = tf2::toMsg(quaternion);
  
   return arrow_marker;
@@ -782,13 +783,13 @@ visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
   arrow_marker.scale.y = 0.2;    //Head  diameter of the arrow
 
   geometry_msgs::Point p;
-  p.x = cx; 
-  p.y = cy; 
+  p.x = cx_ukf; 
+  p.y = cy_ukf; 
   p.z = 0;
   arrow_marker.points.push_back(p);
 
-  p.x = cx+ cvx *1.5; 
-  p.y = cy+ cvy *1.5; 
+  p.x = cx_ukf+ cvx_ukf *1.5; 
+  p.y = cy_ukf+ cvy_ukf *1.5; 
   p.z = 0;
   arrow_marker.points.push_back(p);
   return arrow_marker;
