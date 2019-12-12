@@ -2,8 +2,8 @@
   <arg name="bag" />
   <param name="use_sim_time" value="true" />
 
-  <node pkg="rosbag" type="play" name="player" required="true" output="log" args="-r 1 --clock /home/kostas/Dropbox/experiments/simulation/double_lane_change.bag"/>
-  <node pkg="rosbag" type="record" name="recorder" output="screen" args="-O /home/kostas/results/simulation/lane_change.bag /ego_pose /prius_fast /prius_slow /tracks/mean /tracks/mean_kf /tracks/box_kf /tracks/box_ukf "/>
+  <node pkg="rosbag" type="play" name="player" required="true" output="log" args="-r 1 --clock /home/kostas/Dropbox/experiments/simulation/$(arg bag)"/>
+  <node pkg="rosbag" type="record" name="recorder" output="screen" args="-O /home/kostas/results/simulation/$(arg bag) /ego_pose /prius_fast /prius_slow /tracks/mean /tracks/mean_kf /tracks/box_kf /tracks/box_ukf "/>
 
   <node name="rviz" pkg="rviz" type="rviz" required="true" args="-d $(find datmo)/config/simulation.rviz" />
 
