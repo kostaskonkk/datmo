@@ -170,11 +170,11 @@ void LShapeTrackerUKF::detectCornerPointSwitch(double& from, double& to, const d
   //Corner Point Switch Detection
   
   double turn = this->findTurn(from, to);
-    if(turn <-0.7){
+    if(turn <-0.8){
      this->CounterClockwisePointSwitch();
      ukf.predict_ctrm(dt);
     }
-    else if(turn > 0.7){
+    else if(turn > 0.6){
      this->ClockwisePointSwitch();
      ukf.predict_ctrm(dt);
     }
