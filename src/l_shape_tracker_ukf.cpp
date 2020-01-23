@@ -63,6 +63,12 @@ void LShapeTrackerUKF::update(const RobotLocalization::Measurement& measurement,
   shape_kf.update(shape_measurements, dt);
 
 }
+
+void LShapeTrackerUKF::updateDynamic(const RobotLocalization::Measurement& measurement, const double& dt) {
+
+  ukf.correct_ctrm(measurement);
+
+}
 void LShapeTrackerUKF::ClockwisePointSwitch(){
   // Equation 17
 

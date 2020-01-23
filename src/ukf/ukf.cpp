@@ -283,9 +283,9 @@ namespace RobotLocalization
 
   void Ukf::predict_ctrm(const double delta)
   {
-    ROS_WARN_STREAM("---------------------- Ukf::predict ----------------------\n" <<
-             "delta is " << delta <<
-             "\nstate is " << state_ << "\n");
+    //ROS_WARN_STREAM("---------------------- Ukf::predict ----------------------\n" <<
+             //"delta is " << delta <<
+             //"\nstate is " << state_ << "\n");
 
     double yaw = state_(StateMemberYaw);
     double cpi = 1.0;

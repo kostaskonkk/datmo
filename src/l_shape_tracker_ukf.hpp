@@ -27,6 +27,7 @@ public:
   LShapeTrackerUKF();//Create a blank estimator
 
   void update(const RobotLocalization::Measurement& measurement, const double& L1, const double& L2, const double& theta, const double& dt);
+  void updateDynamic(const RobotLocalization::Measurement& measurement, const double& dt);
 
   void lshapeToBoxModelConversion(double& x, double& y, double& vx, double& vy, double& L1, double& L2, double& theta, double& psi, double& omega);
 

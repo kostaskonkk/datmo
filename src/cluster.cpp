@@ -140,50 +140,81 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
   previous_mean_values = mean_values;
   new_cluster = new_points;
 
+  
   calcMean(new_points);
   rectangleFitting(new_points);
-
-  l_shape.detectCornerPointSwitch(old_thetaL1, thetaL1);
-  l_shape_ukf.detectCornerPointSwitch(old_thetaL1, thetaL1, dt);
-  
-  double norm = normalize_angle(l_shape.shape_kf.state()(2));
-  double distance = shortest_angular_distance(norm, thetaL1);
-  double unwrapped_thetaL1 = distance + l_shape.shape_kf.state()(2) ;
-  
-  l_shape.update(closest_corner_point, L1, L2, unwrapped_thetaL1, dt);
-  l_shape.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
-  orientation = findOrientation(th, cvx, cvy);
-
-  // Update Kalman Filter
-  VectorXd y(3);
-  y << meanX(), meanY(), orientation;
-  kf_mean.update(y, dt);
-
-
-  // UKF #######################
-
   RobotLocalization::Measurement meas;
-  if( abs(cvx_ukf) + abs(cvy_ukf)> 0.5 ){
-    Eigen::VectorXd measurement(3);
+  meas.mahalanobisThresh_ = std::numeric_limits<double>::max();
+  std::vector<int> updateVector(6, false);
 
-    measurement[0] = closest_corner_point.first;
-    measurement[1] = closest_corner_point.second;    //measurement[2] = findOrientation(unwrapped_thetaL1, cvx_ukf, cvy_ukf);
-    measurement[2] = findOrientation(unwrapped_thetaL1, cvx, cvy);
+  //Shape information is only updated if there are a lot of measurements
+  if(new_points.size()>7){
+    ROS_INFO_STREAM("pointlist size"<<new_points.size());
+    l_shape.detectCornerPointSwitch(old_thetaL1, thetaL1);
+    l_shape_ukf.detectCornerPointSwitch(old_thetaL1, thetaL1, dt);
 
-    Eigen::MatrixXd measurementCovariance(3, 3);
-    measurementCovariance.setIdentity();
-    measurementCovariance *= 0.01;
+    double norm = normalize_angle(l_shape.shape_kf.state()(2));
+    double distance = shortest_angular_distance(norm, thetaL1);
+    double unwrapped_thetaL1 = distance + l_shape.shape_kf.state()(2) ;
+    
+    l_shape.update(closest_corner_point, L1, L2, unwrapped_thetaL1, dt);
+    orientation = findOrientation(th, cvx, cvy);
 
-    std::vector<int> updateVector(6, false);
-    updateVector[0]=true;
-    updateVector[1]=true;
-    updateVector[2]=true;
+    // Update Kalman Filter
+    // it is wrong that it is inside the loop
+    VectorXd z(3);
+    z << meanX(), meanY(), orientation;
+    kf_mean.update(z, dt);
 
-    meas.measurement_  = measurement;
-    meas.covariance_   = measurementCovariance;
-    meas.updateVector_ = updateVector;
+    // UKF #######################
+    if( abs(cvx_ukf) + abs(cvy_ukf)> 0.5 ){
+      Eigen::VectorXd measurement(3);
+
+      measurement[0] = closest_corner_point.first;
+      measurement[1] = closest_corner_point.second;    //measurement[2] = findOrientation(unwrapped_thetaL1, cvx_ukf, cvy_ukf);
+      measurement[2] = findOrientation(unwrapped_thetaL1, cvx, cvy);
+
+      Eigen::MatrixXd measurementCovariance(3, 3);
+      measurementCovariance.setIdentity();
+      measurementCovariance *= 0.01;
+
+      updateVector[0]=true;
+      updateVector[1]=true;
+      updateVector[2]=true;
+
+      meas.measurement_ = measurement;
+      meas.covariance_ = measurementCovariance;
+      meas.updateVector_ = updateVector;
+
+    }
+    else{
+      Eigen::VectorXd measurement(2);
+
+      measurement[0] = closest_corner_point.first;
+      measurement[1] = closest_corner_point.second;
+
+      Eigen::MatrixXd measurementCovariance(2, 2);
+      measurementCovariance.setIdentity();
+      measurementCovariance *= 0.01;
+
+      updateVector[0]=true;
+      updateVector[1]=true;
+
+      meas.measurement_ = measurement;
+      meas.covariance_ = measurementCovariance;
+      meas.updateVector_ = updateVector;
+    }
+
+
+    l_shape_ukf.update(meas, L1, L2, unwrapped_thetaL1, dt);
+    old_thetaL1 = thetaL1;
+    old_thetaL2 = thetaL2;
+
   }
   else{
+
+    l_shape.updateDynamic(closest_corner_point, dt);
+
     Eigen::VectorXd measurement(2);
 
     measurement[0] = closest_corner_point.first;
@@ -193,30 +224,26 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
     measurementCovariance.setIdentity();
     measurementCovariance *= 0.01;
 
-    std::vector<int> updateVector(6, false);
     updateVector[0]=true;
     updateVector[1]=true;
 
     meas.measurement_ = measurement;
     meas.covariance_ = measurementCovariance;
     meas.updateVector_ = updateVector;
+
+    l_shape_ukf.updateDynamic(meas, dt);
+
   }
 
-  meas.mahalanobisThresh_ = std::numeric_limits<double>::max();
 
-  l_shape_ukf.update(meas, L1, L2, unwrapped_thetaL1, dt);
+  l_shape.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
   l_shape_ukf.lshapeToBoxModelConversion(cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, L1_box_ukf, L2_box_ukf, th_ukf, psi_ukf, comega_ukf);
 
   // UKF #######################
 
   populateTrackingMsgs(dt);
 
-  //TODO Dynamic Static Classifier
-  old_thetaL1 = thetaL1;
-  old_thetaL2 = thetaL2;
-  if(l_shape.shape_kf.state()(0) != l_shape_ukf.shape_kf.state()(0)){
-    //ROS_INFO_STREAM("kf L1: "<<l_shape.shape_kf.state()(1)<< "ukfL1"<<l_shape_ukf.shape_kf.state()(1) );
-  }
+
 }
 
 void Cluster::populateTrackingMsgs(const double& dt){
