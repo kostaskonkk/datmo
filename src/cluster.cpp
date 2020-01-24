@@ -20,6 +20,7 @@ static inline double normalize_angle(double angle){
     a -= 2.0 *M_PI;
   return a;
 }
+
 static inline double shortest_angular_distance(double from, double to){
   //Given 2 angles, this returns the shortest angular difference.
   //The inputs and outputs are radians.
@@ -27,6 +28,7 @@ static inline double shortest_angular_distance(double from, double to){
   //Adding the result to "from" results to "to".
   return normalize_angle(to-from);
 }
+
 Cluster::Cluster(unsigned long int id, const pointList& new_points, const double& dt, const string& world_frame, const tf::Transform& ego_pose){
 
   this->id = id;
@@ -663,7 +665,8 @@ double Cluster::findOrientation(const double& angle, const double& vx, const dou
   angles.push_back(angle_norm + 3*pi/2);
 
   double vsp = atan2(vy,vx);
-  double min = 1.56;
+  //double min = 1.56;
+  double min = 1;
   double distance;
   double orientation;
   int    pos;
@@ -742,8 +745,9 @@ visualization_msgs::Marker Cluster::getThetaL1VisualisationMessage() {
   arrow_marker.pose.position.x  = closest_corner_point.first;
   arrow_marker.pose.position.y  = closest_corner_point.second;
   arrow_marker.pose.position.z  = 0;
-  arrow_marker.scale.x          = 0.1;
-  arrow_marker.scale.y          = 0.1;
+  arrow_marker.scale.x          = L1_box_ukf;
+  //arrow_marker.scale.x          = 0.1;
+  arrow_marker.scale.y          = 0.04;
   arrow_marker.scale.z          = 0.001;
  
   return arrow_marker;
@@ -770,8 +774,8 @@ visualization_msgs::Marker Cluster::getThetaL2VisualisationMessage() {
   arrow_marker.pose.orientation = tf2::toMsg(quat_theta);
   arrow_marker.pose.position.x  = closest_corner_point.first;
   arrow_marker.pose.position.y  = closest_corner_point.second;
-  arrow_marker.scale.x          = 0.1;
-  arrow_marker.scale.y          = 0.1;
+  arrow_marker.scale.x          = L2_box_ukf;
+  arrow_marker.scale.y          = 0.04;
   arrow_marker.scale.z          = 0.01;
   return arrow_marker;
 }
