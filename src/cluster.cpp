@@ -89,7 +89,7 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   LShapeTracker l_shape_tracker(closest_corner_point, L1, L2, normalize_angle(thetaL1), dt);
   this->l_shape = l_shape_tracker;
   l_shape.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
-  orientation = findOrientation(th, cvx, cvy);
+  orientation = findOrientation(th, cvx, cvy, test);
 
   VectorXd x0(n);
   x0 << meanX(), meanY(), 0, 0, orientation, 0;
@@ -110,8 +110,8 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   Eigen::MatrixXd initialCovar(STATE_SIZE, STATE_SIZE);
   initialCovar.setIdentity();
   initialCovar *= 0.01;
-  initialCovar(2,2) *= 1000;
-  initialCovar(3,3) *= 1000;
+  initialCovar(2,2) *= 10;
+  initialCovar(3,3) *= 10;
   initialCovar(4,4) *= 1;
   initialCovar(5,5) *= 10;
   ukf_init.setEstimateErrorCovariance(initialCovar);
@@ -160,7 +160,7 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
     double unwrapped_thetaL1 = distance + l_shape.shape_kf.state()(2) ;
     
     l_shape.update(closest_corner_point, L1, L2, unwrapped_thetaL1, dt);
-    orientation = findOrientation(th, cvx, cvy);
+    orientation = findOrientation(th, cvx, cvy, test);
 
     // Update Kalman Filter
     // it is wrong that it is inside the loop
@@ -169,12 +169,12 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
     kf_mean.update(z, dt);
 
     // UKF #######################
-    if( abs(cvx_ukf) + abs(cvy_ukf)> 0.5 ){
+    if( abs(cvx_ukf) + abs(cvy_ukf)> 0.3 ){
       Eigen::VectorXd measurement(3);
 
       measurement[0] = closest_corner_point.first;
       measurement[1] = closest_corner_point.second;    //measurement[2] = findOrientation(unwrapped_thetaL1, cvx_ukf, cvy_ukf);
-      measurement[2] = findOrientation(unwrapped_thetaL1, cvx, cvy);
+      measurement[2] = findOrientation(unwrapped_thetaL1, cvx, cvy, test);
 
       Eigen::MatrixXd measurementCovariance(3, 3);
       measurementCovariance.setIdentity();
@@ -187,7 +187,6 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
       meas.measurement_ = measurement;
       meas.covariance_ = measurementCovariance;
       meas.updateVector_ = updateVector;
-
     }
     else{
       Eigen::VectorXd measurement(2);
@@ -247,7 +246,7 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
 
 
 }
-
+// This function populates the datmo/Tracks msgs.
 void Cluster::populateTrackingMsgs(const double& dt){
 
     msg_track_mean.id = this->id;
@@ -255,13 +254,11 @@ void Cluster::populateTrackingMsgs(const double& dt){
     msg_track_mean.odom.header.frame_id = frame_name;
     msg_track_mean.odom.pose.pose.position.x = meanX();
     msg_track_mean.odom.pose.pose.position.y = meanY();
-    msg_track_mean.length = length;
-    msg_track_mean.width  = width;
     double dvx = (mean_values.first- previous_mean_values.first)/dt;
     double dvy = (mean_values.second- previous_mean_values.second)/dt;
     msg_track_mean.odom.twist.twist.linear.x = dvx;
     msg_track_mean.odom.twist.twist.linear.y = dvy; 
-    orientation = findOrientation(thetaL1, dvx, dvy);
+    orientation = findOrientation(thetaL1, dvx, dvy, test);
     quaternion.setRPY(0,0,orientation);
     msg_track_mean.odom.pose.pose.orientation = tf2::toMsg(quaternion);
     
@@ -287,14 +284,20 @@ void Cluster::populateTrackingMsgs(const double& dt){
     msg_track_box_kf.odom.pose.pose.position.y = cy;
     msg_track_box_kf.odom.twist.twist.linear.x = cvx;
     msg_track_box_kf.odom.twist.twist.linear.y = cvy;
-    psi = findOrientation(th, cvx, cvy);
+    bool side;
+    psi = findOrientation(th, cvx, cvy, side);
+
     quaternion.setRPY(0, 0, psi);
     msg_track_box_kf.odom.pose.pose.orientation = tf2::toMsg(quaternion);
     msg_track_box_kf.odom.twist.twist.angular.z   = comega;
-    //msg_track_box_kf.length = L1_box;
-    //msg_track_box_kf.width  = L2_box;
-    msg_track_box_kf.length = length;
-    msg_track_box_kf.width  = width;
+    if(side){
+      msg_track_box_kf.length = L1_box;
+      msg_track_box_kf.width  = L2_box;
+    }
+    else{
+      msg_track_box_kf.length = L2_box;
+      msg_track_box_kf.width  = L1_box;
+    }
 
     quaternion.setRPY(0,0, psi_ukf);
     msg_track_box_ukf.id = this->id;
@@ -306,11 +309,13 @@ void Cluster::populateTrackingMsgs(const double& dt){
     msg_track_box_ukf.odom.twist.twist.linear.x    = cvx_ukf;
     msg_track_box_ukf.odom.twist.twist.linear.y    = cvy_ukf;
     msg_track_box_ukf.odom.twist.twist.angular.z   = comega_ukf;
+    bool side2;
+    psi = findOrientation(psi_ukf, cvx_ukf, cvy_ukf, side2);
     //msg_track_box_ukf.length = L1_box_ukf;
     //msg_track_box_ukf.width  = L2_box_ukf;
     
     //if (abs(psi_ukf - th_ukf) < 0.2){
-    if (!test){
+    if (side2){
       msg_track_box_ukf.length = L1_box_ukf;
       msg_track_box_ukf.width  = L2_box_ukf;
 
@@ -326,6 +331,43 @@ void Cluster::populateTrackingMsgs(const double& dt){
 
 }
 
+double Cluster::findOrientation(const double& angle, const double& vx, const double& vy, bool& sides){
+  //This function finds the orientation of a moving object, when given an L-shape orientation
+
+  vector<double> angles;
+  double angle_norm = normalize_angle(angle);
+  angles.push_back(angle_norm);
+  angles.push_back(angle_norm + pi);
+  angles.push_back(angle_norm + pi/2);
+  angles.push_back(angle_norm + 3*pi/2);
+
+  double vsp = atan2(vy,vx);
+  double min = 1.56;
+  double distance;
+  double orientation;
+  int    pos;
+  for (unsigned int i = 0; i < 4; ++i) {
+    distance = abs(shortest_angular_distance(vsp,angles[i]));
+    if (distance < min){ 
+      min = distance;
+      orientation = normalize_angle(angles[i]);
+      pos = i;
+    }
+  } 
+  if(pos ==0 || pos==1){
+    sides = true;
+  }
+  else{
+    sides = false;
+  }
+
+  //ROS_INFO_STREAM("th_sp: "<<vsp<<", orientation: "<<orientation);
+  //ROS_INFO_STREAM("th_sp: "<<vsp<<", vy: "<<vy<<", vx: "<<vx);
+  //ROS_INFO_STREAM("th_sp: "<<vsp<<", th: "<<th<<", th+pi/2: "<<th1<<", th+pi: "<<th2<<", th+3pi/2: "<<th3);
+  double normalized = normalize_angle(orientation);
+  return normalized;
+  
+}
 void Cluster::rectangleFitting(const pointList& new_cluster){
   //This function is based on ¨Efficient L-Shape Fitting for
   //Vehicle Detection Using Laser Scanners¨
@@ -654,48 +696,6 @@ double Cluster::closenessCriterion(const VectorXd& C1, const VectorXd& C2, const
   }
  
   return b; 
-}
-double Cluster::findOrientation(const double& angle, const double& vx, const double& vy){
-
-  vector<double> angles;
-  double angle_norm = normalize_angle(angle);
-  angles.push_back(angle_norm);
-  angles.push_back(angle_norm + pi);
-  angles.push_back(angle_norm + pi/2);
-  angles.push_back(angle_norm + 3*pi/2);
-
-  double vsp = atan2(vy,vx);
-  //double min = 1.56;
-  double min = 1;
-  double distance;
-  double orientation;
-  int    pos;
-  for (unsigned int i = 0; i < 4; ++i) {
-    distance = abs(shortest_angular_distance(vsp,angles[i]));
-    if (distance < min){ 
-      min = distance;
-      orientation = normalize_angle(angles[i]);
-      pos = i;
-    }
-
-  } 
-  if(pos ==0 || pos==1){
-    test = false;
-    length = L1_box;
-    width  = L2_box;
-  }
-  else{
-    test = true;
-    length = L2_box;
-    width  = L1_box;
-  }
-
-  //ROS_INFO_STREAM("th_sp: "<<vsp<<", orientation: "<<orientation);
-  //ROS_INFO_STREAM("th_sp: "<<vsp<<", vy: "<<vy<<", vx: "<<vx);
-  //ROS_INFO_STREAM("th_sp: "<<vsp<<", th: "<<th<<", th+pi/2: "<<th1<<", th+pi: "<<th2<<", th+3pi/2: "<<th3);
-  double normalized = normalize_angle(orientation);
-  return normalized;
-  
 }
 visualization_msgs::Marker Cluster::getThetaBoxVisualisationMessage() {
 

@@ -70,7 +70,7 @@ public:
   double L1, L2, thetaL1, thetaL2;
   double cx, cy, cvx, cvy, L1_box, L2_box, th, psi, comega; 
   double cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, L1_box_ukf, L2_box_ukf, th_ukf, psi_ukf, comega_ukf; 
-  double orientation, length, width;
+  double orientation;
 
   double test_color_1, test_color_2;
   bool test;
@@ -108,5 +108,5 @@ private:
    * \vy velocity in the y axis
    * \orientation orientation of tracked object, based on it's speed
    */
-  double findOrientation(const double& angle, const double& vx, const double& vy);
+  double findOrientation(const double& angle, const double& vx, const double& vy, bool& sides);
 };
