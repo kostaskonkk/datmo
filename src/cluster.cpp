@@ -20,6 +20,7 @@ static inline double normalize_angle(double angle){
     a -= 2.0 *M_PI;
   return a;
 }
+
 static inline double shortest_angular_distance(double from, double to){
   //Given 2 angles, this returns the shortest angular difference.
   //The inputs and outputs are radians.
@@ -36,9 +37,6 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   this->b = rand() / double(RAND_MAX);
   a = 1.0;
   age = 1;
-  red_flag = false;
-  green_flag = false;
-  blue_flag = false;
   frame_name = world_frame;
 
   new_cluster = new_points;
@@ -46,46 +44,49 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   ego_coordinates.first = ego_pose.getOrigin().getX();
   ego_coordinates.second= ego_pose.getOrigin().getY();
 
-  // Initialization of Kalman Filter
-  int n = 4; // Number of states
-  int m = 2; // Number of measurements
-  // double dt = 0.1;  // Time step
-  MatrixXd A(n, n); // System dynamics matrix
-  MatrixXd C(m, n); // Output matrix
-  MatrixXd Q(n, n); // Process noise covariance
-  MatrixXd R(m, m); // Measurement noise covariance
-  MatrixXd P(n, n); // Estimate error covariance
-      
-  A << 1, 0,dt, 0, 
-       0, 1, 0,dt, 
-       0, 0, 1, 0, 
-       0, 0, 0, 1;
-
-  C << 1, 0, 0, 0,
-       0, 1, 0, 0;
-
-  Q.setIdentity();
-  R.setIdentity();
-  P.setIdentity();
-
-  KalmanFilter kalman_filter(dt, A, C, Q, R, P); // Constructor for the filter
-  this->kf_mean = kalman_filter;
 
   calcMean(new_points);
+  previous_mean_values = mean_values;
   rectangleFitting(new_points);
   old_thetaL1 = thetaL1;
   old_thetaL2 = thetaL2;
-  //initialise thetaL1 in range [0,2pi]
   LShapeTracker l_shape_tracker(closest_corner_point, L1, L2, normalize_angle(thetaL1), dt);
-  l_shape = l_shape_tracker;
-  l_shape.lshapeToBoxModelConversion(cx, cy, L1_box, L2_box, th);
+  this->l_shape = l_shape_tracker;
+  l_shape.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
+  orientation = findOrientation(th, cvx, cvy, test);
 
-  VectorXd x0(n);
-  x0 << meanX(), meanY(), 0, 0;
-  kf_mean.init(0,x0);
+  //Initialization of the Unscented Kalman Filter
+  //std::vector<double> args{0.001, 0, 2};
+  std::vector<double> args{2, 2, 2};
+  //args[0] = 1;//alpha parameter
+  //args[1] = 2;//kappa parameter
+  //args[2] = 1;//beta parameter
+  RobotLocalization::Ukf ukf_init(args);
 
-  populateTrackingMsgs();
+  int STATE_SIZE = 6;
+  Eigen::MatrixXd initialCovar(STATE_SIZE, STATE_SIZE);
+  initialCovar.setIdentity();
+  initialCovar *= 0.01;
+  initialCovar(2,2) *= 10;
+  initialCovar(3,3) *= 10;
+  initialCovar(4,4) *= 1;
+  initialCovar(5,5) *= 10;
+  ukf_init.setEstimateErrorCovariance(initialCovar);
 
+  Eigen::VectorXd initial_state(6);
+  //initial_state<<closest_corner_point.first,closest_corner_point.second,normalize_angle(thetaL1),0,0,0;
+  initial_state<<closest_corner_point.first,closest_corner_point.second,0,0,0,0;
+  ukf_init.setState(initial_state);
+
+  ukf_init.predict_ctrm(dt);
+
+
+  LShapeTrackerUKF l_shape_tracker_ukf(ukf_init, L1, L2, normalize_angle(thetaL1), dt);
+  this->l_shape_ukf = l_shape_tracker_ukf;
+
+  l_shape_ukf.lshapeToBoxModelConversion(cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, L1_box_ukf, L2_box_ukf, th_ukf, psi_ukf, comega_ukf);
+  
+  populateTrackingMsgs(dt);
 }
 
 void Cluster::update(const pointList& new_points, const double dt, const tf::Transform& ego_pose) {
@@ -97,97 +98,193 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
   previous_mean_values = mean_values;
   new_cluster = new_points;
 
+  
   calcMean(new_points);
   rectangleFitting(new_points);
+  RobotLocalization::Measurement meas;
+  meas.mahalanobisThresh_ = std::numeric_limits<double>::max();
+  std::vector<int> updateVector(6, false);
 
-  detectCornerPointSwitch(old_thetaL1, thetaL1);
-  
-  double norm = normalize_angle(l_shape.shape.state()(2));
-  double distance = shortest_angular_distance(norm, thetaL1);
-  double unwrapped_thetaL1 = distance + l_shape.shape.state()(2) ;
-  
-  l_shape.update(closest_corner_point, L1, L2, unwrapped_thetaL1, dt);
-  l_shape.lshapeToBoxModelConversion(cx, cy, L1_box, L2_box, th);
+  //Shape information is only updated if there are a lot of measurements
+  if(new_points.size()>7){
+    ROS_INFO_STREAM("pointlist size"<<new_points.size());
+    l_shape.detectCornerPointSwitch(old_thetaL1, thetaL1);
+    l_shape_ukf.detectCornerPointSwitch(old_thetaL1, thetaL1, dt);
 
-  // Update Kalman Filter
-  VectorXd y(2);
+    double norm = normalize_angle(l_shape.shape_kf.state()(2));
+    double distance = shortest_angular_distance(norm, thetaL1);
+    double unwrapped_thetaL1 = distance + l_shape.shape_kf.state()(2) ;
+    
+    l_shape.update(closest_corner_point, L1, L2, unwrapped_thetaL1, dt);
+    orientation = findOrientation(th, cvx, cvy, test);
 
-  y << meanX(), meanY();
-  kf_mean.update(y, dt);
+    // UKF #######################
+    if( abs(cvx_ukf) + abs(cvy_ukf)> 0.3 ){
+      Eigen::VectorXd measurement(3);
 
-  populateTrackingMsgs();
+      measurement[0] = closest_corner_point.first;
+      measurement[1] = closest_corner_point.second;    //measurement[2] = findOrientation(unwrapped_thetaL1, cvx_ukf, cvy_ukf);
+      measurement[2] = findOrientation(unwrapped_thetaL1, cvx, cvy, test);
 
-  //TODO Dynamic Static Classifier
-  old_thetaL1 = thetaL1;
-  old_thetaL2 = thetaL2;
-}
-void Cluster::populateTrackingMsgs(){
+      Eigen::MatrixXd measurementCovariance(3, 3);
+      measurementCovariance.setIdentity();
+      measurementCovariance *= 0.01;
 
-    msg_track_mean.id = this->id;
-    msg_track_mean.odom.header.stamp = ros::Time::now();
-    msg_track_mean.odom.header.frame_id = frame_name;
-    msg_track_mean.odom.pose.pose.position.x = meanX();
-    msg_track_mean.odom.pose.pose.position.y = meanY();
+      updateVector[0]=true;
+      updateVector[1]=true;
+      updateVector[2]=true;
 
-    //Populate filtered track msg
-    msg_track_mean_kf.id = this->id;
-    msg_track_mean_kf.odom.header.stamp = ros::Time::now();
-    msg_track_mean_kf.odom.header.frame_id = frame_name;
-    msg_track_mean_kf.odom.pose.pose.position.x = kf_mean.state()[0];
-    msg_track_mean_kf.odom.pose.pose.position.y = kf_mean.state()[1];
-    msg_track_mean_kf.odom.twist.twist.linear.x = kf_mean.state()[2];
-    msg_track_mean_kf.odom.twist.twist.linear.y = kf_mean.state()[3];
-    msg_track_mean_kf.odom.pose.covariance[0] = kf_mean.P(0,0);
-    msg_track_mean_kf.odom.pose.covariance[7] = kf_mean.P(1,1);
-    msg_track_mean_kf.odom.twist.covariance[0]= kf_mean.P(2,2);
-    msg_track_mean_kf.odom.twist.covariance[7]= kf_mean.P(3,3);
-    if (age==1) {
-      ROS_INFO_STREAM("x"<<kf_mean.state()[0]<<"msi"<<msg_track_mean_kf.odom.pose.pose.position.x);
-      
+      meas.measurement_ = measurement;
+      meas.covariance_ = measurementCovariance;
+      meas.updateVector_ = updateVector;
+    }
+    else{
+      Eigen::VectorXd measurement(2);
+
+      measurement[0] = closest_corner_point.first;
+      measurement[1] = closest_corner_point.second;
+
+      Eigen::MatrixXd measurementCovariance(2, 2);
+      measurementCovariance.setIdentity();
+      measurementCovariance *= 0.01;
+
+      updateVector[0]=true;
+      updateVector[1]=true;
+
+      meas.measurement_ = measurement;
+      meas.covariance_ = measurementCovariance;
+      meas.updateVector_ = updateVector;
     }
 
-    msg_track_box.id = this->id;
-    msg_track_box.odom.header.stamp = ros::Time::now();
-    msg_track_box.odom.header.frame_id = frame_name;
-    msg_track_box.odom.pose.pose.position.x = cx;
-    msg_track_box.odom.pose.pose.position.y = cy;
-    msg_track_box.odom.pose.pose.orientation.z = thetaL1;
-    msg_track_box.length = L1;
-    msg_track_box.width  = L2;
+
+    l_shape_ukf.update(meas, L1, L2, unwrapped_thetaL1, dt);
+    old_thetaL1 = thetaL1;
+    old_thetaL2 = thetaL2;
+
+  }
+  else{
+
+    l_shape.updateDynamic(closest_corner_point, dt);
+
+    Eigen::VectorXd measurement(2);
+
+    measurement[0] = closest_corner_point.first;
+    measurement[1] = closest_corner_point.second;
+
+    Eigen::MatrixXd measurementCovariance(2, 2);
+    measurementCovariance.setIdentity();
+    measurementCovariance *= 0.01;
+
+    updateVector[0]=true;
+    updateVector[1]=true;
+
+    meas.measurement_ = measurement;
+    meas.covariance_ = measurementCovariance;
+    meas.updateVector_ = updateVector;
+
+    l_shape_ukf.updateDynamic(meas, dt);
+
+  }
+
+
+  l_shape.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
+  l_shape_ukf.lshapeToBoxModelConversion(cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, L1_box_ukf, L2_box_ukf, th_ukf, psi_ukf, comega_ukf);
+
+
+  populateTrackingMsgs(dt);
+
 
 }
-double findTurn(double& new_angle, double& old_angle){
-  //https://math.stackexchange.com/questions/1366869/calculating-rotation-direction-between-two-angles
-  //const double pi = 3.141592653589793238463; 
-  double theta_pro = new_angle - old_angle;
-  double turn = 0;
-  if(-M_PI<=theta_pro && theta_pro <= M_PI){
-    turn = theta_pro;}
-  else if(theta_pro > M_PI){
-    turn = theta_pro - 2*M_PI;}
-  else if(theta_pro < -M_PI){
-    turn = theta_pro + 2*M_PI;}
-  return turn;
+// This function populates the datmo/Tracks msgs.
+void Cluster::populateTrackingMsgs(const double& dt){
+
+    msg_track_box_kf.id = this->id;
+    msg_track_box_kf.odom.header.stamp = ros::Time::now();
+    msg_track_box_kf.odom.header.frame_id = frame_name;
+    msg_track_box_kf.odom.pose.pose.position.x = cx;
+    msg_track_box_kf.odom.pose.pose.position.y = cy;
+    msg_track_box_kf.odom.twist.twist.linear.x = cvx;
+    msg_track_box_kf.odom.twist.twist.linear.y = cvy;
+    bool side;
+    psi = findOrientation(th, cvx, cvy, side);
+
+    quaternion.setRPY(0, 0, psi);
+    msg_track_box_kf.odom.pose.pose.orientation = tf2::toMsg(quaternion);
+    msg_track_box_kf.odom.twist.twist.angular.z   = comega;
+    if(side){
+      msg_track_box_kf.length = L1_box;
+      msg_track_box_kf.width  = L2_box;
+    }
+    else{
+      msg_track_box_kf.length = L2_box;
+      msg_track_box_kf.width  = L1_box;
+    }
+
+    quaternion.setRPY(0,0, psi_ukf);
+    msg_track_box_ukf.id = this->id;
+    msg_track_box_ukf.odom.header.stamp = ros::Time::now();
+    msg_track_box_ukf.odom.header.frame_id = frame_name;
+    msg_track_box_ukf.odom.pose.pose.position.x    = cx_ukf;
+    msg_track_box_ukf.odom.pose.pose.position.y    = cy_ukf;
+    msg_track_box_ukf.odom.pose.pose.orientation = tf2::toMsg(quaternion);
+    msg_track_box_ukf.odom.twist.twist.linear.x    = cvx_ukf;
+    msg_track_box_ukf.odom.twist.twist.linear.y    = cvy_ukf;
+    msg_track_box_ukf.odom.twist.twist.angular.z   = comega_ukf;
+    bool side2;
+    psi = findOrientation(psi_ukf, cvx_ukf, cvy_ukf, side2);
+    //msg_track_box_ukf.length = L1_box_ukf;
+    //msg_track_box_ukf.width  = L2_box_ukf;
+    
+    //if (abs(psi_ukf - th_ukf) < 0.2){
+    if (side2){
+      msg_track_box_ukf.length = L1_box_ukf;
+      msg_track_box_ukf.width  = L2_box_ukf;
+
+      test_color_1 =1.0;
+      test_color_2 =0.0;
+    }
+    else{
+      msg_track_box_ukf.length = L2_box_ukf;
+      msg_track_box_ukf.width  = L1_box_ukf;
+      test_color_1 =0.0;
+      test_color_2 =1.0;
+    }
+
 }
-void Cluster::detectCornerPointSwitch(double& from, double& to){
-  //Corner Point Switch Detection
-  blue_flag= false;
-  red_flag = false;
-  green_flag=false;
+
+double Cluster::findOrientation(const double& angle, const double& vx, const double& vy, bool& sides){
+  //This function finds the orientation of a moving object, when given an L-shape orientation
+
+  vector<double> angles;
+  double angle_norm = normalize_angle(angle);
+  angles.push_back(angle_norm);
+  angles.push_back(angle_norm + pi);
+  angles.push_back(angle_norm + pi/2);
+  angles.push_back(angle_norm + 3*pi/2);
+
+  double vsp = atan2(vy,vx);
+  double min = 1.56;
+  double distance;
+  double orientation;
+  int    pos;
+  for (unsigned int i = 0; i < 4; ++i) {
+    distance = abs(shortest_angular_distance(vsp,angles[i]));
+    if (distance < min){ 
+      min = distance;
+      orientation = normalize_angle(angles[i]);
+      pos = i;
+    }
+  } 
+  if(pos ==0 || pos==1){
+    sides = true;
+  }
+  else{
+    sides = false;
+  }
+
+  double normalized = normalize_angle(orientation);
+  return normalized;
   
-  double turn = findTurn(from, to);
-    //blue_flag = true;
-    if(turn <-0.6){
-      l_shape.CounterClockwisePointSwitch();
-      //red_flag = true;
-    }
-    else if(turn > 0.6){
-      l_shape.ClockwisePointSwitch();
-      //green_flag= true;
-    }
-    //ROS_INFO_STREAM("state - L1)"<<findTurn( l_shape.shape.state()(2), thetaL1));
-    //a = 0;
-
 }
 void Cluster::rectangleFitting(const pointList& new_cluster){
   //This function is based on ¨Efficient L-Shape Fitting for
@@ -206,7 +303,7 @@ void Cluster::rectangleFitting(const pointList& new_cluster){
   unsigned int i =0;
   th = 0.0;
   //TODO make d configurable through Rviz
-  unsigned int d = 60;
+  unsigned int d = 25;
   ArrayX2d Q(d,2);
   float step = (3.14/2)/d;
   //#pragma omp parallel for
@@ -296,23 +393,19 @@ void Cluster::rectangleFitting(const pointList& new_cluster){
 
   thetaL2 = atan2((l1l2[2].second - l1l2[1].second),(l1l2[2].first - l1l2[1].first)); 
   
-  auto duration_nano = chrono::duration_cast<chrono::nanoseconds>(chrono::steady_clock::now() - begining);
-
-  dur_size_rectangle_fitting.first = duration_nano.count();
-  dur_size_rectangle_fitting.second = new_cluster.size();
-
 } 
 visualization_msgs::Marker Cluster::getBoundingBoxVisualisationMessage() {
 
   visualization_msgs::Marker bb_msg;
   bb_msg.header.stamp = ros::Time::now();
   bb_msg.header.frame_id  = frame_name;
-  bb_msg.ns = "boundind_boxes";
+  bb_msg.ns = "bounding_boxes";
   bb_msg.action = visualization_msgs::Marker::ADD;
   bb_msg.pose.orientation.w = 1.0;
   bb_msg.type = visualization_msgs::Marker::LINE_STRIP;
   bb_msg.id = this->id;
-  bb_msg.scale.x = 0.03; //line width
+  //bb_msg.scale.x = 0.3; //line width
+  bb_msg.scale.x = 0.008; //line width
   bb_msg.color.g = this->g;
   bb_msg.color.b = this->b;
   bb_msg.color.r = this->r;
@@ -330,18 +423,18 @@ visualization_msgs::Marker Cluster::getBoundingBoxVisualisationMessage() {
 
   return bb_msg;
 }
-visualization_msgs::Marker Cluster::getBoxModelVisualisationMessage() {
+visualization_msgs::Marker Cluster::getBoxModelKFVisualisationMessage() {
   
   visualization_msgs::Marker bb_msg;
 
   bb_msg.header.stamp = ros::Time::now();
   bb_msg.header.frame_id  = frame_name;
-  bb_msg.ns = "box_models";
+  bb_msg.ns = "box_models_kf";
   bb_msg.action = visualization_msgs::Marker::ADD;
   bb_msg.pose.orientation.w = 1.0;
   bb_msg.type = visualization_msgs::Marker::LINE_STRIP;
   bb_msg.id = this->id;
-  bb_msg.scale.x = 0.05; //line width
+  bb_msg.scale.x = 0.02; //line width
   bb_msg.color.g = g;
   bb_msg.color.b = b;
   bb_msg.color.r = r;
@@ -377,6 +470,53 @@ visualization_msgs::Marker Cluster::getBoxModelVisualisationMessage() {
   return bb_msg;
   
 }
+visualization_msgs::Marker Cluster::getBoxModelUKFVisualisationMessage() {
+  
+  visualization_msgs::Marker bb_msg;
+
+  bb_msg.header.stamp       = ros::Time::now();
+  bb_msg.header.frame_id    = frame_name;
+  bb_msg.ns                 = "box_models_ukf";
+  bb_msg.action             = visualization_msgs::Marker::ADD;
+  bb_msg.pose.orientation.w = 1.0;
+  bb_msg.type               = visualization_msgs::Marker::LINE_STRIP;
+  bb_msg.id                 = this->id;
+  bb_msg.scale.x            = 0.05; //line width
+  bb_msg.color.g            = g;
+  bb_msg.color.b            = b;
+  bb_msg.color.r            = r;
+  bb_msg.color.a            = a;
+
+  geometry_msgs::Point p;
+  double x = L1_box_ukf/2;
+  double y = L2_box_ukf/2;
+  p.x = cx + x*cos(th_ukf) - y*sin(th_ukf);
+  p.y = cy + x*sin(th_ukf) + y*cos(th_ukf);
+  bb_msg.points.push_back(p);
+  x = + L1_box_ukf/2;
+  y = - L2_box_ukf/2;
+  p.x = cx + x*cos(th_ukf) - y*sin(th_ukf);
+  p.y = cy + x*sin(th_ukf) + y*cos(th_ukf);
+  bb_msg.points.push_back(p);
+  x = - L1_box_ukf/2;
+  y = - L2_box_ukf/2;
+  p.x = cx + x*cos(th_ukf) - y*sin(th_ukf);
+  p.y = cy + x*sin(th_ukf) + y*cos(th_ukf);
+  bb_msg.points.push_back(p);
+  x = - L1_box_ukf/2;
+  y = + L2_box_ukf/2;
+  p.x = cx + x*cos(th_ukf) - y*sin(th_ukf);
+  p.y = cy + x*sin(th_ukf) + y*cos(th_ukf);
+  bb_msg.points.push_back(p);
+  x = + L1_box_ukf/2;
+  y = + L2_box_ukf/2;
+  p.x = cx + x*cos(th_ukf) - y*sin(th_ukf);
+  p.y = cy + x*sin(th_ukf) + y*cos(th_ukf);
+  bb_msg.points.push_back(p);
+  
+  return bb_msg;
+  
+}
 visualization_msgs::Marker Cluster::getLShapeVisualisationMessage() {
 
   visualization_msgs::Marker l1l2_msg;
@@ -388,9 +528,11 @@ visualization_msgs::Marker Cluster::getLShapeVisualisationMessage() {
   l1l2_msg.pose.orientation.w = 1.0;
   l1l2_msg.type = visualization_msgs::Marker::LINE_STRIP;
   l1l2_msg.id = this->id;
+  //l1l2_msg.scale.x = 0.3; //line width
   l1l2_msg.scale.x = 0.1; //line width
-  l1l2_msg.color.r = 0;
-  l1l2_msg.color.g = 1;
+  l1l2_msg.color.r = 1;
+  l1l2_msg.color.g = 0;
+  l1l2_msg.scale.x = 0.1; //line width
   l1l2_msg.color.b = 0;
   l1l2_msg.color.a = 1.0;
   
@@ -432,8 +574,8 @@ double Cluster::areaCriterion(const VectorXd& C1, const VectorXd& C2){
   return a; 
 
 }
-double Cluster::closenessCriterion(const VectorXd& C1, const VectorXd& C2, const float& d0){
-  //Algorithm 4 of ¨Efficient L-Shape Fitting for Vehicle Detection Using Laser Scanners¨
+double Cluster::closenessCriterion(const VectorXd& C1, const VectorXd& C2, const double& d0){
+  //Algorithm 4 of "Efficient L-Shape Fitting for Vehicle Detection Using Laser Scanners"
 
   double c1_max, c1_min, c2_max, c2_min;
   c1_max = C1.maxCoeff();
@@ -461,18 +603,8 @@ double Cluster::closenessCriterion(const VectorXd& C1, const VectorXd& C2, const
   double d, min;
   double b =0 ;
   for (int i = 0; i < D1.size(); ++i) {
-    if (D1(i) < D2(i)) {
-      min = D1(i);
-    }
-    else{
-      min = D2(i);
-    } 
-    if (min>d0) {
-      d =  min;
-    }
-    else{
-      d = d0;
-    } 
+    min = std::min(D1(i),D2(i));
+    d = std::max(min,d0);
     b = b + 1/d;
   }
  
@@ -481,114 +613,85 @@ double Cluster::closenessCriterion(const VectorXd& C1, const VectorXd& C2, const
 visualization_msgs::Marker Cluster::getThetaBoxVisualisationMessage() {
 
   visualization_msgs::Marker arrow_marker;
-  arrow_marker.type = visualization_msgs::Marker::ARROW;
-  arrow_marker.header.stamp = ros::Time::now();
-  arrow_marker.ns = "thetaBox";
-  arrow_marker.action = visualization_msgs::Marker::ADD;
-  arrow_marker.color.a = 1.0;
-  arrow_marker.color.g = this->g;
-  arrow_marker.color.b = this->b;
-  arrow_marker.color.r = this->g;
-  arrow_marker.id = this->id;
+  arrow_marker.type            = visualization_msgs::Marker::ARROW;
+  arrow_marker.header.stamp    = ros::Time::now();
+  arrow_marker.ns              = "thetaBox";
+  arrow_marker.action          = visualization_msgs::Marker::ADD;
+  arrow_marker.color.a         = 1.0;
+  arrow_marker.color.g         = this->g;
+  arrow_marker.color.b         = this->b;
+  arrow_marker.color.r         = this->g;
+  arrow_marker.id              = this->id;
+  arrow_marker.pose.position.x = cx;
+  arrow_marker.pose.position.y = cy;
+  arrow_marker.pose.position.z = 0;
+  arrow_marker.scale.x         = 0.8;
+  arrow_marker.scale.y         = 0.3;
+  arrow_marker.scale.z         = 0.1;
 
   arrow_marker.header.frame_id = frame_name;
-  tf2::Quaternion quat_theta;
-  quat_theta.setRPY(0,0,th);
-  arrow_marker.pose.orientation = tf2::toMsg(quat_theta);
-  arrow_marker.pose.position.x = closest_corner_point.first;
-  arrow_marker.pose.position.y = closest_corner_point.second;
-  arrow_marker.pose.position.z = 0;
-  arrow_marker.scale.x = 0.6;
-  arrow_marker.scale.y = 0.2;  
-  arrow_marker.scale.z = 0.001;  
+
+  //quaternion.setRPY(0,0,orientation);
+  quaternion.setRPY(0,0,psi_ukf);
+  arrow_marker.pose.orientation = tf2::toMsg(quaternion);
  
   return arrow_marker;
 }
 visualization_msgs::Marker Cluster::getThetaL1VisualisationMessage() {
 
   visualization_msgs::Marker arrow_marker;
-  arrow_marker.type = visualization_msgs::Marker::ARROW;
-  arrow_marker.header.stamp = ros::Time::now();
-  arrow_marker.ns = "thetaL1";
-  arrow_marker.action = visualization_msgs::Marker::ADD;
-  arrow_marker.color.a = 1.0;
-  arrow_marker.color.g = 0;
-  arrow_marker.color.b = 0;
-  arrow_marker.color.r = 1;
-  arrow_marker.id = this->id;
-
-  //if(blue_flag == true){
-    //arrow_marker.lifetime.sec = 1;
-    //arrow_marker.color.g = 0;
-    //arrow_marker.color.b = 1;
-    //arrow_marker.color.r = 0;}
-  //if(green_flag == true){
-    //arrow_marker.lifetime.sec = 1;
-    //arrow_marker.color.g = 1;
-    //arrow_marker.color.b = 0;
-    //arrow_marker.color.r = 0;}
-  //if(red_flag == true){
-    //arrow_marker.lifetime.sec = 1;
-    //arrow_marker.color.g = 0;
-    //arrow_marker.color.b = 0;
-    //arrow_marker.color.r = 1;}
-
   arrow_marker.header.frame_id = frame_name;
+  arrow_marker.type            = visualization_msgs::Marker::ARROW;
+  arrow_marker.header.stamp    = ros::Time::now();
+  arrow_marker.ns              = "thetaL1";
+  arrow_marker.action          = visualization_msgs::Marker::ADD;
+  arrow_marker.color.a         = 1.0;
+  arrow_marker.color.g         = 0;
+  arrow_marker.color.b         = 0;
+  //arrow_marker.color.r         = 1;
+  arrow_marker.color.r         = test_color_1;
+  arrow_marker.id              = this->id;
+
   tf2::Quaternion quat_theta;
   quat_theta.setRPY(0,0,thetaL1);
   arrow_marker.pose.orientation = tf2::toMsg(quat_theta);
-  arrow_marker.pose.position.x = closest_corner_point.first;
-  arrow_marker.pose.position.y = closest_corner_point.second;
-  arrow_marker.pose.position.z = 0;
-  arrow_marker.scale.x = 0.2;
-  arrow_marker.scale.y = 0.1;  
-  arrow_marker.scale.z = 0.001;  
+  arrow_marker.pose.position.x  = closest_corner_point.first;
+  arrow_marker.pose.position.y  = closest_corner_point.second;
+  arrow_marker.pose.position.z  = 0;
+  arrow_marker.scale.x          = L1_box_ukf;
+  //arrow_marker.scale.x          = 0.1;
+  arrow_marker.scale.y          = 0.04;
+  arrow_marker.scale.z          = 0.001;
  
   return arrow_marker;
 }
 visualization_msgs::Marker Cluster::getThetaL2VisualisationMessage() {
 
   visualization_msgs::Marker arrow_marker;
-  arrow_marker.type = visualization_msgs::Marker::ARROW;
+  arrow_marker.type              = visualization_msgs::Marker::ARROW;
   //arrow_marker.header.frame_id = frame_name;
-  arrow_marker.header.stamp = ros::Time::now();
-  arrow_marker.ns = "thetaL2";
-  arrow_marker.action = visualization_msgs::Marker::ADD;
-  arrow_marker.color.a = 1.0;
-  arrow_marker.color.g = 1;
-  arrow_marker.color.b = 0;
-  arrow_marker.color.r = 0;
-  arrow_marker.id = this->id;
-
-  //if(blue_flag == true){
-    //arrow_marker.lifetime.sec = 1;
-    //arrow_marker.color.g = 0;
-    //arrow_marker.color.b = 1;
-    //arrow_marker.color.r = 0;}
-  //if(green_flag == true){
-    //arrow_marker.lifetime.sec = 1;
-    //arrow_marker.color.g = 1;
-    //arrow_marker.color.b = 0;
-    //arrow_marker.color.r = 0;}
-  //if(red_flag == true){
-    //arrow_marker.lifetime.sec = 1;
-    //arrow_marker.color.g = 0;
-    //arrow_marker.color.b = 0;
-    //arrow_marker.color.r = 1;}
+  arrow_marker.header.stamp      = ros::Time::now();
+  arrow_marker.ns                = "thetaL2";
+  arrow_marker.action            = visualization_msgs::Marker::ADD;
+  arrow_marker.color.a           = 1.0;
+  //arrow_marker.color.g         = 1;
+  arrow_marker.color.g           = 0;
+  arrow_marker.color.b           = 0;
+  arrow_marker.color.r           = test_color_2;
+  arrow_marker.id                = this->id;
 
   arrow_marker.header.frame_id = frame_name;
   tf2::Quaternion quat_theta;
   quat_theta.setRPY(0,0,thetaL2);
   //quat_theta.normalize();
   arrow_marker.pose.orientation = tf2::toMsg(quat_theta);
-  arrow_marker.pose.position.x = closest_corner_point.first;
-  arrow_marker.pose.position.y = closest_corner_point.second;
-  arrow_marker.scale.x = 0.2;
-  arrow_marker.scale.y = 0.1;  
-  arrow_marker.scale.z = 0.01;  
+  arrow_marker.pose.position.x  = closest_corner_point.first;
+  arrow_marker.pose.position.y  = closest_corner_point.second;
+  arrow_marker.scale.x          = L2_box_ukf;
+  arrow_marker.scale.y          = 0.04;
+  arrow_marker.scale.z          = 0.01;
   return arrow_marker;
 }
-
 visualization_msgs::Marker Cluster::getPoseCovariance(){
 
     visualization_msgs::Marker marker;
@@ -648,13 +751,13 @@ visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
   arrow_marker.scale.y = 0.2;    //Head  diameter of the arrow
 
   geometry_msgs::Point p;
-  p.x = cx; 
-  p.y = cy; 
+  p.x = cx_ukf; 
+  p.y = cy_ukf; 
   p.z = 0;
   arrow_marker.points.push_back(p);
 
-  p.x = cx+ kf_mean.state()[2]; 
-  p.y = cy+ kf_mean.state()[3]; 
+  p.x = cx_ukf+ cvx_ukf *1.5; 
+  p.y = cy_ukf+ cvy_ukf *1.5; 
   p.z = 0;
   arrow_marker.points.push_back(p);
   return arrow_marker;
@@ -668,8 +771,10 @@ visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
   corner_msg.ns = "closest_corner";
   corner_msg.action = visualization_msgs::Marker::ADD;
   corner_msg.pose.orientation.w = 1.0;    
-  corner_msg.scale.x = 0.1;
-  corner_msg.scale.y = 0.1;  
+  //corner_msg.scale.x = 0.3;
+  //corner_msg.scale.y = 0.3;  
+  corner_msg.scale.x = 0.05;
+  corner_msg.scale.y = 0.05;  
   corner_msg.color.a = 1.0;
   corner_msg.color.g = 0.0;
   corner_msg.color.b = 0.0;
@@ -693,23 +798,30 @@ visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
     boxcenter_marker.ns = "bounding_box_center";
     boxcenter_marker.action = visualization_msgs::Marker::ADD;
     boxcenter_marker.pose.orientation.w = 1.0;    
-    boxcenter_marker.scale.x = 0.1;
-    boxcenter_marker.scale.y = 0.1;  
+    boxcenter_marker.scale.x = 0.4;
+    boxcenter_marker.scale.y = 0.4;  
     boxcenter_marker.color.a = 1.0;
-    boxcenter_marker.color.r = 0;
+    boxcenter_marker.color.r = 1;
     boxcenter_marker.color.g = 1;
     boxcenter_marker.color.b = 0;
     boxcenter_marker.id = this->id;
     
     geometry_msgs::Point p;
-    p.x = cx; 
-    p.y = cy;
+    //p.x = cx; 
+    //p.y = cy;
+    //ROS_WARN_STREAM("State is:\n"<<ukf.getState()<<"\n");
+   
+    p.x = l_shape_ukf.ukf.getState()[0];
+    p.y = l_shape_ukf.ukf.getState()[1];
+    //p.x = l_shape.dynamic_kf.state()[0];
+    //p.y = l_shape.dynamic_kf.state()[1];
+    //p.y = ukf.StateMemberY; 
     boxcenter_marker.points.push_back(p);
 
   return boxcenter_marker;
 }
-
 visualization_msgs::Marker Cluster::getClusterVisualisationMessage() {
+
   visualization_msgs::Marker cluster_vmsg;
   cluster_vmsg.header.frame_id  = frame_name;
   cluster_vmsg.header.stamp = ros::Time::now();
@@ -717,8 +829,8 @@ visualization_msgs::Marker Cluster::getClusterVisualisationMessage() {
   cluster_vmsg.action = visualization_msgs::Marker::ADD;
   cluster_vmsg.pose.orientation.w = 1.0;
   cluster_vmsg.type = visualization_msgs::Marker::POINTS;
-  cluster_vmsg.scale.x = 0.08;
-  cluster_vmsg.scale.y = 0.08;
+  cluster_vmsg.scale.x = 0.02;
+  cluster_vmsg.scale.y = 0.02;
   //cluster_vmsg.lifetime = ros::Duration(0.09);
   cluster_vmsg.id = this->id;
 
@@ -751,8 +863,9 @@ visualization_msgs::Marker Cluster::getLineVisualisationMessage() {
   line_msg.pose.orientation.w = 1.0;
   line_msg.type = visualization_msgs::Marker::LINE_STRIP;
   line_msg.id = this->id;
+  //line_msg.scale.x = 0.2; //line width
   line_msg.scale.x = 0.1; //line width
-  line_msg.lifetime = ros::Duration(0.09);
+  //line_msg.lifetime = ros::Duration(0.09);
   line_msg.color.g = this->g;
   line_msg.color.b = this->b;
   line_msg.color.r = this->r;
@@ -765,6 +878,7 @@ visualization_msgs::Marker Cluster::getLineVisualisationMessage() {
 
 
   vector<Point> pointListOut;
+  //Cluster::ramerDouglasPeucker(new_cluster, 1, pointListOut);
   Cluster::ramerDouglasPeucker(new_cluster, 0.1, pointListOut);
   geometry_msgs::Point p;
   for(unsigned int k =0 ;k<pointListOut.size();++k){

@@ -4,7 +4,6 @@
 #include <vector>
 #include <random>
 #include <algorithm> // for sort(), min()
-
 #include <chrono>
 #include <iostream>
 #include <fstream>
@@ -43,30 +42,24 @@ public:
   tf::TransformListener tf_listener;
 private:
   ros::Publisher pub_marker_array; 
-  ros::Publisher pub_tracks_mean;
-  ros::Publisher pub_tracks_mean_kf;
-  ros::Publisher pub_tracks_box;
-
+  ros::Publisher pub_tracks_box_kf;
+  ros::Publisher pub_tracks_box_ukf; 
   ros::Subscriber sub_scan;
   sensor_msgs::LaserScan scan;
   vector<Cluster> clusters;
-
-  ofstream whole; // file to write the program duration
-  ofstream clustering; // file to write the program duration
-  ofstream rect_fitting; //write rectangle fitting duration
-  ofstream testing; //various testing
 
   //Tuning Parameteres
   double dt;
   ros::Time time;
 
-  unsigned long int cg       = 1;//group counter to be used as id of the clusters
   //initialised as one, because 0 index take the msgs that fail to be initialized
-  unsigned long int cclusters= 0;//counter for the cluster objects to be used as id for the markers
+  unsigned long int cg       = 1;//group counter to be used as id of the clusters
+  unsigned long int cclusters= 1;//counter for the cluster objects to be used as id for the markers
 
   //Parameters
   double dth;
   double euclidean_distance;
+  int max_cluster_size;
   bool p_marker_pub;
   bool w_exec_times;
   string lidar_frame;

@@ -61,11 +61,6 @@ The `datmo/TrackArray` message is just a vector that can contain multiple datmo/
 * "euclidean_distance" ("double", default: "0.25") - This value sets the distance that is used by the euclidean distasnce data association algorithm
 * "pub_markers" ("bool", default: "false") - publish of the the vizualization markers
 
-# TODO
-
-- [ ] Implement an Unscented Kalman Filter
-- [ ] Improve the shape estimation and yaw estimation of objects
-
 # References
 
 [1] D. Kim, K. Jo, M. Lee, and M. Sunwoo, “L-shape model switching-based precise motion tracking of moving vehicles using laser scanners,” IEEE Transactions on Intelligent Transportation Systems, vol. 19, no. 2, pp. 598–612, 2018.\
