@@ -12,35 +12,15 @@ Datmo::Datmo(){
   n_private.param("max_cluster_size", max_cluster_size, 360);
   n_private.param("euclidean_distance", euclidean_distance, 0.25);
   n_private.param("pub_markers", p_marker_pub, false);
-  n_private.param("write_execution_times", w_exec_times, false);
 
-  pub_tracks_mean    = n.advertise<datmo::TrackArray>("tracks/mean", 10);
-  pub_tracks_mean_kf = n.advertise<datmo::TrackArray>("tracks/mean_kf", 10);
   pub_tracks_box_kf     = n.advertise<datmo::TrackArray>("tracks/box_kf", 10);
   pub_tracks_box_ukf = n.advertise<datmo::TrackArray>("tracks/box_ukf", 10);
   pub_marker_array   = n.advertise<visualization_msgs::MarkerArray>("marker_array", 10);
   sub_scan = n.subscribe("/scan", 1, &Datmo::callback, this);
 
-  if (w_exec_times) {
-    whole.open ("/home/kostas/results/exec_time/whole.csv");
-    whole << ("nano,milli,objects\n");
-    clustering.open ("/home/kostas/results/exec_time/clustering.csv");
-    clustering << ("nano\n");
-    rect_fitting.open("/home/kostas/results/exec_time/rect_fitting.csv");
-    rect_fitting << ("dur_nano,num_points\n");
-    testing.open("/home/kostas/results/exec_time/testing.csv");
-    testing << ("clusters\n");
-  }
-
 }
 
 Datmo::~Datmo(){
-  if (w_exec_times){
-  whole.close();
-  clustering.close();
-  rect_fitting.close();
-  testing.close();
-  }
 }
 void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
 
@@ -81,10 +61,6 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
       point_clusters.push_back(point_cluster);
     }
 
-    if (w_exec_times) {
-      auto cl_dur_nano = chrono::duration_cast<chrono::nanoseconds>(chrono::steady_clock::now() - start);
-      clustering << cl_dur_nano.count()<<"\n";
-    }
 
     // Cluster Association based on the Euclidean distance
     // I should check first all the distances and then associate based on the closest distance
@@ -130,7 +106,7 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
     }
 
     //Update Tracked Clusters
-    //#pragma omp parallel for
+    #pragma omp parallel for
     for(unsigned int p=0; p<pairs.size();++p){
         clusters[pairs[p].first].update(point_clusters[pairs[p].second], dt, ego_pose);
     }
@@ -164,14 +140,10 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
     
     //Visualizations and msg publications
     visualization_msgs::MarkerArray marker_array;
-    datmo::TrackArray mean_track_array; 
-    datmo::TrackArray filtered_track_array; 
     datmo::TrackArray track_array_box_kf; 
     datmo::TrackArray track_array_box_ukf; 
     for (unsigned int i =0; i<clusters.size();i++){
 
-      mean_track_array.tracks.push_back(clusters[i].msg_track_mean);
-      filtered_track_array.tracks.push_back(clusters[i].msg_track_mean_kf);
       track_array_box_kf.tracks.push_back(clusters[i].msg_track_box_kf);
       track_array_box_ukf.tracks.push_back(clusters[i].msg_track_box_ukf);
      
@@ -190,40 +162,14 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
         marker_array.markers.push_back(clusters[i].getLineVisualisationMessage());
         marker_array.markers.push_back(clusters[i].getPoseCovariance());
       }; 
-      if (w_exec_times){
-        
-        //rect_fitting << clusters[i].getRectangleFittingExecutionTime().first<<",";
-        rect_fitting << clusters[i].getRectangleFittingExecutionTime().first<<"\n";
-      }
+
     }
-    //ros::Time before_time;
-    //before_time = ros::Time::now();
-    //double duration;
-    //for (unsigned int i =0; i<clusters.size();i++){
-        //marker_array.markers.push_back(clusters[i].rectangleFitting());
-    //}
-    //duration = (ros::Time::now() - before_time).toSec();
-    //ROS_INFO_STREAM("Seconds: "<<duration);
 
     pub_marker_array.publish(marker_array);
-    pub_tracks_mean.publish(mean_track_array);
-    pub_tracks_mean_kf.publish(filtered_track_array);
     pub_tracks_box_kf.publish(track_array_box_kf);
     pub_tracks_box_ukf.publish(track_array_box_ukf);
     visualiseGroupedPoints(point_clusters);
     
-    //TODO Publish in Rviz upper right corner this information
-     //ROS_INFO_STREAM("Groups"<<point_clusters.size()<< "Clusters: "<<clusters.size());
-    // ROS_INFO_STREAM("Time"<<ros::Time::now()<<"clusters: "<<clusters.size() << "Filters: "<<filters.size());
-
-
-     if (w_exec_times) {
-       //Store the time difference between start and end
-       auto diff = chrono::steady_clock::now() - start;
-       auto diff_nano = chrono::duration_cast<chrono::nanoseconds>(diff);
-       auto diff_milli = chrono::duration_cast<chrono::milliseconds>(diff);
-       whole << diff_nano.count()<<","<<diff_milli.count()<<","<<clusters.size()<<"\n";
-     }
   }
   else{ //If the tf is not possible init all states at 0
     ROS_WARN_STREAM("No transform could be found between "<<lidar_frame<<" and "<<world_frame);
@@ -298,22 +244,12 @@ void Datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<p
   //Find clusters based on adaptive threshold distance
   float d;
 
-  //dth = 0.25 * (tp_dth+1)/64 ;// 1 for simulation, 0.2 worked quite good fo
-  //float k = 0.01;
-
  //There are two flags, since two consecutive points can belong to two independent clusters
   vector<bool> clustered1(c_points+1 ,false); //change to true when it is the first of the cluster
   vector<bool> clustered2(c_points+1 ,false); // change to true when it is clustered by another one
 
-  //lambda, sigma_r| l=0.5,s=0.3 gives three groups for simulation
-  //float l = 1; // λ is an acceptable angle for determining the points to be of the same cluster
-  //l = l * 0.0174532;   // degree to radian conversion;
-  //const float s = 0;   // σr is the standard deviation of the noise of the distance measure
- 
   for (unsigned int i=0; i < c_points ; ++i){
 
-    // dth = k * min(polar[i][0],polar[i+1][0]) * (sin(polar[i+1][1] - polar[i][1])) 
-    // / (sin(l - (polar[i+1][1] - polar[i][1]))) + s; //Dthreshold
     d = sqrt( pow(polar[i][0],2) + pow(polar[i+1][0],2)-2 * polar[i][0]*polar[i+1][0]*cos(polar[i+1][1] - polar[i][1]));
 
     if(d<dth) {
@@ -405,4 +341,3 @@ void Datmo::transformPointList(const pointList& in, pointList& out){
     out.push_back(point);
   }
 }
-

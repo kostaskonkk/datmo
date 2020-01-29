@@ -50,14 +50,9 @@ public:
   visualization_msgs::Marker getLShapeVisualisationMessage();
   visualization_msgs::Marker getPoseCovariance();
 
-  pair<int, int> getRectangleFittingExecutionTime(){return dur_size_rectangle_fitting;};
-  pair<int, int> dur_size_rectangle_fitting;
-
   void update(const pointList&, const double dt, const tf::Transform& ego_pose);
-  bool red_flag, green_flag, blue_flag;
 
   std::pair<double, double> mean() { return mean_values; }; //Return mean of cluster.
-
   double meanX() { return mean_values.first; };
   double meanY() { return mean_values.second;};
 

@@ -37,9 +37,6 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   this->b = rand() / double(RAND_MAX);
   a = 1.0;
   age = 1;
-  red_flag = false;
-  green_flag = false;
-  blue_flag = false;
   frame_name = world_frame;
 
   new_cluster = new_points;
@@ -47,39 +44,6 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   ego_coordinates.first = ego_pose.getOrigin().getX();
   ego_coordinates.second= ego_pose.getOrigin().getY();
 
-  // Initialization of Kalman Filter
-  int n = 6;        // Number of states
-  int m = 3;        // Number of measurements
-  MatrixXd A(n, n); // System dynamics matrix
-  MatrixXd C(m, n); // Output matrix
-  MatrixXd Q(n, n); // Process noise covariance
-  MatrixXd R(m, m); // Measurement noise covariance
-  MatrixXd P(n, n); // Estimate error covariance
-      
-  A << 1, 0,dt, 0, 0, 0,
-       0, 1, 0,dt, 0, 0,
-       0, 0, 1, 0, 0, 0,
-       0, 0, 0, 1, 0, 0,
-       0, 0, 0, 0, 1,dt,
-       0, 0, 0, 0, 0, 1;
-
-  C << 1, 0, 0, 0, 0, 0,
-       0, 1, 0, 0, 0, 0,
-       0, 0, 0, 0, 1, 0;
-
-  Q.setIdentity();
-  Q *= 0.01;
-  Q(2,2) = 1000;
-  Q(3,3) = 1000;
-  R.setIdentity();
-  R *= 100;
-  P.setIdentity();
-  P *= 0.01;
-  P(2,2) = 5;
-  P(3,3) = 5;
-
-  KalmanFilter kalman_filter(dt, A, C, Q, R, P); // Constructor for the filter
-  this->kf_mean = kalman_filter;
 
   calcMean(new_points);
   previous_mean_values = mean_values;
@@ -91,20 +55,13 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   l_shape.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
   orientation = findOrientation(th, cvx, cvy, test);
 
-  VectorXd x0(n);
-  x0 << meanX(), meanY(), 0, 0, orientation, 0;
-  kf_mean.init(0,x0);
-
-
-
-  //Unscented Kalman Filter
+  //Initialization of the Unscented Kalman Filter
   //std::vector<double> args{0.001, 0, 2};
   std::vector<double> args{2, 2, 2};
   //args[0] = 1;//alpha parameter
   //args[1] = 2;//kappa parameter
   //args[2] = 1;//beta parameter
   RobotLocalization::Ukf ukf_init(args);
-  //this->ukf = ukf_init;
 
   int STATE_SIZE = 6;
   Eigen::MatrixXd initialCovar(STATE_SIZE, STATE_SIZE);
@@ -124,7 +81,6 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   ukf_init.predict_ctrm(dt);
 
 
-  //float ukf_beta  = 2;    //beta parameter
   LShapeTrackerUKF l_shape_tracker_ukf(ukf_init, L1, L2, normalize_angle(thetaL1), dt);
   this->l_shape_ukf = l_shape_tracker_ukf;
 
@@ -161,12 +117,6 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
     
     l_shape.update(closest_corner_point, L1, L2, unwrapped_thetaL1, dt);
     orientation = findOrientation(th, cvx, cvy, test);
-
-    // Update Kalman Filter
-    // it is wrong that it is inside the loop
-    VectorXd z(3);
-    z << meanX(), meanY(), orientation;
-    kf_mean.update(z, dt);
 
     // UKF #######################
     if( abs(cvx_ukf) + abs(cvy_ukf)> 0.3 ){
@@ -240,7 +190,6 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
   l_shape.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
   l_shape_ukf.lshapeToBoxModelConversion(cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, L1_box_ukf, L2_box_ukf, th_ukf, psi_ukf, comega_ukf);
 
-  // UKF #######################
 
   populateTrackingMsgs(dt);
 
@@ -248,34 +197,6 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
 }
 // This function populates the datmo/Tracks msgs.
 void Cluster::populateTrackingMsgs(const double& dt){
-
-    msg_track_mean.id = this->id;
-    msg_track_mean.odom.header.stamp = ros::Time::now();
-    msg_track_mean.odom.header.frame_id = frame_name;
-    msg_track_mean.odom.pose.pose.position.x = meanX();
-    msg_track_mean.odom.pose.pose.position.y = meanY();
-    double dvx = (mean_values.first- previous_mean_values.first)/dt;
-    double dvy = (mean_values.second- previous_mean_values.second)/dt;
-    msg_track_mean.odom.twist.twist.linear.x = dvx;
-    msg_track_mean.odom.twist.twist.linear.y = dvy; 
-    orientation = findOrientation(thetaL1, dvx, dvy, test);
-    quaternion.setRPY(0,0,orientation);
-    msg_track_mean.odom.pose.pose.orientation = tf2::toMsg(quaternion);
-    
-    quaternion.setRPY(0,0,kf_mean.state()[4]);
-    msg_track_mean_kf.id = this->id;
-    msg_track_mean_kf.odom.header.stamp = ros::Time::now();
-    msg_track_mean_kf.odom.header.frame_id = frame_name;
-    msg_track_mean_kf.odom.pose.pose.position.x = kf_mean.state()[0];
-    msg_track_mean_kf.odom.pose.pose.position.y = kf_mean.state()[1];
-    msg_track_mean_kf.odom.twist.twist.linear.x = kf_mean.state()[2];
-    msg_track_mean_kf.odom.twist.twist.linear.y = kf_mean.state()[3];
-    msg_track_mean_kf.odom.pose.pose.orientation = tf2::toMsg(quaternion);
-    msg_track_mean_kf.odom.twist.twist.angular.z =kf_mean.state()[5];
-    msg_track_mean_kf.odom.pose.covariance[0] = kf_mean.P(0,0);
-    msg_track_mean_kf.odom.pose.covariance[7] = kf_mean.P(1,1);
-    msg_track_mean_kf.odom.twist.covariance[0]= kf_mean.P(2,2);
-    msg_track_mean_kf.odom.twist.covariance[7]= kf_mean.P(3,3);
 
     msg_track_box_kf.id = this->id;
     msg_track_box_kf.odom.header.stamp = ros::Time::now();
@@ -361,9 +282,6 @@ double Cluster::findOrientation(const double& angle, const double& vx, const dou
     sides = false;
   }
 
-  //ROS_INFO_STREAM("th_sp: "<<vsp<<", orientation: "<<orientation);
-  //ROS_INFO_STREAM("th_sp: "<<vsp<<", vy: "<<vy<<", vx: "<<vx);
-  //ROS_INFO_STREAM("th_sp: "<<vsp<<", th: "<<th<<", th+pi/2: "<<th1<<", th+pi: "<<th2<<", th+3pi/2: "<<th3);
   double normalized = normalize_angle(orientation);
   return normalized;
   
@@ -385,7 +303,7 @@ void Cluster::rectangleFitting(const pointList& new_cluster){
   unsigned int i =0;
   th = 0.0;
   //TODO make d configurable through Rviz
-  unsigned int d = 50;
+  unsigned int d = 25;
   ArrayX2d Q(d,2);
   float step = (3.14/2)/d;
   //#pragma omp parallel for
@@ -475,11 +393,6 @@ void Cluster::rectangleFitting(const pointList& new_cluster){
 
   thetaL2 = atan2((l1l2[2].second - l1l2[1].second),(l1l2[2].first - l1l2[1].first)); 
   
-  auto duration_nano = chrono::duration_cast<chrono::nanoseconds>(chrono::steady_clock::now() - begining);
-
-  dur_size_rectangle_fitting.first = duration_nano.count();
-  dur_size_rectangle_fitting.second = new_cluster.size();
-
 } 
 visualization_msgs::Marker Cluster::getBoundingBoxVisualisationMessage() {
 

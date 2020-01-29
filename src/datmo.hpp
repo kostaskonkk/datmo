@@ -42,18 +42,11 @@ public:
   tf::TransformListener tf_listener;
 private:
   ros::Publisher pub_marker_array; 
-  ros::Publisher pub_tracks_mean;
-  ros::Publisher pub_tracks_mean_kf;
   ros::Publisher pub_tracks_box_kf;
   ros::Publisher pub_tracks_box_ukf; 
   ros::Subscriber sub_scan;
   sensor_msgs::LaserScan scan;
   vector<Cluster> clusters;
-
-  ofstream whole; // file to write the program duration
-  ofstream clustering; // file to write the program duration
-  ofstream rect_fitting; //write rectangle fitting duration
-  ofstream testing; //various testing
 
   //Tuning Parameteres
   double dt;
