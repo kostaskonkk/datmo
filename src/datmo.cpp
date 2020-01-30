@@ -103,7 +103,7 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
     //Update Tracked Clusters
     #pragma omp parallel for
     for(unsigned int p=0; p<pairs.size();++p){
-        clusters[pairs[p].first].update(point_clusters[pairs[p].second], dt, ego_pose);
+	clusters[pairs[p].first].update(point_clusters[pairs[p].second], dt, ego_pose);
     }
        
      //Delete Not Associated Clusters
@@ -127,9 +127,9 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
     // Initialisation of new Cluster Objects
     for(unsigned int i=0; i<point_clusters.size();++i){
       if(g_matched[i] == false && point_clusters[i].size()< max_cluster_size){
-        Cluster cl(cclusters, point_clusters[i], dt, world_frame, ego_pose);
-        cclusters++;
-        clusters.push_back(cl);
+	Cluster cl(cclusters, point_clusters[i], dt, world_frame, ego_pose);
+	cclusters++;
+	clusters.push_back(cl);
       } 
     }
     
@@ -143,19 +143,19 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
       track_array_box_ukf.tracks.push_back(clusters[i].msg_track_box_ukf);
      
       if (p_marker_pub){
-        marker_array.markers.push_back(clusters[i].getClosestCornerPointVisualisationMessage());
-        marker_array.markers.push_back(clusters[i].getBoundingBoxCenterVisualisationMessage());
-        marker_array.markers.push_back(clusters[i].getArrowVisualisationMessage());
-        marker_array.markers.push_back(clusters[i].getThetaL1VisualisationMessage());
-        marker_array.markers.push_back(clusters[i].getThetaL2VisualisationMessage());
-        marker_array.markers.push_back(clusters[i].getThetaBoxVisualisationMessage());
-        marker_array.markers.push_back(clusters[i].getClusterVisualisationMessage());
-        marker_array.markers.push_back(clusters[i].getBoundingBoxVisualisationMessage());
-        marker_array.markers.push_back(clusters[i].getBoxModelKFVisualisationMessage());
-        marker_array.markers.push_back(clusters[i].getBoxModelUKFVisualisationMessage());
-        marker_array.markers.push_back(clusters[i].getLShapeVisualisationMessage());
-        marker_array.markers.push_back(clusters[i].getLineVisualisationMessage());
-        marker_array.markers.push_back(clusters[i].getPoseCovariance());
+	marker_array.markers.push_back(clusters[i].getClosestCornerPointVisualisationMessage());
+	marker_array.markers.push_back(clusters[i].getBoundingBoxCenterVisualisationMessage());
+	marker_array.markers.push_back(clusters[i].getArrowVisualisationMessage());
+	marker_array.markers.push_back(clusters[i].getThetaL1VisualisationMessage());
+	marker_array.markers.push_back(clusters[i].getThetaL2VisualisationMessage());
+	marker_array.markers.push_back(clusters[i].getThetaBoxVisualisationMessage());
+	marker_array.markers.push_back(clusters[i].getClusterVisualisationMessage());
+	marker_array.markers.push_back(clusters[i].getBoundingBoxVisualisationMessage());
+	marker_array.markers.push_back(clusters[i].getBoxModelKFVisualisationMessage());
+	marker_array.markers.push_back(clusters[i].getBoxModelUKFVisualisationMessage());
+	marker_array.markers.push_back(clusters[i].getLShapeVisualisationMessage());
+	marker_array.markers.push_back(clusters[i].getLineVisualisationMessage());
+	//marker_array.markers.push_back(clusters[i].getPoseCovariance());
       }; 
 
     }

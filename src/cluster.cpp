@@ -692,47 +692,7 @@ visualization_msgs::Marker Cluster::getThetaL2VisualisationMessage() {
   arrow_marker.scale.z          = 0.01;
   return arrow_marker;
 }
-visualization_msgs::Marker Cluster::getPoseCovariance(){
 
-    visualization_msgs::Marker marker;
-    marker.header.frame_id = frame_name;
-    marker.header.stamp = ros::Time::now();
-    marker.ns = "covariances";
-    marker.action = visualization_msgs::Marker::ADD;
-    marker.color.a = 1.0;
-    marker.color.g = g;
-    marker.color.b = b;
-    marker.color.r = r;
-    marker.id = this->id;
-
-    marker.pose.position.x = kf_mean.state()[0];
-    marker.pose.position.y = kf_mean.state()[1];
-    Eigen::Matrix2f covMatrix(2,2);
-    covMatrix << kf_mean.P(0),kf_mean.P(1),
-                 kf_mean.P(6),kf_mean.P(7);
-
-    Eigen::SelfAdjointEigenSolver<Eigen::Matrix2f> eig(covMatrix);
-
-    const Eigen::Vector2f& eigValues (eig.eigenvalues());
-    const Eigen::Matrix2f& eigVectors (eig.eigenvectors());
-
-    float angle = (atan2(eigVectors(1, 0), eigVectors(0, 0)));
-
-    marker.type = visualization_msgs::Marker::CYLINDER;
-
-    double lengthMajor = sqrt(eigValues[0]);
-    double lengthMinor = sqrt(eigValues[1]);
-
-    marker.scale.x = lengthMajor;
-    marker.scale.y = lengthMinor;
-    marker.scale.z = 0.001;
-
-    marker.pose.orientation.w = cos(angle*0.5);
-    marker.pose.orientation.z = sin(angle*0.5);
-
-    return marker;
-
-  }
 visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
 
   visualization_msgs::Marker arrow_marker;
