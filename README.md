@@ -25,7 +25,11 @@ The datmo package should be now installed to your computer. You can run it by ty
 ```
 roslaunch datmo datmo.launch
 ```
+You can run a demo of it by typing:
 
+```
+roslaunch datmo example.launch bag:=overtakes
+```
 # ROS API
 ## Subscribed Topics
 scan(sensor_msgs/LaserScan) - This topic should be created be your LIDAR sensor.
@@ -35,9 +39,8 @@ scan(sensor_msgs/LaserScan) - This topic should be created be your LIDAR sensor.
 This node can publish a variety of topics but the final configuration depends on the user. By default the majority of the topics are disabled and they should be enabled through the launch file configuration.
 
 **marker_array (visualization_msgs/MarkerArray)** - In this topic a  variety of Rviz markers are published, which can facilitate in understanding the inner workings of the program.\
-**mean_tracks (datmo/TrackArray)** - In this topic the mean coordinates of each cluster is published.\
-**filtered_tracks (datmo/TrackArray)** - In this topic the output of a Kalman Filter with a Constant Velocity model, which tracks the clusters are published.\
-**box_tracks (datmo/TrackArray)** - In this topic the  output of a Kalman Filter with a Constant Velocity model, which tracks the center of the box that surrounds the clusters is published.
+**tracks/box_kf (datmo/TrackArray)** - In this topic the  output of a Kalman Filter with a Constant Velocity model, which tracks the center of the box that surrounds the clusters is published.
+**tracks/box_ukf (datmo/TrackArray)** - In this topic the output of an Unscented Kalman Filter (UKF) with an omnidirectional motion model, which tracks the center of the box that surrounds the clusters is published.
 
 Note: In case that the marker_array topic is published from a robot and visualized in computer, which has a different version of ROS installed (kinetic, melodic, ...), the msgs will not be published and the datmo node will crash with an md5sum error. To mitigate this, you should install on your robot the visualization msgs package of the ROS installation that runs on your computer.
 
