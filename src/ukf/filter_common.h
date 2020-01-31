@@ -42,7 +42,7 @@ enum StateMembers
 {
   StateMemberX,
   StateMemberY,
-  StateMemberYaw,
+  //StateMemberYaw,
   StateMemberVx,
   StateMemberVy,
   StateMemberVyaw,
@@ -52,7 +52,8 @@ enum StateMembers
 //! @brief Global constants that define our state
 //! vector size and offsets to groups of values
 //! within that state.
-const int STATE_SIZE = 6;
+//const int STATE_SIZE = 6;
+const int STATE_SIZE = 5;
 //const int POSITION_OFFSET = StateMemberX;
 //const int POSITION_V_OFFSET = StateMemberVx;
 

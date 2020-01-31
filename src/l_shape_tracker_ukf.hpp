@@ -13,10 +13,10 @@ enum StateMembers
 {
   X,
   Y,
-  Yaw,
   Vx,
   Vy,
   Vyaw,
+  //Yaw,
 };
 
 class LShapeTrackerUKF {

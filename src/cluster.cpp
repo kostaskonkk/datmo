@@ -63,19 +63,19 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   //args[2] = 1;//beta parameter
   RobotLocalization::Ukf ukf_init(args);
 
-  int STATE_SIZE = 6;
+  int STATE_SIZE = 5;
   Eigen::MatrixXd initialCovar(STATE_SIZE, STATE_SIZE);
   initialCovar.setIdentity();
   initialCovar *= 0.01;
   initialCovar(2,2) *= 5;
   initialCovar(3,3) *= 5;
-  initialCovar(4,4) *= 1;
-  initialCovar(5,5) *= 1;
+  initialCovar(4,4) *= 0.5;
+  //initialCovar(5,5) *= 1;
   ukf_init.setEstimateErrorCovariance(initialCovar);
 
-  Eigen::VectorXd initial_state(6);
+  Eigen::VectorXd initial_state(5);
   //initial_state<<closest_corner_point.first,closest_corner_point.second,normalize_angle(thetaL1),0,0,0;
-  initial_state<<closest_corner_point.first,closest_corner_point.second,0,0,0,0;
+  initial_state<<closest_corner_point.first,closest_corner_point.second,0,0,0.00001;
   ukf_init.setState(initial_state);
 
   ukf_init.predict_ctrm(dt);
@@ -103,7 +103,7 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
   rectangleFitting(new_points);
   RobotLocalization::Measurement meas;
   meas.mahalanobisThresh_ = std::numeric_limits<double>::max();
-  std::vector<int> updateVector(6, false);
+  std::vector<int> updateVector(5, false);
 
   //Shape information is only updated if there are a lot of measurements
   if(new_points.size()>7){
@@ -119,43 +119,21 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
     orientation = findOrientation(th, cvx, cvy, test);
 
     // UKF #######################
-    //if( abs(cvx_ukf) + abs(cvy_ukf)> 1000){
-    if( abs(cvx_ukf) + abs(cvy_ukf)> 0.3 ){
-      Eigen::VectorXd measurement(3);
+    Eigen::VectorXd measurement(2);
 
-      measurement[0] = closest_corner_point.first;
-      measurement[1] = closest_corner_point.second;    //measurement[2] = findOrientation(unwrapped_thetaL1, cvx_ukf, cvy_ukf);
-      measurement[2] = findOrientation(unwrapped_thetaL1, cvx, cvy, test);
+    measurement[0] = closest_corner_point.first;
+    measurement[1] = closest_corner_point.second;
 
-      Eigen::MatrixXd measurementCovariance(3, 3);
-      measurementCovariance.setIdentity();
-      measurementCovariance *= 0.01;
+    Eigen::MatrixXd measurementCovariance(2, 2);
+    measurementCovariance.setIdentity();
+    measurementCovariance *= 0.01;
 
-      updateVector[0]=true;
-      updateVector[1]=true;
-      updateVector[2]=true;
+    updateVector[0]=true;
+    updateVector[1]=true;
 
-      meas.measurement_ = measurement;
-      meas.covariance_ = measurementCovariance;
-      meas.updateVector_ = updateVector;
-    }
-    else{
-      Eigen::VectorXd measurement(2);
-
-      measurement[0] = closest_corner_point.first;
-      measurement[1] = closest_corner_point.second;
-
-      Eigen::MatrixXd measurementCovariance(2, 2);
-      measurementCovariance.setIdentity();
-      measurementCovariance *= 0.01;
-
-      updateVector[0]=true;
-      updateVector[1]=true;
-
-      meas.measurement_ = measurement;
-      meas.covariance_ = measurementCovariance;
-      meas.updateVector_ = updateVector;
-    }
+    meas.measurement_ = measurement;
+    meas.covariance_ = measurementCovariance;
+    meas.updateVector_ = updateVector;
 
 
     l_shape_ukf.update(meas, L1, L2, unwrapped_thetaL1, dt);
@@ -194,7 +172,6 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
 
   populateTrackingMsgs(dt);
 
-
 }
 // This function populates the datmo/Tracks msgs.
 void Cluster::populateTrackingMsgs(const double& dt){
@@ -221,35 +198,32 @@ void Cluster::populateTrackingMsgs(const double& dt){
       msg_track_box_kf.width  = L1_box;
     }
 
-    quaternion.setRPY(0,0, psi_ukf);
+    //quaternion.setRPY(0,0, psi_ukf);
     msg_track_box_ukf.id = this->id;
     msg_track_box_ukf.odom.header.stamp = ros::Time::now();
     msg_track_box_ukf.odom.header.frame_id = frame_name;
     msg_track_box_ukf.odom.pose.pose.position.x    = cx_ukf;
     msg_track_box_ukf.odom.pose.pose.position.y    = cy_ukf;
-    msg_track_box_ukf.odom.pose.pose.orientation = tf2::toMsg(quaternion);
+    //msg_track_box_ukf.odom.pose.pose.orientation = tf2::toMsg(quaternion);
     msg_track_box_ukf.odom.twist.twist.linear.x    = cvx_ukf;
     msg_track_box_ukf.odom.twist.twist.linear.y    = cvy_ukf;
     msg_track_box_ukf.odom.twist.twist.angular.z   = comega_ukf;
-    bool side2;
-    psi = findOrientation(psi_ukf, cvx_ukf, cvy_ukf, side2);
-    //msg_track_box_ukf.length = L1_box_ukf;
-    //msg_track_box_ukf.width  = L2_box_ukf;
+    //bool side2;
+    //psi = findOrientation(psi_ukf, cvx_ukf, cvy_ukf, side2);
     
-    //if (abs(psi_ukf - th_ukf) < 0.2){
-    if (side2){
+    //if (side2){
       msg_track_box_ukf.length = L1_box_ukf;
       msg_track_box_ukf.width  = L2_box_ukf;
 
-      test_color_1 =1.0;
-      test_color_2 =0.0;
-    }
-    else{
-      msg_track_box_ukf.length = L2_box_ukf;
-      msg_track_box_ukf.width  = L1_box_ukf;
-      test_color_1 =0.0;
-      test_color_2 =1.0;
-    }
+      //test_color_1 =1.0;
+      //test_color_2 =0.0;
+    //}
+    //else{
+      //msg_track_box_ukf.length = L2_box_ukf;
+      //msg_track_box_ukf.width  = L1_box_ukf;
+      //test_color_1 =0.0;
+      //test_color_2 =1.0;
+    //}
 
 }
 

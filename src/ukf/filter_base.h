@@ -244,7 +244,7 @@ class FilterBase
 
     //! @brief Keeps the state Euler angles in the range [-pi, pi]
     //!
-    virtual void wrapStateAngles();
+    //virtual void wrapStateAngles();
 
     //! @brief Tests if innovation is within N-sigmas of covariance. Returns true if passed the test.
     //! @param[in] innovation - The difference between the measurement and the state

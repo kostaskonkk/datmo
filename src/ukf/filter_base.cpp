@@ -94,7 +94,7 @@ namespace RobotLocalization
     processNoiseCovariance_(StateMemberX, StateMemberX) = 0.1;
     processNoiseCovariance_(StateMemberY, StateMemberY) = 0.1;
     //processNoiseCovariance_(StateMemberYaw, StateMemberYaw) = 0.06;
-    processNoiseCovariance_(StateMemberYaw, StateMemberYaw) = 0.3;
+    //processNoiseCovariance_(StateMemberYaw, StateMemberYaw) = 0.3;
     //processNoiseCovariance_(StateMemberVx, StateMemberVx) = 0.025;
     //processNoiseCovariance_(StateMemberVy, StateMemberVy) = 0.025;
     processNoiseCovariance_(StateMemberVx, StateMemberVx) = 0.5;
@@ -169,10 +169,10 @@ namespace RobotLocalization
     }
   }
 
-  void FilterBase::wrapStateAngles()
-  {
-    state_(StateMemberYaw)   = FilterUtilities::clampRotation(state_(StateMemberYaw));
-  }
+  //void FilterBase::wrapStateAngles()
+  //{
+    //state_(StateMemberYaw)   = FilterUtilities::clampRotation(state_(StateMemberYaw));
+  //}
 
   bool FilterBase::checkMahalanobisThreshold(const Eigen::VectorXd &innovation,
                                              const Eigen::MatrixXd &invCovariance,

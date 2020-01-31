@@ -244,18 +244,18 @@ namespace RobotLocalization
     // Wrap angles in the innovation
     for (size_t i = 0; i < updateSize; ++i)
     {
-      if (updateIndices[i] == StateMemberYaw) 
-      {
-        while (innovationSubset(i) < -PI)
-        {
-          innovationSubset(i) += TAU;
-        }
+      //if (updateIndices[i] == StateMemberYaw) 
+      //{
+        //while (innovationSubset(i) < -PI)
+        //{
+          //innovationSubset(i) += TAU;
+        //}
 
-        while (innovationSubset(i) > PI)
-        {
-          innovationSubset(i) -= TAU;
-        }
-      }
+        //while (innovationSubset(i) > PI)
+        //{
+          //innovationSubset(i) -= TAU;
+        //}
+      //}
     }
 
     // (5) Check Mahalanobis distance of innovation
@@ -266,7 +266,7 @@ namespace RobotLocalization
       // (6) Compute the new estimate error covariance P = P - (K * P_zz * K')
       estimateErrorCovariance_.noalias() -= (kalmanGainSubset * predictedMeasCovar * kalmanGainSubset.transpose());
 
-      wrapStateAngles();
+      //wrapStateAngles();
 
       // Mark that we need to re-compute sigma points for successive corrections
       uncorrected_ = false;
@@ -283,19 +283,32 @@ namespace RobotLocalization
 
   void Ukf::predict_ctrm(const double delta)
   {
-    //ROS_WARN_STREAM("---------------------- Ukf::predict ----------------------\n" <<
-             //"delta is " << delta <<
-             //"\nstate is " << state_ << "\n");
-
-    double yaw = state_(StateMemberYaw);
-    double cpi = 1.0;
-    double sy = ::sin(yaw);
-    double cy = ::cos(yaw);
+    ROS_WARN_STREAM("---------------------- Ukf::predict ----------------------\n" <<
+	     "delta is " << delta <<
+	     "\nstate is " << state_ << "\n");
 
     // Prepare the transfer function
-    transferFunction_(StateMemberX, StateMemberVx) = delta;
-    transferFunction_(StateMemberY, StateMemberVy) = delta;
-    transferFunction_(StateMemberYaw, StateMemberVyaw) = delta;
+    //double yaw = state_(StateMemberYaw);
+    //double cpi = 1.0;
+    //double sy = ::sin(yaw);
+    //double cy = ::cos(yaw);
+    //transferFunction_(StateMemberX, StateMemberVx) = delta;
+    //transferFunction_(StateMemberY, StateMemberVy) = delta;
+    //transferFunction_(StateMemberYaw, StateMemberVyaw) = delta;
+
+    //https://www.hindawi.com/journals/mpe/2014/649276/
+    double omega = state_(StateMemberVyaw);
+    double omegaT = omega * delta;
+    double so = ::sin(omegaT);
+    double co = ::cos(omegaT);
+    transferFunction_(StateMemberX, StateMemberVx) = so/omega;
+    transferFunction_(StateMemberX, StateMemberVy) = -(1-co)/omega;
+    transferFunction_(StateMemberY, StateMemberVx) = (1-co)/omega;
+    transferFunction_(StateMemberY, StateMemberVy) = so/omega;
+    transferFunction_(StateMemberVx, StateMemberVx) = co;
+    transferFunction_(StateMemberVx, StateMemberVy) = -so;
+    transferFunction_(StateMemberVy, StateMemberVy) = so;
+    transferFunction_(StateMemberVy, StateMemberVx) = co;
     
     //transferFunction_(StateMemberX, StateMemberVx) = cy * delta;
     //transferFunction_(StateMemberX, StateMemberVy) = (cy - sy ) * delta;
@@ -359,7 +372,7 @@ namespace RobotLocalization
     estimateErrorCovariance_.noalias() += delta * (*processNoiseCovariance);
 
     // Keep the angles bounded
-    wrapStateAngles();
+    //wrapStateAngles();
 
     // Mark that we can keep these sigma points
     uncorrected_ = true;

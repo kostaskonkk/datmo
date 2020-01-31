@@ -144,7 +144,7 @@ void LShapeTrackerUKF::lshapeToBoxModelConversion(double& x, double& y,double& v
   L1 = shape_kf.state()(0);
   L2 = shape_kf.state()(1);
   theta = shape_kf.state()(2);
-  psi = ukf.getState()(Yaw);
+  //psi = ukf.getState()(Yaw);
   omega = ukf.getState()(Vyaw);
   //Equations 30 of "L-Shape Model Switching-Based precise motion tracking of moving vehicles"
   double ex = (L1 * cos(theta) + L2 * sin(theta)) /2;
