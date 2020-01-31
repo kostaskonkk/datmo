@@ -56,8 +56,8 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   orientation = findOrientation(th, cvx, cvy, test);
 
   //Initialization of the Unscented Kalman Filter
-  //std::vector<double> args{0.001, 0, 2};
-  std::vector<double> args{2, 2, 2};
+  std::vector<double> args{0.0025, 0, 2};
+  //std::vector<double> args{2, 2, 2};
   //args[0] = 1;//alpha parameter
   //args[1] = 2;//kappa parameter
   //args[2] = 1;//beta parameter
@@ -67,10 +67,10 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   Eigen::MatrixXd initialCovar(STATE_SIZE, STATE_SIZE);
   initialCovar.setIdentity();
   initialCovar *= 0.01;
-  initialCovar(2,2) *= 10;
-  initialCovar(3,3) *= 10;
+  initialCovar(2,2) *= 5;
+  initialCovar(3,3) *= 5;
   initialCovar(4,4) *= 1;
-  initialCovar(5,5) *= 10;
+  initialCovar(5,5) *= 1;
   ukf_init.setEstimateErrorCovariance(initialCovar);
 
   Eigen::VectorXd initial_state(6);
@@ -119,6 +119,7 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
     orientation = findOrientation(th, cvx, cvy, test);
 
     // UKF #######################
+    //if( abs(cvx_ukf) + abs(cvy_ukf)> 1000){
     if( abs(cvx_ukf) + abs(cvy_ukf)> 0.3 ){
       Eigen::VectorXd measurement(3);
 
