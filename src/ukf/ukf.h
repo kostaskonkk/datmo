@@ -98,6 +98,8 @@ class Ukf: public FilterBase
     //!
     std::vector<Eigen::VectorXd> sigmaPoints_;
 
+    std::vector<Eigen::VectorXd> sigmaPointsPrior_;
+
     //! @brief This matrix is used to generate the sigmaPoints_
     //!
     Eigen::MatrixXd weightedCovarSqrt_;

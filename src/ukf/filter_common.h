@@ -40,12 +40,12 @@ namespace RobotLocalization
 //!
 enum StateMembers
 {
-  StateMemberX,
-  StateMemberY,
+  X,
+  Y,
   //StateMemberYaw,
-  StateMemberVx,
-  StateMemberVy,
-  StateMemberVyaw,
+  Vx,
+  Vy,
+  Vyaw,
 };
 
 

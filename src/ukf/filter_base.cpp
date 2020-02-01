@@ -91,15 +91,16 @@ namespace RobotLocalization
     processNoiseCovariance_.setZero();
     //processNoiseCovariance_(StateMemberX, StateMemberX) = 0.05;
     //processNoiseCovariance_(StateMemberY, StateMemberY) = 0.05;
-    processNoiseCovariance_(StateMemberX, StateMemberX) = 0.1;
-    processNoiseCovariance_(StateMemberY, StateMemberY) = 0.1;
+    processNoiseCovariance_(X, X) = 0.1;
+    processNoiseCovariance_(Y, Y) = 0.1;
     //processNoiseCovariance_(StateMemberYaw, StateMemberYaw) = 0.06;
     //processNoiseCovariance_(StateMemberYaw, StateMemberYaw) = 0.3;
     //processNoiseCovariance_(StateMemberVx, StateMemberVx) = 0.025;
     //processNoiseCovariance_(StateMemberVy, StateMemberVy) = 0.025;
-    processNoiseCovariance_(StateMemberVx, StateMemberVx) = 0.5;
-    processNoiseCovariance_(StateMemberVy, StateMemberVy) = 0.5;
-    processNoiseCovariance_(StateMemberVyaw, StateMemberVyaw) = 0.02;
+    processNoiseCovariance_(Vx, Vx) = 2;
+    processNoiseCovariance_(Vy, Vy) = 0.5;
+    processNoiseCovariance_(Vyaw, Vyaw) = 0.02;
+    //processNoiseCovariance_(Vyaw, Vyaw) = 0.02;
 
   }
 

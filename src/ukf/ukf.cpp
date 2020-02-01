@@ -52,6 +52,7 @@ namespace RobotLocalization
 
     size_t sigmaCount = (STATE_SIZE << 1) + 1;
     sigmaPoints_.resize(sigmaCount, Eigen::VectorXd(STATE_SIZE));
+    sigmaPointsPrior_.resize(sigmaCount, Eigen::VectorXd(STATE_SIZE));
 
     // Prepare constants
     lambda_ = alpha * alpha * (STATE_SIZE + kappa) - STATE_SIZE;
@@ -62,9 +63,11 @@ namespace RobotLocalization
     stateWeights_[0] = lambda_ / (STATE_SIZE + lambda_);
     covarWeights_[0] = stateWeights_[0] + (1 - (alpha * alpha) + beta);
     sigmaPoints_[0].setZero();
+    sigmaPointsPrior_[0].setZero();
     for (size_t i = 1; i < sigmaCount; ++i)
     {
       sigmaPoints_[i].setZero();
+      sigmaPointsPrior_[i].setZero();
       stateWeights_[i] =  1 / (2 * (STATE_SIZE + lambda_));
       covarWeights_[i] = stateWeights_[i];
     }
@@ -283,9 +286,9 @@ namespace RobotLocalization
 
   void Ukf::predict_ctrm(const double delta)
   {
-    ROS_WARN_STREAM("---------------------- Ukf::predict ----------------------\n" <<
-	     "delta is " << delta <<
-	     "\nstate is " << state_ << "\n");
+    //ROS_WARN_STREAM("---------------------- Ukf::predict ----------------------\n" <<
+			 //"delta is " << delta <<
+			 //"\nstate is " << state_ << "\n");
 
     // Prepare the transfer function
     //double yaw = state_(StateMemberYaw);
@@ -297,18 +300,18 @@ namespace RobotLocalization
     //transferFunction_(StateMemberYaw, StateMemberVyaw) = delta;
 
     //https://www.hindawi.com/journals/mpe/2014/649276/
-    double omega = state_(StateMemberVyaw);
-    double omegaT = omega * delta;
-    double so = ::sin(omegaT);
-    double co = ::cos(omegaT);
-    transferFunction_(StateMemberX, StateMemberVx) = so/omega;
-    transferFunction_(StateMemberX, StateMemberVy) = -(1-co)/omega;
-    transferFunction_(StateMemberY, StateMemberVx) = (1-co)/omega;
-    transferFunction_(StateMemberY, StateMemberVy) = so/omega;
-    transferFunction_(StateMemberVx, StateMemberVx) = co;
-    transferFunction_(StateMemberVx, StateMemberVy) = -so;
-    transferFunction_(StateMemberVy, StateMemberVy) = so;
-    transferFunction_(StateMemberVy, StateMemberVx) = co;
+    //double omega = state_(Vyaw);
+    //double omegaT = omega * delta;
+    //double so = ::sin(omegaT);
+    //double co = ::cos(omegaT);
+    //transferFunction_(X, Vx) = so/omega;
+    //transferFunction_(X, Vy) = -(1-co)/omega;
+    //transferFunction_(Y, Vx) = (1-co)/omega;
+    //transferFunction_(Y, Vy) = so/omega;
+    //transferFunction_(Vx, Vx) = co;
+    //transferFunction_(Vx, Vy) = -so;
+    //transferFunction_(Vy, Vy) = so;
+    //transferFunction_(Vy, Vx) = co;
     
     //transferFunction_(StateMemberX, StateMemberVx) = cy * delta;
     //transferFunction_(StateMemberX, StateMemberVy) = (cy - sy ) * delta;
@@ -339,15 +342,42 @@ namespace RobotLocalization
 
     // (2) Compute sigma points *and* pass them through the transfer function to save the extra loop
     // First sigma point is the current state
-    sigmaPoints_[0] = transferFunction_ * state_;
+    //sigmaPoints_[0] = transferFunction_ * state_;
+    sigmaPoints_[0][X] =  state_[X] + (state_[Vx]/state_[Vyaw]) * sin(state_[Vyaw]*delta) - (state_[Vy]/state_[Vyaw])*(1-cos(state_[Vyaw]*delta));
+    sigmaPoints_[0][Y] =  state_[Y] + (state_[Vx]/state_[Vyaw]) * (1-cos(state_[Vyaw]*delta)) + (state_[Vy]/state_[Vyaw])*sin(state_[Vyaw]*delta) ;
+    sigmaPoints_[0][Vx]=  state_[Vx] * cos(state_[Vyaw]*delta) - state_[Vy] * sin(state_[Vyaw]*delta) ;
+    sigmaPoints_[0][Vy]=  state_[Vx] * sin(state_[Vyaw]*delta) + state_[Vy] * cos(state_[Vyaw]*delta) ;
+    sigmaPoints_[0][Vyaw]=state_[Vyaw];
+    ROS_INFO_STREAM("sigma zero"<< sigmaPoints_[0][1]);
 
     // Next STATE_SIZE sigma points are state + weightedCovarSqrt_[ith column]
     // STATE_SIZE sigma points after that are state - weightedCovarSqrt_[ith column]
     for (size_t sigmaInd = 0; sigmaInd < STATE_SIZE; ++sigmaInd)
     {
-      sigmaPoints_[sigmaInd + 1]              = transferFunction_ * (state_ + weightedCovarSqrt_.col(sigmaInd));
-      sigmaPoints_[sigmaInd + 1 + STATE_SIZE] = transferFunction_ * (state_ - weightedCovarSqrt_.col(sigmaInd));
+      //sigmaPoints_[sigmaInd + 1]              = transferFunction_ * (state_ + weightedCovarSqrt_.col(sigmaInd));
+      //sigmaPoints_[sigmaInd + 1 + STATE_SIZE] = transferFunction_ * (state_ - weightedCovarSqrt_.col(sigmaInd));
+      sigmaPointsPrior_[sigmaInd + 1]              = (state_ + weightedCovarSqrt_.col(sigmaInd));
+      sigmaPointsPrior_[sigmaInd + 1 + STATE_SIZE] = (state_ - weightedCovarSqrt_.col(sigmaInd));
     }
+
+    //sigmaPoints_[0][X] =  state_;
+    for (size_t sigmaInd = 0; sigmaInd < STATE_SIZE; ++sigmaInd)
+    {
+      sigmaPoints_[sigmaInd+1][X] =  sigmaPointsPrior_[sigmaInd+1][X] + (sigmaPointsPrior_[sigmaInd+1][Vx]/sigmaPointsPrior_[sigmaInd+1][Vyaw]) * sin(sigmaPointsPrior_[sigmaInd+1][Vyaw]*delta) - (sigmaPointsPrior_[sigmaInd+1][Vy]/sigmaPointsPrior_[sigmaInd+1][Vyaw])*(1-cos(sigmaPointsPrior_[sigmaInd+1][Vyaw]*delta));
+      sigmaPoints_[sigmaInd+1][Y] =  sigmaPointsPrior_[sigmaInd+1][Y] + (sigmaPointsPrior_[sigmaInd+1][Vx]/sigmaPointsPrior_[sigmaInd+1][Vyaw]) * (1-cos(sigmaPointsPrior_[sigmaInd+1][Vyaw]*delta)) + (sigmaPointsPrior_[sigmaInd+1][Vy]/sigmaPointsPrior_[sigmaInd+1][Vyaw])*sin(sigmaPointsPrior_[sigmaInd+1][Vyaw]*delta) ;
+      sigmaPoints_[sigmaInd+1][Vx]=  sigmaPointsPrior_[sigmaInd+1][Vx] * cos(sigmaPointsPrior_[sigmaInd+1][Vyaw]*delta) - sigmaPointsPrior_[sigmaInd+1][Vy] * sin(sigmaPointsPrior_[sigmaInd+1][Vyaw]*delta) ;
+      sigmaPoints_[sigmaInd+1][Vy]=  sigmaPointsPrior_[sigmaInd+1][Vx] * sin(sigmaPointsPrior_[sigmaInd+1][Vyaw]*delta) + sigmaPointsPrior_[sigmaInd+1][Vy] * cos(sigmaPointsPrior_[sigmaInd+1][Vyaw]*delta) ;
+      sigmaPoints_[sigmaInd+1][Vyaw]=sigmaPointsPrior_[sigmaInd+1][Vyaw];
+
+      sigmaPoints_[sigmaInd+1+STATE_SIZE][X] =  sigmaPointsPrior_[sigmaInd+1+STATE_SIZE][X] + (sigmaPointsPrior_[sigmaInd+1+STATE_SIZE][Vx]/sigmaPointsPrior_[sigmaInd+1+STATE_SIZE][Vyaw]) * sin(sigmaPointsPrior_[sigmaInd+1+STATE_SIZE][Vyaw]*delta) - (sigmaPointsPrior_[sigmaInd+1+STATE_SIZE][Vy]/sigmaPointsPrior_[sigmaInd+1+STATE_SIZE][Vyaw])*(1-cos(sigmaPointsPrior_[sigmaInd+1+STATE_SIZE][Vyaw]*delta));
+      sigmaPoints_[sigmaInd+1+STATE_SIZE][Y] =  sigmaPointsPrior_[sigmaInd+1+STATE_SIZE][Y] + (sigmaPointsPrior_[sigmaInd+1+STATE_SIZE][Vx]/sigmaPointsPrior_[sigmaInd+1+STATE_SIZE][Vyaw]) * (1-cos(sigmaPointsPrior_[sigmaInd+1+STATE_SIZE][Vyaw]*delta)) + (sigmaPointsPrior_[sigmaInd+1+STATE_SIZE][Vy]/sigmaPointsPrior_[sigmaInd+1+STATE_SIZE][Vyaw])*sin(sigmaPointsPrior_[sigmaInd+1+STATE_SIZE][Vyaw]*delta) ;
+      sigmaPoints_[sigmaInd+1+STATE_SIZE][Vx]=  sigmaPointsPrior_[sigmaInd+1+STATE_SIZE][Vx] * cos(sigmaPointsPrior_[sigmaInd+1+STATE_SIZE][Vyaw]*delta) - sigmaPointsPrior_[sigmaInd+1+STATE_SIZE][Vy] * sin(sigmaPointsPrior_[sigmaInd+1+STATE_SIZE][Vyaw]*delta) ;
+      sigmaPoints_[sigmaInd+1+STATE_SIZE][Vy]=  sigmaPointsPrior_[sigmaInd+1+STATE_SIZE][Vx] * sin(sigmaPointsPrior_[sigmaInd+1+STATE_SIZE][Vyaw]*delta) + sigmaPointsPrior_[sigmaInd+1+STATE_SIZE][Vy] * cos(sigmaPointsPrior_[sigmaInd+1+STATE_SIZE][Vyaw]*delta) ;
+      sigmaPoints_[sigmaInd+1+STATE_SIZE][Vyaw]=sigmaPointsPrior_[sigmaInd+1+STATE_SIZE][Vyaw];
+
+      }
+
+
 
     // (3) Sum the weighted sigma points to generate a new state prediction
     state_.setZero();
