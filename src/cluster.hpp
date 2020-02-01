@@ -57,8 +57,7 @@ public:
   double meanY() { return mean_values.second;};
 
   LShapeTracker l_shape; 
-  LShapeTrackerUKF l_shape_ukf; 
-  KalmanFilter kf_mean;
+  LshapeTracker Lshape; 
   RobotLocalization::Ukf ukf;
 
   double old_thetaL1, old_thetaL2;

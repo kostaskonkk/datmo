@@ -52,39 +52,33 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   old_thetaL2 = thetaL2;
   LShapeTracker l_shape_tracker(closest_corner_point, L1, L2, normalize_angle(thetaL1), dt);
   this->l_shape = l_shape_tracker;
-  l_shape.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
-  orientation = findOrientation(th, cvx, cvy, test);
+  //l_shape.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
+  //orientation = findOrientation(th, cvx, cvy, test);
 
   //Initialization of the Unscented Kalman Filter
-  std::vector<double> args{0.0025, 0, 2};
-  //std::vector<double> args{2, 2, 2};
-  //args[0] = 1;//alpha parameter
-  //args[1] = 2;//kappa parameter
-  //args[2] = 1;//beta parameter
-  RobotLocalization::Ukf ukf_init(args);
+  //Arguments are:       alpha, kappa,beta
+  //std::vector<double> args{0.0025, 0, 2};
+  //RobotLocalization::Ukf ukf_init(args);
 
-  int STATE_SIZE = 5;
-  Eigen::MatrixXd initialCovar(STATE_SIZE, STATE_SIZE);
-  initialCovar.setIdentity();
-  initialCovar *= 0.01;
-  initialCovar(2,2) *= 5;
-  initialCovar(3,3) *= 5;
-  initialCovar(4,4) *= 0.5;
-  //initialCovar(5,5) *= 1;
-  ukf_init.setEstimateErrorCovariance(initialCovar);
+  //int STATE_SIZE = 5;
+  //Eigen::MatrixXd initialCovar(STATE_SIZE, STATE_SIZE);
+  //initialCovar.setIdentity();
+  //initialCovar *= 0.01;
+  //initialCovar(2,2) *= 5;
+  //initialCovar(3,3) *= 5;
+  //initialCovar(4,4) *= 0.5;
+  //ukf_init.setEstimateErrorCovariance(initialCovar);
 
-  Eigen::VectorXd initial_state(5);
-  //initial_state<<closest_corner_point.first,closest_corner_point.second,normalize_angle(thetaL1),0,0,0;
-  initial_state<<closest_corner_point.first,closest_corner_point.second,0,0,0.00001;
-  ukf_init.setState(initial_state);
+  //Eigen::VectorXd initial_state(5);
+  //initial_state<<closest_corner_point.first,closest_corner_point.second,0,0,0;
+  //ukf_init.setState(initial_state);
 
-  ukf_init.predict_ctrm(dt);
+  //ukf_init.predict_ctrm(dt);
 
 
-  LShapeTrackerUKF l_shape_tracker_ukf(ukf_init, L1, L2, normalize_angle(thetaL1), dt);
-  this->l_shape_ukf = l_shape_tracker_ukf;
-
-  l_shape_ukf.lshapeToBoxModelConversion(cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, L1_box_ukf, L2_box_ukf, th_ukf, psi_ukf, comega_ukf);
+  LshapeTracker l_shape_tracker_ukf(closest_corner_point.first, closest_corner_point.second, L1, L2, normalize_angle(thetaL1), dt);
+  this->Lshape = l_shape_tracker_ukf;
+  //Lshape.lshapeToBoxModelConversion(cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, L1_box_ukf, L2_box_ukf, th_ukf, psi_ukf, comega_ukf);
   
   populateTrackingMsgs(dt);
 }
@@ -101,42 +95,42 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
   
   calcMean(new_points);
   rectangleFitting(new_points);
-  RobotLocalization::Measurement meas;
-  meas.mahalanobisThresh_ = std::numeric_limits<double>::max();
-  std::vector<int> updateVector(5, false);
+  //RobotLocalization::Measurement meas;
+  //meas.mahalanobisThresh_ = std::numeric_limits<double>::max();
+  //std::vector<int> updateVector(5, false);
 
   //Shape information is only updated if there are a lot of measurements
   if(new_points.size()>7){
     ROS_INFO_STREAM("pointlist size"<<new_points.size());
     l_shape.detectCornerPointSwitch(old_thetaL1, thetaL1);
-    l_shape_ukf.detectCornerPointSwitch(old_thetaL1, thetaL1, dt);
+    //Lshape.detectCornerPointSwitch(old_thetaL1, thetaL1, dt);
 
     double norm = normalize_angle(l_shape.shape_kf.state()(2));
     double distance = shortest_angular_distance(norm, thetaL1);
     double unwrapped_thetaL1 = distance + l_shape.shape_kf.state()(2) ;
     
     l_shape.update(closest_corner_point, L1, L2, unwrapped_thetaL1, dt);
-    orientation = findOrientation(th, cvx, cvy, test);
+    //orientation = findOrientation(th, cvx, cvy, test);
+    Lshape.update(old_thetaL1, thetaL1, closest_corner_point.first, closest_corner_point.second, L1, L2, unwrapped_thetaL1, dt);
 
     // UKF #######################
-    Eigen::VectorXd measurement(2);
+    //Eigen::VectorXd measurement(2);
 
-    measurement[0] = closest_corner_point.first;
-    measurement[1] = closest_corner_point.second;
+    //measurement[0] = closest_corner_point.first;
+    //measurement[1] = closest_corner_point.second;
 
-    Eigen::MatrixXd measurementCovariance(2, 2);
-    measurementCovariance.setIdentity();
-    measurementCovariance *= 0.01;
+    //Eigen::MatrixXd measurementCovariance(2, 2);
+    //measurementCovariance.setIdentity();
+    //measurementCovariance *= 0.01;
 
-    updateVector[0]=true;
-    updateVector[1]=true;
+    //updateVector[0]=true;
+    //updateVector[1]=true;
 
-    meas.measurement_ = measurement;
-    meas.covariance_ = measurementCovariance;
-    meas.updateVector_ = updateVector;
+    //meas.measurement_ = measurement;
+    //meas.covariance_ = measurementCovariance;
+    //meas.updateVector_ = updateVector;
 
 
-    l_shape_ukf.update(meas, L1, L2, unwrapped_thetaL1, dt);
     old_thetaL1 = thetaL1;
     old_thetaL2 = thetaL2;
 
@@ -145,29 +139,29 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
 
     l_shape.updateDynamic(closest_corner_point, dt);
 
-    Eigen::VectorXd measurement(2);
+    //Eigen::VectorXd measurement(2);
 
-    measurement[0] = closest_corner_point.first;
-    measurement[1] = closest_corner_point.second;
+    //measurement[0] = closest_corner_point.first;
+    //measurement[1] = closest_corner_point.second;
 
-    Eigen::MatrixXd measurementCovariance(2, 2);
-    measurementCovariance.setIdentity();
-    measurementCovariance *= 0.01;
+    //Eigen::MatrixXd measurementCovariance(2, 2);
+    //measurementCovariance.setIdentity();
+    //measurementCovariance *= 0.01;
 
-    updateVector[0]=true;
-    updateVector[1]=true;
+    //updateVector[0]=true;
+    //updateVector[1]=true;
 
-    meas.measurement_ = measurement;
-    meas.covariance_ = measurementCovariance;
-    meas.updateVector_ = updateVector;
+    //meas.measurement_ = measurement;
+    //meas.covariance_ = measurementCovariance;
+    //meas.updateVector_ = updateVector;
 
-    l_shape_ukf.updateDynamic(meas, dt);
+    //Lshape.updateDynamic(meas, dt);
 
   }
 
 
-  l_shape.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
-  l_shape_ukf.lshapeToBoxModelConversion(cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, L1_box_ukf, L2_box_ukf, th_ukf, psi_ukf, comega_ukf);
+  //l_shape.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
+  //Lshape.lshapeToBoxModelConversion(cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, L1_box_ukf, L2_box_ukf, th_ukf, psi_ukf, comega_ukf);
 
 
   populateTrackingMsgs(dt);
@@ -175,6 +169,9 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
 }
 // This function populates the datmo/Tracks msgs.
 void Cluster::populateTrackingMsgs(const double& dt){
+
+  l_shape.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
+  Lshape.lshapeToBoxModelConversion(cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, L1_box_ukf, L2_box_ukf, th_ukf, psi_ukf, comega_ukf);
 
     msg_track_box_kf.id = this->id;
     msg_track_box_kf.odom.header.stamp = ros::Time::now();
@@ -746,8 +743,8 @@ visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
     //p.y = cy;
     //ROS_WARN_STREAM("State is:\n"<<ukf.getState()<<"\n");
    
-    p.x = l_shape_ukf.ukf.getState()[0];
-    p.y = l_shape_ukf.ukf.getState()[1];
+    p.x = Lshape.ukf.getState()[0];
+    p.y = Lshape.ukf.getState()[1];
     //p.x = l_shape.dynamic_kf.state()[0];
     //p.y = l_shape.dynamic_kf.state()[1];
     //p.y = ukf.StateMemberY; 
