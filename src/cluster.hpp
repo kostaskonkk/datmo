@@ -1,13 +1,11 @@
 #pragma once
 #include <ros/ros.h>
-#include "kalman-cpp/kalman.hpp"
 #include "l_shape_tracker.hpp"
 #include "l_shape_tracker_ukf.hpp"
 #include <Eigen/Dense>
 #include <tf/transform_listener.h>
 #include <visualization_msgs/Marker.h>
 #include "datmo/Track.h"
-#include "ukf/ukf.h"
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <chrono>
@@ -27,8 +25,6 @@ public:
   string frame_name;
   Point ego_coordinates;
 
-  datmo::Track msg_track_mean;
-  datmo::Track msg_track_mean_kf;
   datmo::Track msg_track_box_kf;
   datmo::Track msg_track_box_ukf;
 
@@ -58,7 +54,7 @@ public:
 
   LShapeTracker l_shape; 
   LshapeTracker Lshape; 
-  RobotLocalization::Ukf ukf;
+  //RobotLocalization::Ukf ukf;
 
   double old_thetaL1, old_thetaL2;
   double L1, L2, thetaL1, thetaL2;

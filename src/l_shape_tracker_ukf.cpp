@@ -47,6 +47,8 @@ LshapeTracker::LshapeTracker(){}//Creates a blank estimator
   std::vector<double> args{0.0025, 0, 2};
   RobotLocalization::Ukf ukf_init(args);
 
+  this->ukf = ukf_init;
+
   int STATE_SIZE = 5;
   Eigen::MatrixXd initialCovar(STATE_SIZE, STATE_SIZE);
   initialCovar.setIdentity();
@@ -54,15 +56,15 @@ LshapeTracker::LshapeTracker(){}//Creates a blank estimator
   initialCovar(2,2) *= 5;
   initialCovar(3,3) *= 5;
   initialCovar(4,4) *= 0.5;
-  ukf_init.setEstimateErrorCovariance(initialCovar);
+  ukf.setEstimateErrorCovariance(initialCovar);
 
   Eigen::VectorXd initial_state(5);
   initial_state<<x_corner, y_corner, 0, 0, 0;
-  ukf_init.setState(initial_state);
+  ukf.setState(initial_state);
 
-  ukf_init.predict_ctrm(dt);
+  ukf.predict_ctrm(dt);
 
-  this->ukf = ukf_init;
+
 }
 
 void LshapeTracker::update(const double& old_thetaL1, const double& thetaL1, const double& x_corner, const double& y_corner, const double& L1, const double& L2, const double& theta, const double& dt) {
@@ -192,13 +194,13 @@ void LshapeTracker::lshapeToBoxModelConversion(double& x, double& y,double& vx, 
   //Equations 30 of "L-Shape Model Switching-Based precise motion tracking of moving vehicles"
   double ex = (L1 * cos(theta) + L2 * sin(theta)) /2;
   double ey = (L1 * sin(theta) - L2 * cos(theta)) /2;
-  //x = ukf.getState()(X) + ex;
-  //y = ukf.getState()(Y) + ey;
+  x = ukf.getState()(X) + ex;
+  y = ukf.getState()(Y) + ey;
 
   //Equations 31 of "L-Shape Model Switching-Based precise motion tracking of moving vehicles"
   //TODO test the complete equation also
-  //vx = ukf.getState()(Vx);
-  //vy = ukf.getState()(Vy);
+  vx = ukf.getState()(Vx);
+  vy = ukf.getState()(Vy);
 
 }
 

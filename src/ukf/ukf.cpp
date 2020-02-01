@@ -286,81 +286,29 @@ namespace RobotLocalization
 
   void Ukf::predict_ctrm(const double delta)
   {
-    //ROS_WARN_STREAM("---------------------- Ukf::predict ----------------------\n" <<
-			 //"delta is " << delta <<
-			 //"\nstate is " << state_ << "\n");
-
-    // Prepare the transfer function
-    //double yaw = state_(StateMemberYaw);
-    //double cpi = 1.0;
-    //double sy = ::sin(yaw);
-    //double cy = ::cos(yaw);
-    //transferFunction_(StateMemberX, StateMemberVx) = delta;
-    //transferFunction_(StateMemberY, StateMemberVy) = delta;
-    //transferFunction_(StateMemberYaw, StateMemberVyaw) = delta;
-
-    //https://www.hindawi.com/journals/mpe/2014/649276/
-    //double omega = state_(Vyaw);
-    //double omegaT = omega * delta;
-    //double so = ::sin(omegaT);
-    //double co = ::cos(omegaT);
-    //transferFunction_(X, Vx) = so/omega;
-    //transferFunction_(X, Vy) = -(1-co)/omega;
-    //transferFunction_(Y, Vx) = (1-co)/omega;
-    //transferFunction_(Y, Vy) = so/omega;
-    //transferFunction_(Vx, Vx) = co;
-    //transferFunction_(Vx, Vy) = -so;
-    //transferFunction_(Vy, Vy) = so;
-    //transferFunction_(Vy, Vx) = co;
-    
-    //transferFunction_(StateMemberX, StateMemberVx) = cy * delta;
-    //transferFunction_(StateMemberX, StateMemberVy) = (cy - sy ) * delta;
-    //transferFunction_(StateMemberY, StateMemberVx) = sy * delta;
-    //transferFunction_(StateMemberY, StateMemberVy) = (sy + cy) * delta;
-    //transferFunction_(StateMemberYaw, StateMemberVyaw) = delta;
-
-    /////Nonlinear Coordinated Turn with Polar Velocity
-    //double dy = state_(StateMemberVyaw);
-    //double y  = state_(StateMemberYaw);
-    //double sdyt = sin(dy * delta/2);
-    //double cydyt = cos(dy * delta/2);
-    //double sydyt = sin(dy * delta/2);
-
-    //if (dy == 0) {
-      //transferFunction_(StateMemberX, StateMemberV) = 0;
-      //transferFunction_(StateMemberY, StateMemberV) = 0;
-    //}
-    //else{
-      //transferFunction_(StateMemberX, StateMemberV) = (2/dy)*sdyt*cos(y + dy*delta/2);
-      //transferFunction_(StateMemberY, StateMemberV) = (2/dy)*sdyt*sin(y + dy*delta/2);
-    //}
-    //transferFunction_(StateMemberYaw, StateMemberVyaw) = delta;
-    
+    ROS_WARN_STREAM("---------------------- Ukf::predict ----------------------\n" <<
+			 "delta is " << delta <<
+			 "\nstate is " << state_ << "\n");
 
     // (1) Take the square root of a small fraction of the estimateErrorCovariance_ using LL' decomposition
     weightedCovarSqrt_ = ((STATE_SIZE + lambda_) * estimateErrorCovariance_).llt().matrixL();
 
     // (2) Compute sigma points *and* pass them through the transfer function to save the extra loop
     // First sigma point is the current state
-    //sigmaPoints_[0] = transferFunction_ * state_;
     sigmaPoints_[0][X] =  state_[X] + (state_[Vx]/state_[Vyaw]) * sin(state_[Vyaw]*delta) - (state_[Vy]/state_[Vyaw])*(1-cos(state_[Vyaw]*delta));
     sigmaPoints_[0][Y] =  state_[Y] + (state_[Vx]/state_[Vyaw]) * (1-cos(state_[Vyaw]*delta)) + (state_[Vy]/state_[Vyaw])*sin(state_[Vyaw]*delta) ;
     sigmaPoints_[0][Vx]=  state_[Vx] * cos(state_[Vyaw]*delta) - state_[Vy] * sin(state_[Vyaw]*delta) ;
     sigmaPoints_[0][Vy]=  state_[Vx] * sin(state_[Vyaw]*delta) + state_[Vy] * cos(state_[Vyaw]*delta) ;
     sigmaPoints_[0][Vyaw]=state_[Vyaw];
-    ROS_INFO_STREAM("sigma zero"<< sigmaPoints_[0][1]);
 
     // Next STATE_SIZE sigma points are state + weightedCovarSqrt_[ith column]
     // STATE_SIZE sigma points after that are state - weightedCovarSqrt_[ith column]
     for (size_t sigmaInd = 0; sigmaInd < STATE_SIZE; ++sigmaInd)
     {
-      //sigmaPoints_[sigmaInd + 1]              = transferFunction_ * (state_ + weightedCovarSqrt_.col(sigmaInd));
-      //sigmaPoints_[sigmaInd + 1 + STATE_SIZE] = transferFunction_ * (state_ - weightedCovarSqrt_.col(sigmaInd));
       sigmaPointsPrior_[sigmaInd + 1]              = (state_ + weightedCovarSqrt_.col(sigmaInd));
       sigmaPointsPrior_[sigmaInd + 1 + STATE_SIZE] = (state_ - weightedCovarSqrt_.col(sigmaInd));
     }
 
-    //sigmaPoints_[0][X] =  state_;
     for (size_t sigmaInd = 0; sigmaInd < STATE_SIZE; ++sigmaInd)
     {
       sigmaPoints_[sigmaInd+1][X] =  sigmaPointsPrior_[sigmaInd+1][X] + (sigmaPointsPrior_[sigmaInd+1][Vx]/sigmaPointsPrior_[sigmaInd+1][Vyaw]) * sin(sigmaPointsPrior_[sigmaInd+1][Vyaw]*delta) - (sigmaPointsPrior_[sigmaInd+1][Vy]/sigmaPointsPrior_[sigmaInd+1][Vyaw])*(1-cos(sigmaPointsPrior_[sigmaInd+1][Vyaw]*delta));
