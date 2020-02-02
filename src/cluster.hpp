@@ -1,6 +1,5 @@
 #pragma once
 #include <ros/ros.h>
-#include "l_shape_tracker.hpp"
 #include "l_shape_tracker_ukf.hpp"
 #include <Eigen/Dense>
 #include <tf/transform_listener.h>
@@ -8,21 +7,21 @@
 #include "datmo/Track.h"
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
-#include <chrono>
+#include <vector>
 
 using namespace Eigen;
 
 typedef std::pair<double, double> Point;
 typedef std::vector<Point> pointList;
-const double pi = 3.141592653589793238463; 
+//const double pi = 3.141592653589793238463; 
 
 class Cluster {
 public:
 
-  Cluster(unsigned long int id, const pointList&, const double&, const string&, const tf::Transform& ego_pose);
+  Cluster(unsigned long int id, const pointList&, const double&, const std::string&, const tf::Transform& ego_pose);
 
 
-  string frame_name;
+  std::string frame_name;
   Point ego_coordinates;
 
   datmo::Track msg_track_box_kf;
@@ -42,7 +41,7 @@ public:
   visualization_msgs::Marker getThetaBoxVisualisationMessage();
   visualization_msgs::Marker getBoundingBoxVisualisationMessage();
   visualization_msgs::Marker getBoxModelKFVisualisationMessage();
-  visualization_msgs::Marker getBoxModelUKFVisualisationMessage();
+  //visualization_msgs::Marker getBoxModelUKFVisualisationMessage();
   visualization_msgs::Marker getLShapeVisualisationMessage();
   visualization_msgs::Marker getPoseCovariance();
 
@@ -52,25 +51,25 @@ public:
   double meanX() { return mean_values.first; };
   double meanY() { return mean_values.second;};
 
-  LShapeTracker l_shape; 
+  //LShapeTracker l_shape; 
   LshapeTracker Lshape; 
   //RobotLocalization::Ukf ukf;
 
-  double old_thetaL1, old_thetaL2;
+  double old_thetaL1;
   double L1, L2, thetaL1, thetaL2;
-  double cx, cy, cvx, cvy, L1_box, L2_box, th, psi, comega; 
-  double cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, L1_box_ukf, L2_box_ukf, th_ukf, psi_ukf, comega_ukf; 
-  double orientation;
+  double cx, cy, cvx, cvy, L1_box, L2_box, th, psi, comega, length_box, width_box; 
+  //double cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, L1_box_ukf, L2_box_ukf, th_ukf, psi_ukf, comega_ukf; 
+  //double orientation;
 
-  double test_color_1, test_color_2;
-  bool test;
+  //double test_color_1, test_color_2;
+  //bool test;
 
 private:
 
   pointList new_cluster;
-  vector<Point> corner_list;
+  std::vector<Point> corner_list;
   tf2::Quaternion quaternion; //used for transformations between quaternions and angles
-  vector<Point> l1l2; //save coordinates of the three points that define the lines
+  std::vector<Point> l1l2; //save coordinates of the three points that define the lines
 
   // mean value of the cluster
   std::pair<double, double> mean_values;
@@ -87,16 +86,5 @@ private:
   double closenessCriterion(const VectorXd& ,const VectorXd&, const double& );
   Point lineIntersection(double& , double& , double& , double& , double& , double& );
   double perpendicularDistance(const Point&, const Point&, const Point&);
-  void ramerDouglasPeucker(const vector<Point>&, double, vector<Point>&);
-  /*! \brief Finds orientations of tracked object
-   *
-   * Given the orientation of L1 the other three angles of the rectangle are calculated.
-   * Then they are compared with the speed of the object, to estimate it's direction.
-   *
-   * \angle angle of one edge of the box
-   * \vx velocity in the x axis
-   * \vy velocity in the y axis
-   * \orientation orientation of tracked object, based on it's speed
-   */
-  double findOrientation(const double& angle, const double& vx, const double& vy, bool& sides);
+  void ramerDouglasPeucker(const std::vector<Point>&, double, std::vector<Point>&);
 };

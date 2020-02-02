@@ -5,7 +5,7 @@ Datmo::Datmo(){
   ros::NodeHandle n_private("~");
   ROS_INFO("Starting Detection And Tracking of Moving Objects");
 
-  n_private.param("lidar_frame", lidar_frame, string("laser"));
+  n_private.param("lidar_frame", lidar_frame, string("base_link"));
   n_private.param("world_frame", world_frame, string("map"));
   ROS_INFO_STREAM("The lidar_frame is: "<< lidar_frame<<" and the world_frame is: "<< world_frame<< ".\n");
   n_private.param("threshold_distance", dth, 0.2);
@@ -152,7 +152,7 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
 	marker_array.markers.push_back(clusters[i].getClusterVisualisationMessage());
 	marker_array.markers.push_back(clusters[i].getBoundingBoxVisualisationMessage());
 	marker_array.markers.push_back(clusters[i].getBoxModelKFVisualisationMessage());
-	marker_array.markers.push_back(clusters[i].getBoxModelUKFVisualisationMessage());
+	//marker_array.markers.push_back(clusters[i].getBoxModelUKFVisualisationMessage());
 	marker_array.markers.push_back(clusters[i].getLShapeVisualisationMessage());
 	marker_array.markers.push_back(clusters[i].getLineVisualisationMessage());
 	//marker_array.markers.push_back(clusters[i].getPoseCovariance());

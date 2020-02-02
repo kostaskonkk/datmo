@@ -97,7 +97,7 @@ namespace RobotLocalization
     // Throughout prediction and correction, we attempt to maximize efficiency in Eigen.
     if (!uncorrected_)
     {
-      ROS_INFO_STREAM("It is not uncorrected!!");
+      //ROS_INFO_STREAM("It is not uncorrected!!");
       // Take the square root of a small fraction of the estimateErrorCovariance_ using LL' decomposition
       weightedCovarSqrt_ = ((STATE_SIZE + lambda_) * estimateErrorCovariance_).llt().matrixL();
 
@@ -286,9 +286,9 @@ namespace RobotLocalization
 
   void Ukf::predict_ctrm(const double delta)
   {
-    ROS_WARN_STREAM("---------------------- Ukf::predict ----------------------\n" <<
-			 "delta is " << delta <<
-			 "\nstate is " << state_ << "\n");
+    //ROS_WARN_STREAM("---------------------- Ukf::predict ----------------------\n" <<
+			 //"delta is " << delta <<
+			 //"\nstate is " << state_ << "\n");
 
     // (1) Take the square root of a small fraction of the estimateErrorCovariance_ using LL' decomposition
     weightedCovarSqrt_ = ((STATE_SIZE + lambda_) * estimateErrorCovariance_).llt().matrixL();
