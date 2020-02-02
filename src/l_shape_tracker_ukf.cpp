@@ -66,6 +66,7 @@ LshapeTracker::LshapeTracker(){}//Creates a blank estimator
        0, 0, 0, 0,20, 0,
        0, 0, 0, 0, 0,20;
   R.setIdentity();
+  R *=10;
   R *= 0.1;
   P.setIdentity() * 0.1;
 
@@ -94,8 +95,10 @@ LshapeTracker::LshapeTracker(){}//Creates a blank estimator
        0, 1, 0, 0,
        0, 0, 1, 0;
 
-  Qs.setIdentity();
-  Rs.setIdentity();
+  Qs<< 0.04, 0,   0, 0,
+       0, 0.04,  0, 0,
+       0,    0, dt, pow(dt,2)/2,
+       0,    0,  0,dt;
   Ps.setIdentity();
 
   KalmanFilter shape_kalman_filter(dt, As, Cs, Qs, Rs, Ps); 
@@ -140,9 +143,9 @@ void LshapeTracker::update(const double& thetaL1, const double& x_corner, const 
 
   current_size = cluster_size;
   //detectCornerPointSwitchMahalanobis(old_thetaL1, thetaL1, L1, L2, x_corner, y_corner);
+  detectCornerPointSwitch(old_thetaL1, thetaL1, dt);
   
   //if(cluster_size>7){
-  detectCornerPointSwitch(old_thetaL1, thetaL1, dt);
   //}
 
   double norm = normalize_angle(shape_kf.state()(2));
@@ -153,6 +156,17 @@ void LshapeTracker::update(const double& thetaL1, const double& x_corner, const 
   Vector2d y;
   y << x_corner, y_corner;
   dynamic_kf.update(y, dt);
+
+  // Update Shape Kalman Filter
+  Vector3d shape_measurements;
+  double L1max, L2max;
+  L2max = L2;
+  L1max = L1;
+  shape_kf.R<< 0.8/L1, 0, 0,
+               0, 0.8/L2, 0,
+               0,      0, 0.5;
+  shape_measurements << L1max, L2max, theta;
+  shape_kf.update(shape_measurements, dt);
 
   RobotLocalization::Measurement meas;
   meas.mahalanobisThresh_ = std::numeric_limits<double>::max();
@@ -174,21 +188,6 @@ void LshapeTracker::update(const double& thetaL1, const double& x_corner, const 
 
   ukf.correct_ctrm(meas);
 
-  // Update Shape Kalman Filter
-  Vector3d shape_measurements;
-  double L1max, L2max;
-  if(L1 > shape_kf.state()(0)){
-    L1max = L1;}
-  else{
-    L1max = shape_kf.state()(0);}
-  if(L2 > shape_kf.state()(1)){
-    L2max = L2;}
-  else{
-    L2max = shape_kf.state()(1);}
-  shape_measurements << L1max, L2max, theta;
-  if(cluster_size>8){
-  shape_kf.update(shape_measurements, dt);
-  }
 
   L1_old = L1;
   L2_old = L2;
@@ -208,16 +207,15 @@ void LshapeTracker::detectCornerPointSwitchMahalanobis(const double& from, const
   double y_new = y_corner;
   double theta_new = to;
   double theta_corner = from;
-  //double x_c = dynamic_kf.state()(0);
-  //double y_c = dynamic_kf.state()(1);
-  double x_c = x_old;
-  double y_c = x_old;
-  //double L1_box = shape_kf.state()(0);
-  //double L2_box = shape_kf.state()(1);
-  double L1_box = L1_old;
-  double L2_box = L2_old;
+  double x_c = dynamic_kf.state()(0);
+  double y_c = dynamic_kf.state()(1);
+  //double x_c = x_old;
+  //double y_c = x_old;
+  double L1_box = shape_kf.state()(0);
+  double L2_box = shape_kf.state()(1);
+  //double L1_box = L1_old;
+  //double L2_box = L2_old;
   //double theta_corner = shape_kf.state()(2);
-
 
   double x_corner_L1= x_c + L1_box*cos(theta_corner);
   double y_corner_L1= y_c + L1_box*sin(theta_corner);
@@ -245,6 +243,7 @@ void LshapeTracker::detectCornerPointSwitchMahalanobis(const double& from, const
    C(3,2) = shape_kf.P(1,0);
    C(3,3) = shape_kf.P(1,1);
    C(4,4) = shape_kf.P(2,2);
+
    Eigen::Matrix<double, 5, 1> means;
    means(0) = x_c - x_new;
    means(1) = y_c - y_new;
