@@ -27,7 +27,7 @@ public:
   LshapeTracker(const double& x_corner, const double& y_corner, const double& L1, const double& L2, const double& theta, const double& dt);
   LshapeTracker();
   void update(const double& thetaL1, const double& x_corner, const double& y_corner, const double& L1, const double& L2, const double& dt, const int cluster_size);
-  void BoxModelUKF(double& x, double& y,double& vx, double& vy,double& theta, double& psi, double& omega, double& L1, double& L2);
+  void BoxModelUKF(double& x, double& y,double& vx, double& vy,double& theta, double& psi, double& omega, double& L1, double& L2, double& length, double& width);
 
   //void updateKalman(const Point& corner_point, const double& L1, const double& L2, const double& theta, const double& dt);
   //void updateShape(const double& L1, const double& L2, const double& theta, const double& dt);
@@ -62,5 +62,5 @@ private:
    * \vy velocity in the y axis
    * \orientation orientation of tracked object, based on it's speed
    */
-  double findOrientation(const double& angle, const double& vx, const double& vy);
+  void findOrientation(double& psi, double& length, double& width);
 };

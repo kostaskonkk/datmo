@@ -308,7 +308,7 @@ void LshapeTracker::detectCornerPointSwitchMahalanobis(const double& from, const
 
 }
 
-void LshapeTracker::BoxModelUKF(double& x, double& y,double& vx, double& vy,double& theta, double& psi, double& omega, double& L1, double& L2){
+void LshapeTracker::BoxModelUKF(double& x, double& y,double& vx, double& vy,double& theta, double& psi, double& omega, double& L1, double& L2, double& length, double& width){
   L1 = shape_kf.state()(0);
   L2 = shape_kf.state()(1);
   theta = shape_kf.state()(2);
@@ -335,9 +335,7 @@ void LshapeTracker::BoxModelUKF(double& x, double& y,double& vx, double& vy,doub
   vx = dynamic_kf.state()(2);
   vy = dynamic_kf.state()(3);
 
-  psi = findOrientation(theta, vx, vy);
-  //psi = test3;
-
+  findOrientation(psi, length, width);
 }
 
 
@@ -356,7 +354,6 @@ double LshapeTracker::findTurn(const double& new_angle, const double& old_angle)
 
 void LshapeTracker::detectCornerPointSwitch(const double& from, const double& to, const double dt){
   //Corner Point Switch Detection
-  
   double turn = findTurn(from, to);
     if(turn <-0.8){
      this->CounterClockwisePointSwitch();
@@ -371,17 +368,17 @@ void LshapeTracker::detectCornerPointSwitch(const double& from, const double& to
     }
 }
 
-double LshapeTracker::findOrientation(const double& angle, const double& vx, const double& vy){
+void LshapeTracker::findOrientation(double& psi, double& length, double& width){
   //This function finds the orientation of a moving object, when given an L-shape orientation
 
   std::vector<double> angles;
-  double angle_norm = normalize_angle(angle);
+  double angle_norm = normalize_angle(shape_kf.state()(2));
   angles.push_back(angle_norm);
   angles.push_back(angle_norm + pi);
   angles.push_back(angle_norm + pi/2);
   angles.push_back(angle_norm + 3*pi/2);
 
-  double vsp = atan2(vy,vx);
+  double vsp = atan2(dynamic_kf.state()(3),dynamic_kf.state()(2));
   double min = 1.56;
   double distance;
   double orientation;
@@ -395,14 +392,15 @@ double LshapeTracker::findOrientation(const double& angle, const double& vx, con
     }
   } 
   if(pos ==0 || pos==1){
-    //sides = true;
+    length = shape_kf.state()(0);
+    width  = shape_kf.state()(1);
   }
   else{
-    //sides = false;
+    length = shape_kf.state()(1);
+    width  = shape_kf.state()(0);
   }
 
-  double normalized = normalize_angle(orientation);
-  return normalized;
+  psi = normalize_angle(orientation);
   
 }
 

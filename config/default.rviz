@@ -67,7 +67,7 @@ Visualization Manager:
         clustered_points: true
         clusters: false
         lines: false
-        thetaBox: false
+        thetaBox: true
         thetaL1: false
         thetaL2: false
         velocities: false
