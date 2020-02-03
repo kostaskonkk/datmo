@@ -58,7 +58,7 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   LshapeTracker l_shape_tracker_ukf(closest_corner_point.first, closest_corner_point.second, L1, L2, normalize_angle(thetaL1), dt);
   this->Lshape = l_shape_tracker_ukf;
   //Lshape.BoxModelUKF(cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, L1_box_ukf, L2_box_ukf, th_ukf, psi_ukf, comega_ukf);
-  Lshape.BoxModelUKF(x_ukf,  y_ukf, vx_ukf,  vy_ukf, cx, cy, cvx, cvy, th, psi, comega, L1_box, L2_box, length_box, width_box);
+  Lshape.BoxModelUKF(x_ukf,  y_ukf, vx_ukf,  vy_ukf, omega_ukf, cx, cy, cvx, cvy, th, psi, comega, L1_box, L2_box, length_box, width_box);
   
   populateTrackingMsgs(dt);
 }
@@ -97,7 +97,7 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
 
   //l_shape.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
   //Lshape.BoxModelUKF(cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, th_ukf, psi_ukf, comega_ukf, L1_box_ukf, L2_box_ukf);
-  Lshape.BoxModelUKF(x_ukf,  y_ukf, vx_ukf,  vy_ukf, cx, cy, cvx, cvy, th, psi, comega, L1_box, L2_box, length_box, width_box);
+  Lshape.BoxModelUKF(x_ukf,  y_ukf, vx_ukf,  vy_ukf, omega_ukf, cx, cy, cvx, cvy, th, psi, comega, L1_box, L2_box, length_box, width_box);
 
   populateTrackingMsgs(dt);
 
@@ -138,7 +138,9 @@ void Cluster::populateTrackingMsgs(const double& dt){
   msg_track_box_ukf.odom.pose.pose.orientation = tf2::toMsg(quaternion);
   msg_track_box_ukf.odom.twist.twist.linear.x    = vx_ukf;
   msg_track_box_ukf.odom.twist.twist.linear.y    = vy_ukf;
-  //msg_track_box_ukf.odom.twist.twist.angular.z   = comega_ukf;
+  msg_track_box_ukf.odom.twist.twist.angular.z   = omega_ukf;
+  msg_track_box_ukf.length = length_box;
+  msg_track_box_ukf.width  = width_box;
   //bool side2;
   //psi = findOrientation(psi_ukf, cvx_ukf, cvy_ukf, side2);
   

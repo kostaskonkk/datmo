@@ -27,17 +27,9 @@ public:
   LshapeTracker(const double& x_corner, const double& y_corner, const double& L1, const double& L2, const double& theta, const double& dt);
   LshapeTracker();
   void update(const double& thetaL1, const double& x_corner, const double& y_corner, const double& L1, const double& L2, const double& dt, const int cluster_size);
-  void BoxModelUKF(double& x, double& y,double& vx, double& vy,double& theta, double& psi, double& omega, double& L1, double& L2, double& length, double& width);
-  void BoxModelUKF(double& x_ukf, double& y_ukf,double& vx_ukf, double& vy_ukf, double& x, double& y,double& vx, double& vy,double& theta, double& psi, double& omega, double& L1, double& L2, double& length, double& width);
+  void BoxModelUKF(double& x, double& y,double& vx, double& vy, double& omega_ukf, double& theta, double& psi, double& omega, double& L1, double& L2, double& length, double& width);
+  void BoxModelUKF(double& x_ukf, double& y_ukf,double& vx_ukf, double& omega_ukf, double& vy_ukf, double& x, double& y,double& vx, double& vy,double& theta, double& psi, double& omega, double& L1, double& L2, double& length, double& width);
 
-  //void updateKalman(const Point& corner_point, const double& L1, const double& L2, const double& theta, const double& dt);
-  //void updateShape(const double& L1, const double& L2, const double& theta, const double& dt);
-  //void updateDynamic(const Point& corner_point, const double& dt); 
-  //void BoxModelKalman(double& x, double& y, double& vx, double& vy, double& L1, double& L2, double& th, double& omega);
-  //void ClockwisePointSwitch();
-  //void CounterClockwisePointSwitch();
-  //double findTurn(double& new_angle, double& old_angle);
-  //void detectCornerPointSwitch(double& from, double& to);
 private:
   int current_size;
   double test1, test2, test3;

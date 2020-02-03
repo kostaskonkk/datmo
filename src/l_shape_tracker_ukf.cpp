@@ -307,11 +307,11 @@ void LshapeTracker::detectCornerPointSwitchMahalanobis(const double& from, const
 
 }
 
-  void LshapeTracker::BoxModelUKF(double& x_ukf, double& y_ukf,double& vx_ukf, double& vy_ukf, double& x, double& y,double& vx, double& vy,double& theta, double& psi, double& omega, double& L1, double& L2, double& length, double& width){
+  void LshapeTracker::BoxModelUKF(double& x_ukf, double& y_ukf,double& vx_ukf, double& vy_ukf, double& omega_ukf,double& x, double& y,double& vx, double& vy,double& theta, double& psi, double& omega, double& L1, double& L2, double& length, double& width){
   L1 = shape_kf.state()(0);
   L2 = shape_kf.state()(1);
   theta = shape_kf.state()(2);
-  //omega = ukf.getState()(Vyaw);
+  omega_ukf = ukf.getState()(Vyaw);
   //Equations 30 of "L-Shape Model Switching-Based precise motion tracking of moving vehicles"
   double ex = (L1 * cos(theta) + L2 * sin(theta)) /2;
   double ey = (L1 * sin(theta) - L2 * cos(theta)) /2;
