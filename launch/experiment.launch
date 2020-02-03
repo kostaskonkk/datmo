@@ -8,7 +8,7 @@
   <!--<node pkg="rosbag" type="play" name="player" required="true" output="screen" args="-s 15.5 -r 0.2 -u 3.2 -l $(find datmo)/examples/$(arg bag)"/>-->
   <!--<node pkg="rosbag" type="play" name="player" required="true" output="screen" args="-s 10 -r 1 -clock $(find datmo)/examples/$(arg bag).bag"/>-->
   <node pkg="rosbag" type="play" name="player" required="true" output="screen" args=" -r 1 --clock $(find datmo)/examples/$(arg bag).bag"/>
-  <node pkg="rosbag" type="record" name="recorder" output="screen" args="-O /home/kostas/results/experiment/$(arg bag)_new.bag /tf /tracks/box_kf /tracks/box_ukf /ego_pose /red_pose" />
+  <node pkg="rosbag" type="record" name="recorder" output="screen" args="-O /home/kostas/results/experiment/$(arg bag).bag /tf /tracks/box_kf /tracks/box_ukf /ego_pose /red_pose" />
 
   <node type="rviz" name="rviz" pkg="rviz" args="-d $(find datmo)/config/default.rviz" />
   <node pkg="tf2_ros" type="static_transform_publisher" name="link_laser" args="-0.12 0 0 0 0 0 /ego_pose /laser" />
