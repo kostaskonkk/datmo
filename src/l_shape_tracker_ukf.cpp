@@ -31,8 +31,7 @@ static inline double shortest_angular_distance(double from, double to){
 
 LshapeTracker::LshapeTracker(){}//Creates a blank estimator
 
-//LshapeTracker::LshapeTracker(const double& L1, const double& L2, const double& theta, const double& dt){
-  LshapeTracker::LshapeTracker(const double& x_corner, const double& y_corner, const double& L1, const double& L2, const double& theta, const double& dt){
+LshapeTracker::LshapeTracker(const double& x_corner, const double& y_corner, const double& L1, const double& L2, const double& theta, const double& dt){
 
   // Initialization of Dynamic Kalman Filter
   int n = 6; // Number of states
@@ -308,7 +307,7 @@ void LshapeTracker::detectCornerPointSwitchMahalanobis(const double& from, const
 
 }
 
-void LshapeTracker::BoxModelUKF(double& x, double& y,double& vx, double& vy,double& theta, double& psi, double& omega, double& L1, double& L2, double& length, double& width){
+  void LshapeTracker::BoxModelUKF(double& x_ukf, double& y_ukf,double& vx_ukf, double& vy_ukf, double& x, double& y,double& vx, double& vy,double& theta, double& psi, double& omega, double& L1, double& L2, double& length, double& width){
   L1 = shape_kf.state()(0);
   L2 = shape_kf.state()(1);
   theta = shape_kf.state()(2);
@@ -316,19 +315,17 @@ void LshapeTracker::BoxModelUKF(double& x, double& y,double& vx, double& vy,doub
   //Equations 30 of "L-Shape Model Switching-Based precise motion tracking of moving vehicles"
   double ex = (L1 * cos(theta) + L2 * sin(theta)) /2;
   double ey = (L1 * sin(theta) - L2 * cos(theta)) /2;
-  //x = ukf.getState()(X) + ex;
-  //y = ukf.getState()(Y) + ey;
+  x_ukf = ukf.getState()(X) + ex;
+  y_ukf = ukf.getState()(Y) + ey;
 
   //Equations 31 of "L-Shape Model Switching-Based precise motion tracking of moving vehicles"
   //TODO test the complete equation also
-  //vx = ukf.getState()(Vx);
-  //vy = ukf.getState()(Vy);
+  vx_ukf = ukf.getState()(Vx);
+  vy_ukf = ukf.getState()(Vy);
 
   omega = shape_kf.state()(3);
   x = dynamic_kf.state()(0) + ex;
   y = dynamic_kf.state()(1) + ey;
-  //x = test1;
-  //y = test2;
 
   //Equations 31 of "L-Shape Model Switching-Based precise motion tracking of moving vehicles"
   //TODO test the complete equation also

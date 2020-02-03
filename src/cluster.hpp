@@ -58,6 +58,7 @@ public:
   double old_thetaL1;
   double L1, L2, thetaL1, thetaL2;
   double cx, cy, cvx, cvy, L1_box, L2_box, th, psi, comega, length_box, width_box; 
+  double x_ukf,  y_ukf, vx_ukf,  vy_ukf;
   //double cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, L1_box_ukf, L2_box_ukf, th_ukf, psi_ukf, comega_ukf; 
   //double orientation;
 
