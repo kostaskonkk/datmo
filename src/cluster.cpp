@@ -138,7 +138,8 @@ void Cluster::populateTrackingMsgs(const double& dt){
   msg_track_box_ukf.odom.pose.pose.orientation = tf2::toMsg(quaternion);
   msg_track_box_ukf.odom.twist.twist.linear.x    = vx_ukf;
   msg_track_box_ukf.odom.twist.twist.linear.y    = vy_ukf;
-  msg_track_box_ukf.odom.twist.twist.angular.z   = omega_ukf;
+  //msg_track_box_ukf.odom.twist.twist.angular.z   = omega_ukf;
+  msg_track_box_ukf.odom.twist.twist.angular.z   = comega;
   msg_track_box_ukf.length = length_box;
   msg_track_box_ukf.width  = width_box;
   //bool side2;
