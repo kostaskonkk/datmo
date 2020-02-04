@@ -3,7 +3,7 @@
   <param name="use_sim_time" value="true" />
 
   <node pkg="rosbag" type="play" name="player" required="true" output="log" args="-r 1 --clock /home/kostas/Dropbox/experiments/simulation/$(arg bag)"/>
-  <node pkg="rosbag" type="record" name="recorder" output="screen" args="-O /home/kostas/results/simulation/$(arg bag) /ego_pose /prius_fast /prius_slow /tracks/mean /tracks/mean_kf /tracks/box_kf /tracks/box_ukf "/>
+  <node pkg="rosbag" type="record" name="recorder" output="screen" args="-O /home/kostas/results/simulation/$(arg bag)_new /ego_pose /prius_fast /prius_slow /tracks/box_kf /tracks/box_ukf "/>
 
   <node name="rviz" pkg="rviz" type="rviz" required="true" args="-d $(find datmo)/config/simulation.rviz" />
 
@@ -14,7 +14,6 @@
       <param name="threshold_distance" value="1" />
       <param name="euclidean_distance" value="1.7" />
       <param name="pub_markers" value="true" />
-      <param name="write_execution_times" value="true" />
    </node>
 
 </launch>

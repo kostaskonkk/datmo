@@ -117,10 +117,9 @@ LshapeTracker::LshapeTracker(const double& x_corner, const double& y_corner, con
   int STATE_SIZE = 5;
   Eigen::MatrixXd initialCovar(STATE_SIZE, STATE_SIZE);
   initialCovar.setIdentity();
-  initialCovar *= 0.01;
-  initialCovar(2,2) *= 5;
-  initialCovar(3,3) *= 5;
-  initialCovar(4,4) *= 0.5;
+  initialCovar(2,2) *= 10;
+  initialCovar(3,3) *= 10;
+  initialCovar(4,4) *= 1;
   ukf_init.setEstimateErrorCovariance(initialCovar);
 
   Eigen::VectorXd initial_state(5);
@@ -149,6 +148,7 @@ void LshapeTracker::update(const double& thetaL1, const double& x_corner, const 
 
   double norm = normalize_angle(shape_kf.state()(2));
   double distance = shortest_angular_distance(norm, thetaL1);
+  ROS_INFO_STREAM("thetaL1: "<<thetaL1<<",state: "<<shape_kf.state()(2)<<", norm: "<<norm<<", distance: "<<distance);
   double theta = distance + shape_kf.state()(2) ;
   
   // Update Dynamic Kalman Filter
@@ -161,8 +161,10 @@ void LshapeTracker::update(const double& thetaL1, const double& x_corner, const 
   double L1max, L2max;
   L2max = L2;
   L1max = L1;
-  shape_kf.R<< 0.8/L1, 0, 0,
-               0, 0.8/L2, 0,
+  shape_kf.R<< 1/L1, 0, 0,
+               0, 1/L2, 0,
+  //shape_kf.R<< (L1+L2)/L1, 0, 0,
+               //0, (L1+L2)/L2, 0,
                0,      0, 0.5;
   shape_measurements << L1max, L2max, theta;
   shape_kf.update(shape_measurements, dt);
