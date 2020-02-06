@@ -163,8 +163,6 @@ void LshapeTracker::update(const double& thetaL1, const double& x_corner, const 
   L1max = L1;
   shape_kf.R<< 1/L1, 0, 0,
                0, 1/L2, 0,
-  //shape_kf.R<< (L1+L2)/L1, 0, 0,
-               //0, (L1+L2)/L2, 0,
                0,      0, 0.5;
   shape_measurements << L1max, L2max, theta;
   shape_kf.update(shape_measurements, dt);
@@ -178,7 +176,7 @@ void LshapeTracker::update(const double& thetaL1, const double& x_corner, const 
 
   Eigen::MatrixXd measurementCovariance(2, 2);
   measurementCovariance.setIdentity();
-  measurementCovariance *= 0.01;
+  measurementCovariance *= 0.001;
 
   updateVector[0]=true;
   updateVector[1]=true;
