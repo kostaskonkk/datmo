@@ -148,7 +148,7 @@ void LshapeTracker::update(const double& thetaL1, const double& x_corner, const 
 
   double norm = normalize_angle(shape_kf.state()(2));
   double distance = shortest_angular_distance(norm, thetaL1);
-  ROS_INFO_STREAM("thetaL1: "<<thetaL1<<",state: "<<shape_kf.state()(2)<<", norm: "<<norm<<", distance: "<<distance);
+  //ROS_INFO_STREAM("thetaL1: "<<thetaL1<<",state: "<<shape_kf.state()(2)<<", norm: "<<norm<<", distance: "<<distance);
   double theta = distance + shape_kf.state()(2) ;
   
   // Update Dynamic Kalman Filter
