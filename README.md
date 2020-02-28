@@ -31,7 +31,11 @@ In cases that the closest corner point of a tracked vehicle changes between meas
 <!--![Visualization of the association algorithm](https://github.com/kostaskonkk/datmo/raw/master/images/data_association.gif)-->
 
 
-In this [video](https://youtu.be/HfFZcYwsY3I?t=646) a presentation can be found, in which I explain some early features of this package.
+
+Below you can find a video of a presentation of mine, in which I explain some early features of this package.
+[![Midterm presentation](https://img.youtube.com/vi/HfFZcYwsY3I/0.jpg)](https://www.youtube.com/watch?v=HfFZcYwsY3I "Midterm presentation")
+
+<!--In this [video](https://youtu.be/HfFZcYwsY3I?t=646) a presentation can be found, in which I explain some early features of this package.-->
 
 # Installation and use
 This ROS package can be installed in the following way:
