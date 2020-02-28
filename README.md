@@ -10,9 +10,13 @@ The detection part of the system is visualized in the following flowchart:
 In the clustering step the raw LIDAR measurements are divided to groups/clusters. In this way, the different objects in the environment are differentiatted.
 A simple way to do this is by separating clusters, based on the inbetween euclidean distance of LIDAR measurements. 
 Therefore, if the distance of two consequtive LIDAR measurements is greater than a predefined threshold distance the two points are divided in two separate clusters. 
-![Visualization of the breakpoint clustering algorithm](https://github.com/kostaskonkk/datmo/raw/master/images/breakpoint.gif)
+<!--![Visualization of the breakpoint clustering algorithm](https://github.com/kostaskonkk/datmo/raw/master/images/breakpoint.gif)-->
+![Visualization of the breakpoint clustering algorithm](https://github.com/kostaskonkk/datmo/raw/master/images/breakpoint.png)
 The LIDAR measurements are clustered with the Adaptive Breakpoint Detector algorithm.\
 ![Visualization of the clustering algorithm](https://github.com/kostaskonkk/datmo/raw/master/images/clustering.gif)
+
+## Rectangle Fitting
+The clusters are furthermore fitted with rectangles to facilitate the tracking and shape estimation of vehicles. The rectangle fitting is based on the Search-Based Rectangle Fitting algorithm developed by Zhang et al., 2017 [2].
 
 The tracking part of the system is visualized in the following flowchart:
 ![Visualization of the tracking stage](https://github.com/kostaskonkk/datmo/raw/master/images/flowchart_tracking.png)
@@ -21,7 +25,6 @@ The tracking part of the system is visualized in the following flowchart:
 The clusters are tracked between time frames by a Nearest Neighbour data association scheme, with a Mahalanobis Distance criterion.\
 ![Visualization of the association algorithm](https://github.com/kostaskonkk/datmo/raw/master/images/association.gif)
 <!--![Visualization of the association algorithm](https://github.com/kostaskonkk/datmo/raw/master/images/data_association.gif)-->
-* Rectangle Fitting - the clusters are furthermore fitted with rectangles to facilitate the tracking and shape estimation of vehicles. The rectangle fitting is based on the Search-Based Rectangle Fitting algorithm developed by Zhang et al., 2017 [2].
 
 In this [video](https://youtu.be/HfFZcYwsY3I?t=646) a presentation can be found, in which I explain some early features of this package.
 
