@@ -3,8 +3,15 @@ Detection and Tracking of Moving Objects with 2D LIDAR
 # Overview 
 Detection and Tracking of Moving Objects using `sensor_msgs/LaserScan`. This node can be used to detect and track objects or it can be used solely for its data clustering, data association and rectangle fitting functions. The workflow of this package is inspired by the one presented in Kim et al., 2018 [1]. 
 
+The detection part of the system is visualized in the following flowchart:
+![Visualization of the detection stage](https://github.com/kostaskonkk/datmo/raw/master/images/flowchart_detection.png)
+
 * Clustering - this node clusters data points by using the Adaptive Breakpoint Detector algorithm.\
 ![Visualization of the clustering algorithm](https://github.com/kostaskonkk/datmo/raw/master/images/clustering.gif)
+
+The tracking part of the system is visualized in the following flowchart:
+![Visualization of the tracking stage](https://github.com/kostaskonkk/datmo/raw/master/images/flowchart_tracking.png)
+
 * Data Association - the clusters are tracked between time frames by a Nearest Neighbour data association scheme, with a Mahalanobis Distance criterion.\
 ![Visualization of the association algorithm](https://github.com/kostaskonkk/datmo/raw/master/images/data_association.gif)
 * Rectangle Fitting - the clusters are furthermore fitted with rectangles to facilitate the tracking and shape estimation of vehicles. The rectangle fitting is based on the Search-Based Rectangle Fitting algorithm developed by Zhang et al., 2017 [2].
