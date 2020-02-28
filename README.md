@@ -7,6 +7,10 @@ The detection part of the system is visualized in the following flowchart:
 ![Visualization of the detection stage](https://github.com/kostaskonkk/datmo/raw/master/images/flowchart_detection.png)
 
 ## Clustering 
+In the clustering step the raw LIDAR measurements are divided to groups/clusters. In this way, the different objects in the environment are differentiatted.
+A simple way to do this is by separating clusters, based on the inbetween euclidean distance of LIDAR measurements. 
+Therefore, if the distance of two consequtive LIDAR measurements is greater than a predefined threshold distance the two points are divided in two separate clusters. 
+![Visualization of the breakpoint clustering algorithm](https://github.com/kostaskonkk/datmo/raw/master/images/breakpoint.gif)
 The LIDAR measurements are clustered with the Adaptive Breakpoint Detector algorithm.\
 ![Visualization of the clustering algorithm](https://github.com/kostaskonkk/datmo/raw/master/images/clustering.gif)
 
