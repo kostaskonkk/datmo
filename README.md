@@ -3,11 +3,33 @@ Detection and Tracking of Moving Objects with 2D LIDAR
 # Overview 
 Detection and Tracking of Moving Objects using `sensor_msgs/LaserScan`. This node can be used to detect and track objects or it can be used solely for its data clustering, data association and rectangle fitting functions. The workflow of this package is inspired by the one presented in Kim et al., 2018 [1]. 
 
-* Clustering - this node clusters data points by using the Adaptive Breakpoint Detector algorithm.\
-![Visualization of the clustering algorithm](https://github.com/kostaskonkk/datmo/raw/master/images/clustering.gif)
-* Data Association - the clusters are tracked between time frames by a Nearest Neighbour data association scheme, with a Mahalanobis Distance criterion.\
-![Visualization of the association algorithm](https://github.com/kostaskonkk/datmo/raw/master/images/data_association.gif)
-* Rectangle Fitting - the clusters are furthermore fitted with rectangles to facilitate the tracking and shape estimation of vehicles. The rectangle fitting is based on the Search-Based Rectangle Fitting algorithm developed by Zhang et al., 2017 [2].
+The detection part of the system is visualized in the following flowchart:
+![Visualization of the detection stage](https://github.com/kostaskonkk/datmo/raw/master/images/flowchart_detection.png)
+
+## Clustering 
+In the clustering step the raw LIDAR measurements are divided to groups/clusters. In this way, the different objects in the environment are differentiatted.
+A simple way to do this is by separating clusters, based on the inbetween euclidean distance of LIDAR measurements. 
+Therefore, if the distance of two consequtive LIDAR measurements is greater than a predefined threshold distance the two points are divided in two separate clusters.
+![Visualization of the breakpoint clustering algorithm](https://github.com/kostaskonkk/datmo/raw/master/images/breakpoint.png)
+The LIDAR measurements are clustered with the Adaptive Breakpoint Detector algorithm.\
+<!--![Visualization of the clustering algorithm](https://github.com/kostaskonkk/datmo/raw/master/images/clustering.gif)-->
+
+## Rectangle Fitting
+The clusters are furthermore fitted with rectangles to facilitate the tracking and shape estimation of vehicles. The rectangle fitting is based on the Search-Based Rectangle Fitting algorithm developed by Zhang et al., 2017 [2].
+
+The tracking part of the system is visualized in the following flowchart:
+![Visualization of the tracking stage](https://github.com/kostaskonkk/datmo/raw/master/images/flowchart_tracking.png)
+
+## Data Association
+The clusters are tracked between time frames by a Nearest Neighbour data association scheme, with a Mahalanobis Distance criterion.\
+![Visualization of the association algorithm](https://github.com/kostaskonkk/datmo/raw/master/images/association.gif)
+<!--![Visualization of the association algorithm](https://github.com/kostaskonkk/datmo/raw/master/images/data_association.gif)-->
+
+## Corner Switching
+In cases that the closest corner point of a tracked vehicle changes between measurements, this is detected by comparing the Mahalanobis distance of the four corner points of the vehicle with that of the new L-shape.
+![Visualization of the corner switching scheme](https://github.com/kostaskonkk/datmo/raw/master/images/corner.gif)
+<!--![Visualization of the association algorithm](https://github.com/kostaskonkk/datmo/raw/master/images/data_association.gif)-->
+
 
 In this [video](https://youtu.be/HfFZcYwsY3I?t=646) a presentation can be found, in which I explain some early features of this package.
 
