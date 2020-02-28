@@ -10,7 +10,6 @@
 
    <node pkg="datmo" type="datmo" name="datmo" >
       <param name="max_cluster_size" value="50" />
-      <param name="write_execution_times" value="true" />
       <param name="lidar_frame" value="laser" />
       <param name="world_frame" value="map" />
       <param name="threshold_distance" value="0.17" />
