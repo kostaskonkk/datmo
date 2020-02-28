@@ -6,13 +6,16 @@ Detection and Tracking of Moving Objects using `sensor_msgs/LaserScan`. This nod
 The detection part of the system is visualized in the following flowchart:
 ![Visualization of the detection stage](https://github.com/kostaskonkk/datmo/raw/master/images/flowchart_detection.png)
 
-* Clustering - this node clusters data points by using the Adaptive Breakpoint Detector algorithm.\
+## Clustering 
+The LIDAR measurements are clustered with the Adaptive Breakpoint Detector algorithm.\
 ![Visualization of the clustering algorithm](https://github.com/kostaskonkk/datmo/raw/master/images/clustering.gif)
 
 The tracking part of the system is visualized in the following flowchart:
 ![Visualization of the tracking stage](https://github.com/kostaskonkk/datmo/raw/master/images/flowchart_tracking.png)
 
-* Data Association - the clusters are tracked between time frames by a Nearest Neighbour data association scheme, with a Mahalanobis Distance criterion.\
+## Data Association
+The clusters are tracked between time frames by a Nearest Neighbour data association scheme, with a Mahalanobis Distance criterion.\
+![Visualization of the association algorithm](https://github.com/kostaskonkk/datmo/raw/master/images/association.gif)
 ![Visualization of the association algorithm](https://github.com/kostaskonkk/datmo/raw/master/images/data_association.gif)
 * Rectangle Fitting - the clusters are furthermore fitted with rectangles to facilitate the tracking and shape estimation of vehicles. The rectangle fitting is based on the Search-Based Rectangle Fitting algorithm developed by Zhang et al., 2017 [2].
 
