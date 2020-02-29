@@ -18,12 +18,19 @@ In the clustering step the raw LIDAR measurements are divided to groups/clusters
 A simple way to do this is by separating clusters, based on the inbetween euclidean distance of LIDAR measurements. 
 Therefore, if the distance of two consequtive LIDAR measurements is greater than a predefined threshold distance the two points are divided in two separate clusters.
 ![Visualization of the breakpoint clustering algorithm](https://github.com/kostaskonkk/datmo/raw/master/images/clustering.png)
-The LIDAR measurements are clustered with the Adaptive Breakpoint Detector algorithm.
+However, since LIDAR measurements become less dense as the distance from the sensor increases, objects
+For this reason, the threshold distance should be adapted in a way that it increses in relation with the range distance.
+In this system, this is achieved by using the Adaptive Breakpoint Detector algorithm.
+Its operation is visualized in the right side of the above figure and the equation that it uses is given below it.
 
 ### Rectangle Fitting and L-shape extraction
-The clusters are furthermore fitted with rectangles to facilitate the tracking and shape estimation of vehicles. 
-The rectangle fitting is based on the Search-Based Rectangle Fitting algorithm developed by Zhang et al., 2017 [2].
+In this step, rectangles are fitted onto the extracted clusters are fitted with rectangles.
+This is done to increase the tracking accuracy and shape estimation of rectangular objects. 
+The algorithm used for rectangle fitting is the Search-Based Rectangle Fitting algorithm developed by Zhang et al., 2017 [2].
 ![Rectangle Fitting](https://github.com/kostaskonkk/datmo/raw/master/images/rectangle_fitting.png)
+After rectangle fitting, L-shapes are extracted from all the rectangles.
+L-shapes represent the corner of the rectangle closer to the sensor and its two adjacent sides.
+Therefore, every L-shape contains five measurements, the position of the corner point, the orientation of the rectangle (theta) and the length of its sides (L1, L2).
 
 
 ## Tracking
@@ -32,11 +39,11 @@ The tracking part of the system is visualized in the following flowchart:
 ![Visualization of the tracking stage](https://github.com/kostaskonkk/datmo/raw/master/images/flowchart_tracking.png)
 
 ### Data Association
-The clusters are tracked between time frames by a Nearest Neighbour data association scheme, with a Mahalanobis Distance criterion.\
+The clusters are tracked between time frames by a Nearest Neighbour data association scheme, with a Euclidean distance criterion.\
 ![Visualization of the association algorithm](https://github.com/kostaskonkk/datmo/raw/master/images/association.gif)
 <!--![Visualization of the association algorithm](https://github.com/kostaskonkk/datmo/raw/master/images/data_association.gif)-->
 
-### Corner Switching
+### Apperance Change Detector
 In cases that the closest corner point of a tracked vehicle changes between measurements, this is detected by comparing the Mahalanobis distance of the four corner points of the vehicle with that of the new L-shape.
 ![Visualization of the corner switching scheme](https://github.com/kostaskonkk/datmo/raw/master/images/corner.gif)
 <!--![Visualization of the association algorithm](https://github.com/kostaskonkk/datmo/raw/master/images/data_association.gif)-->
@@ -84,8 +91,8 @@ scan(sensor_msgs/LaserScan) - This topic should be created be your LIDAR sensor.
 
 This node can publish a variety of topics but the final configuration depends on the user. By default the majority of the topics are disabled and they should be enabled through the launch file configuration.
 
-**marker_array (visualization_msgs/MarkerArray)** - In this topic a  variety of Rviz markers are published, which can facilitate in understanding the inner workings of the program.\
-**tracks/box_kf (datmo/TrackArray)** - In this topic the  output of a Kalman Filter with a Constant Velocity model, which tracks the center of the box that surrounds the clusters is published.
+**marker_array (visualization_msgs/MarkerArray)** - In this topic a variety of Rviz markers are published, which can facilitate in understanding the inner workings of the program.\
+**tracks/box_kf (datmo/TrackArray)** - In this topic the output of a Kalman Filter with a Constant Velocity model, which tracks the center of the box that surrounds the clusters is published.
 **tracks/box_ukf (datmo/TrackArray)** - In this topic the output of an Unscented Kalman Filter (UKF) with an omnidirectional motion model, which tracks the center of the box that surrounds the clusters is published.
 
 Note: In case that the marker_array topic is published from a robot and visualized in computer, which has a different version of ROS installed (kinetic, melodic, ...), the msgs will not be published and the datmo node will crash with an md5sum error. To mitigate this, you should install on your robot the visualization msgs package of the ROS installation that runs on your computer.
