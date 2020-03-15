@@ -103,10 +103,10 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
     //Update Tracked Clusters
     #pragma omp parallel for
     for(unsigned int p=0; p<pairs.size();++p){
-	clusters[pairs[p].first].update(point_clusters[pairs[p].second], dt, ego_pose);
+      clusters[pairs[p].first].update(point_clusters[pairs[p].second], dt, ego_pose);
     }
        
-     //Delete Not Associated Clusters
+    //Delete Not Associated Clusters
     unsigned int o=0;
     unsigned int p = clusters.size();
     while(o<p){
@@ -143,21 +143,19 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
       track_array_box_ukf.tracks.push_back(clusters[i].msg_track_box_ukf);
      
       if (p_marker_pub){
-	marker_array.markers.push_back(clusters[i].getClosestCornerPointVisualisationMessage());
-	marker_array.markers.push_back(clusters[i].getBoundingBoxCenterVisualisationMessage());
-	marker_array.markers.push_back(clusters[i].getArrowVisualisationMessage());
-	marker_array.markers.push_back(clusters[i].getThetaL1VisualisationMessage());
-	marker_array.markers.push_back(clusters[i].getThetaL2VisualisationMessage());
-	marker_array.markers.push_back(clusters[i].getThetaBoxVisualisationMessage());
-	marker_array.markers.push_back(clusters[i].getClusterVisualisationMessage());
-	marker_array.markers.push_back(clusters[i].getBoundingBoxVisualisationMessage());
-	marker_array.markers.push_back(clusters[i].getBoxModelKFVisualisationMessage());
-	//marker_array.markers.push_back(clusters[i].getBoxModelUKFVisualisationMessage());
-	marker_array.markers.push_back(clusters[i].getLShapeVisualisationMessage());
-	marker_array.markers.push_back(clusters[i].getLineVisualisationMessage());
-	//marker_array.markers.push_back(clusters[i].getPoseCovariance());
+        marker_array.markers.push_back(clusters[i].getClosestCornerPointVisualisationMessage());
+        marker_array.markers.push_back(clusters[i].getBoundingBoxCenterVisualisationMessage());
+        marker_array.markers.push_back(clusters[i].getArrowVisualisationMessage());
+        marker_array.markers.push_back(clusters[i].getThetaL1VisualisationMessage());
+        marker_array.markers.push_back(clusters[i].getThetaL2VisualisationMessage());
+        marker_array.markers.push_back(clusters[i].getThetaBoxVisualisationMessage());
+        marker_array.markers.push_back(clusters[i].getClusterVisualisationMessage());
+        marker_array.markers.push_back(clusters[i].getBoundingBoxVisualisationMessage());
+        marker_array.markers.push_back(clusters[i].getBoxModelKFVisualisationMessage());
+        marker_array.markers.push_back(clusters[i].getLShapeVisualisationMessage());
+        marker_array.markers.push_back(clusters[i].getLineVisualisationMessage());
+        marker_array.markers.push_back(clusters[i].getBoxSolidVisualisationMessage());
       }; 
-
     }
 
     pub_marker_array.publish(marker_array);
@@ -169,8 +167,6 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
   else{ //If the tf is not possible init all states at 0
     ROS_WARN_STREAM("No transform could be found between "<<lidar_frame<<" and "<<world_frame);
   };
-
-    
 }
 void Datmo::visualiseGroupedPoints(const vector<pointList>& point_clusters){
   //Publishing the clusters with different colors
@@ -184,8 +180,8 @@ void Datmo::visualiseGroupedPoints(const vector<pointList>& point_clusters){
   gpoints.pose.orientation.w = 1.0;
   gpoints.type = visualization_msgs::Marker::POINTS;
   // POINTS markers use x and y scale for width/height respectively
-  gpoints.scale.x = 0.01;
-  gpoints.scale.y = 0.01;
+  gpoints.scale.x = 0.04;
+  gpoints.scale.y = 0.04;
   for(unsigned int i=0; i<point_clusters.size(); ++i){
 
     gpoints.id = cg;
@@ -226,7 +222,6 @@ void Datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<p
   vector< vector<float> > polar(c_points +1 ,vector<float>(2)); //c_points+1 for wrapping
   for(unsigned int i = 0; i<scan.ranges.size(); ++i){
     if(!isinf(scan.ranges[i])){
-
       polar[j][0] = scan.ranges[i]; //first column is the range 
       polar[j][1] = scan.angle_min + i*scan.angle_increment; //second angle in rad
       j++;
@@ -243,9 +238,17 @@ void Datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<p
   vector<bool> clustered1(c_points+1 ,false); //change to true when it is the first of the cluster
   vector<bool> clustered2(c_points+1 ,false); // change to true when it is clustered by another one
 
+  float l = 45; // λ is an acceptable angle for determining the points to be of the same cluster
+  l = l * 0.0174532;   // degree to radian conversion;
+  const float s = 0;   // σr is the standard deviation of the noise of the distance measure
   for (unsigned int i=0; i < c_points ; ++i){
-
+    double dtheta = polar[i+1][1]- polar[i][1];
+    double adaptive = min(polar[i][0],polar[i+1][0]) * (sin(dth)) / (sin(l - (dth))) + s; //Dthreshold
     d = sqrt( pow(polar[i][0],2) + pow(polar[i+1][0],2)-2 * polar[i][0]*polar[i+1][0]*cos(polar[i+1][1] - polar[i][1]));
+    //ROS_INFO_STREAM("distance: "<<dth<<", adapt: "<<adaptive<<", dtheta: "<<dtheta);
+    //if(polar[i+1][1]- polar[i][1]<0){
+      //ROS_INFO_STREAM("problem");
+    //}
 
     if(d<dth) {
       clustered1[i] = true; //both points belong to clusters
@@ -317,7 +320,6 @@ void Datmo::Clustering(const sensor_msgs::LaserScan::ConstPtr& scan_in, vector<p
     clusters.push_back(cluster);
   }
 }
-
 void Datmo::transformPointList(const pointList& in, pointList& out){
   //This funcion transforms pointlist between coordinate frames and it is a wrapper for the
   //transformPoint function

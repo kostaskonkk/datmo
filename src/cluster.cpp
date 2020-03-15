@@ -491,16 +491,16 @@ visualization_msgs::Marker Cluster::getThetaBoxVisualisationMessage() {
   arrow_marker.header.stamp    = ros::Time::now();
   arrow_marker.ns              = "thetaBox";
   arrow_marker.action          = visualization_msgs::Marker::ADD;
-  arrow_marker.color.a         = 1.0;
+  arrow_marker.color.a         = 0.5;
   arrow_marker.color.g         = this->g;
   arrow_marker.color.b         = this->b;
-  arrow_marker.color.r         = this->g;
+  arrow_marker.color.r         = this->r;
   arrow_marker.id              = this->id;
   arrow_marker.pose.position.x = cx;
   arrow_marker.pose.position.y = cy;
   arrow_marker.pose.position.z = 0;
-  arrow_marker.scale.x         = 0.4;
-  arrow_marker.scale.y         = 0.2;
+  arrow_marker.scale.x         = length_box;
+  arrow_marker.scale.y         = width_box;
   arrow_marker.scale.z         = 0.01;
 
   arrow_marker.header.frame_id = frame_name;
@@ -579,8 +579,8 @@ visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
   arrow_marker.color.b = b;
   arrow_marker.color.r = r;
   arrow_marker.id = this->id;
-  arrow_marker.scale.x = 0.1;    //Shaft diameter of the arrow
-  arrow_marker.scale.y = 0.2;    //Head  diameter of the arrow
+  arrow_marker.scale.x = 0.05;    //Shaft diameter of the arrow
+  arrow_marker.scale.y = 0.1;    //Head  diameter of the arrow
 
   geometry_msgs::Point p;
   p.x = cx; 
@@ -588,8 +588,8 @@ visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
   p.z = 0;
   arrow_marker.points.push_back(p);
 
-  p.x = cx + cvx *1.5; 
-  p.y = cy + cvy *1.5; 
+  p.x = cx + cvx *1; 
+  p.y = cy + cvy *1; 
   p.z = 0;
   arrow_marker.points.push_back(p);
   return arrow_marker;
@@ -605,8 +605,8 @@ visualization_msgs::Marker Cluster::getArrowVisualisationMessage() {
   corner_msg.pose.orientation.w = 1.0;    
   //corner_msg.scale.x = 0.3;
   //corner_msg.scale.y = 0.3;  
-  corner_msg.scale.x = 0.1;
-  corner_msg.scale.y = 0.1;  
+  corner_msg.scale.x = 0.08;
+  corner_msg.scale.y = 0.08;  
   corner_msg.color.a = 1.0;
   corner_msg.color.g = 0.0;
   corner_msg.color.b = 0.0;
@@ -675,10 +675,40 @@ visualization_msgs::Marker Cluster::getClusterVisualisationMessage() {
 
   return cluster_vmsg;
 }
+
+visualization_msgs::Marker Cluster::getBoxSolidVisualisationMessage() {
+
+
+  visualization_msgs::Marker marker;
+  marker.header.frame_id = frame_name;
+  marker.header.stamp = ros::Time::now();
+  marker.ns = "boxes";
+  marker.id = this->id;
+  marker.type = visualization_msgs::Marker::CUBE;
+  marker.action = visualization_msgs::Marker::ADD;
+
+  marker.pose.position.x = cx;
+  marker.pose.position.y = cy;
+  marker.pose.position.z = 0;
+
+  quaternion.setRPY(0, 0, psi);
+  marker.pose.orientation = tf2::toMsg(quaternion);
+
+  marker.scale.x = length_box;
+  marker.scale.y = width_box;
+  marker.scale.z = 0.01;
+
+  marker.color.r = this->r;
+  marker.color.g = this->g;
+  marker.color.b = this->b;
+  marker.color.a = 1.0;
+
+  return marker;
+}
+
 visualization_msgs::Marker Cluster::getLineVisualisationMessage() {
 
   visualization_msgs::Marker line_msg;
-
 
   line_msg.header.stamp = ros::Time::now();
   line_msg.header.frame_id  = frame_name;

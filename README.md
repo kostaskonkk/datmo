@@ -99,7 +99,7 @@ Note: In case that the marker_array topic is published from a robot and visualiz
 
 ## Custom Messages
 
-This package uses two custom msgs types `datmo/Track` and `datmo/TrackArray` to facilitate the publishing of its results. To my knowledge, at the time of developemnt, there was no standard ROS messages that accomplishes the same task. 
+This package uses two custom msgs types `datmo/Track` and `datmo/TrackArray` to facilitate the publishing of its results. To my knowledge, at the time of developement, there was no standard ROS messages that accomplishes the same task. 
 
 The `datmo/Track` message has the following structure:\
 int32 id - object ID, so it is possible to differentiate between different objects during tracking\
@@ -108,6 +108,15 @@ float32 width    Estimated width of the object\
 nav_msgs/Odometry odom - Estimated pose of the object
 
 The `datmo/TrackArray` message is an array that contains multiple datmo/Track messages, with the goal of efficient publishing.
+
+## Rviz markers
+In case that the  **pub_markers** flag is set to true, this package publishes visualization messages, which can be displayed in Rviz. The following messages are published:
+
+**closest_corner** - The closest corner point of surrounding vehicles is visualized with a black rectangle.\
+**bounding_box_center** - The center of the bounding box is visualized with a yellow rectangle.\
+**velocities** - The velocities of the tracked objects are represented with an arrow.\
+
+
 
 ## Parameters
 

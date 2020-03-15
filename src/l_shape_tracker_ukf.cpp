@@ -104,7 +104,11 @@ LshapeTracker::LshapeTracker(const double& x_corner, const double& y_corner, con
   this->shape_kf = shape_kalman_filter;
 
   VectorXd x0_shape(n);
-  x0_shape << L1, L2, theta, 0;
+  double L1init=0.1;
+  double L2init=0.1;
+  if(L1>L1init){L1init = L1;}
+  if(L2>L2init){L2init = L2;}
+  x0_shape << L1init, L2init, theta, 0;
   shape_kf.init(0,x0_shape);
 
 
@@ -161,8 +165,8 @@ void LshapeTracker::update(const double& thetaL1, const double& x_corner, const 
   double L1max, L2max;
   L2max = L2;
   L1max = L1;
-  shape_kf.R<< 1/L1, 0, 0,
-               0, 1/L2, 0,
+  shape_kf.R<< pow(L1,-2), 0, 0,
+               0, pow(L2,-2), 0,
                0,      0, 0.5;
   shape_measurements << L1max, L2max, theta;
   shape_kf.update(shape_measurements, dt);
