@@ -1,9 +1,10 @@
 Detection and Tracking of Moving Objects with 2D LIDAR
 ========================================
 This package aims to provide Detection and Tracking of Moving Objects capabilities to robotic platforms that are equipped with a 2D LIDAR sensor and publish 'sensor_msgs/LaseScan' ROS messages.
-Such a scenario would be the one visualized below, in which the black scaled car is equipped with a LIDAR sensor and it needs to track the motion of the red vehicle through the LIDAR measurements.
+Such a scenario would be the one visualized below, in which the black scaled car is equipped with a LIDAR sensor and it needs to track the motion of the red vehicle through the LIDAR measurements.\
 ![Example experiment](https://github.com/kostaskonkk/datmo/raw/master/images/experiment.gif)
-The output of this package is visualized below and it can be observed that it estimates position, velocity, orientation and dimensions of the red vehicle.
+
+The output of this package is visualized below and it can be observed that it estimates position, velocity, orientation and dimensions of the red vehicle.\
 ![Example experiment](https://github.com/kostaskonkk/datmo/raw/master/images/output.gif)
 
 It specializes in tracking of rectangle shaped objects and therefore it is most used in vehicle tracking.
