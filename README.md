@@ -81,15 +81,22 @@ git clone git@github.com:kostaskonkk/datmo.git
 cd ../..
 catkin_make
 ```
-The datmo package should be now installed to your computer. You can run it by typing:
+The datmo package should be now installed to your computer and you will be able to use it after sourcing your workspace. 
 
 ```
-roslaunch datmo datmo.launch
+source devel/setup.bash
 ```
-You can run a demo of it by typing:
+
+You can run a demonstration of the DATMO package by running:
 
 ```
 roslaunch datmo example.launch bag:=overtakes
+```
+
+You can run it by typing:
+
+```
+roslaunch datmo datmo.launch
 ```
 # ROS API
 ## Subscribed Topics
