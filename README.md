@@ -78,7 +78,7 @@ This ROS package can be installed in the following way:
 2. Run 
 ```sh
 git clone git@github.com:kostaskonkk/datmo.git
-cd ../..
+cd ..
 catkin_make
 ```
 The datmo package should be now installed to your computer and you will be able to use it after sourcing your workspace. 
