@@ -13,9 +13,9 @@ Datmo::Datmo(){
   n_private.param("euclidean_distance", euclidean_distance, 0.25);
   n_private.param("pub_markers", p_marker_pub, false);
 
-  pub_tracks_box_kf     = n.advertise<datmo::TrackArray>("tracks/box_kf", 10);
-  pub_tracks_box_ukf = n.advertise<datmo::TrackArray>("tracks/box_ukf", 10);
-  pub_marker_array   = n.advertise<visualization_msgs::MarkerArray>("marker_array", 10);
+  pub_tracks_box_kf     = n.advertise<datmo::TrackArray>("datmo/box_kf", 10);
+  pub_tracks_box_ukf = n.advertise<datmo::TrackArray>("datmo/box_ukf", 10);
+  pub_marker_array   = n.advertise<visualization_msgs::MarkerArray>("datmo/marker_array", 10);
   sub_scan = n.subscribe("/scan", 1, &Datmo::callback, this);
 
 }
