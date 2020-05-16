@@ -3,7 +3,6 @@
 #include "kalman-cpp/kalman.hpp"
 #include <Eigen/Dense>
 #include <ros/console.h>
-#include "ukf/ukf.h"
 
 using namespace Eigen;
 
@@ -12,30 +11,19 @@ typedef Eigen::Matrix<double, 6, 1> Vector6d;
 
 const double pi = 3.141592653589793238463; 
 
-enum StateMembers
-{
-  X,
-  Y,
-  Vx,
-  Vy,
-  Vyaw,
-};
-
 class LshapeTracker {
 public:
 
   LshapeTracker(const double& x_corner, const double& y_corner, const double& L1, const double& L2, const double& theta, const double& dt);
   LshapeTracker();
   void update(const double& thetaL1, const double& x_corner, const double& y_corner, const double& L1, const double& L2, const double& dt, const int cluster_size);
-  void BoxModelUKF(double& x, double& y,double& vx, double& vy, double& omega_ukf, double& theta, double& psi, double& omega, double& L1, double& L2, double& length, double& width);
-  void BoxModelUKF(double& x_ukf, double& y_ukf,double& vx_ukf, double& omega_ukf, double& vy_ukf, double& x, double& y,double& vx, double& vy,double& theta, double& psi, double& omega, double& L1, double& L2, double& length, double& width);
+  void BoxModel(double& x, double& y,double& vx, double& vy,double& theta, double& psi, double& omega, double& L1, double& L2, double& length, double& width);
 
 private:
   int current_size;
   double test1, test2, test3;
   double x_old, y_old, L1_old, L2_old, old_thetaL1;
 
-  RobotLocalization::Ukf ukf;
   KalmanFilter shape_kf;
   KalmanFilter dynamic_kf;
 

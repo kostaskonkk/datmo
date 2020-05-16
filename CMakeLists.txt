@@ -41,20 +41,15 @@ generate_messages(
 )
 
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES lidar_tracking
  CATKIN_DEPENDS roscpp std_msgs message_runtime
-#  DEPENDS system_lib
 )
 
 
 include_directories(
-# include
   ${catkin_INCLUDE_DIRS}
   ${Eigen_INCLUDE_DIRS}
 )
 
-
-add_executable(datmo  src/l_shape_tracker_ukf.cpp src/main.cpp src/kalman-cpp/kalman.cpp src/datmo.cpp src/cluster.cpp src/ukf/ukf.cpp src/ukf/filter_base.cpp src/ukf/filter_utilities.cpp)
+add_executable(datmo src/main.cpp src/l_shape_tracker.cpp src/kalman-cpp/kalman.cpp src/datmo.cpp src/cluster.cpp)
 add_dependencies(datmo ${catkin_EXPORTED_TARGETS})
 target_link_libraries(datmo ${catkin_LIBRARIES})

@@ -1,6 +1,6 @@
 #pragma once
 #include <ros/ros.h>
-#include "l_shape_tracker_ukf.hpp"
+#include "l_shape_tracker.hpp"
 #include <Eigen/Dense>
 #include <tf/transform_listener.h>
 #include <visualization_msgs/Marker.h>
@@ -13,7 +13,6 @@ using namespace Eigen;
 
 typedef std::pair<double, double> Point;
 typedef std::vector<Point> pointList;
-//const double pi = 3.141592653589793238463; 
 
 class Cluster {
 public:
@@ -25,7 +24,6 @@ public:
   Point ego_coordinates;
 
   datmo::Track msg_track_box_kf;
-  datmo::Track msg_track_box_ukf;
 
   unsigned long int id; //identifier for the cluster 
   unsigned long int age; //age of the cluster 
@@ -41,7 +39,6 @@ public:
   visualization_msgs::Marker getThetaBoxVisualisationMessage();
   visualization_msgs::Marker getBoundingBoxVisualisationMessage();
   visualization_msgs::Marker getBoxModelKFVisualisationMessage();
-  //visualization_msgs::Marker getBoxModelUKFVisualisationMessage();
   visualization_msgs::Marker getLShapeVisualisationMessage();
   visualization_msgs::Marker getBoxSolidVisualisationMessage();
 
@@ -51,19 +48,12 @@ public:
   double meanX() { return mean_values.first; };
   double meanY() { return mean_values.second;};
 
-  //LShapeTracker l_shape; 
   LshapeTracker Lshape; 
-  //RobotLocalization::Ukf ukf;
 
   double old_thetaL1;
   double L1, L2, thetaL1, thetaL2;
   double cx, cy, cvx, cvy, L1_box, L2_box, th, psi, comega, length_box, width_box; 
   double x_ukf,  y_ukf, vx_ukf,  vy_ukf, omega_ukf;
-  //double cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, L1_box_ukf, L2_box_ukf, th_ukf, psi_ukf, comega_ukf; 
-  //double orientation;
-
-  //double test_color_1, test_color_2;
-  //bool test;
 
 private:
 

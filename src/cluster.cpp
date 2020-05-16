@@ -48,17 +48,10 @@ Cluster::Cluster(unsigned long int id, const pointList& new_points, const double
   calcMean(new_points);
   previous_mean_values = mean_values;
   rectangleFitting(new_points);
-  //old_thetaL1 = thetaL1;
-  //old_thetaL2 = thetaL2;
-
-  //LShapeTracker l_shape_tracker(closest_corner_point, L1, L2, normalize_angle(thetaL1), dt);
-  //this->l_shape = l_shape_tracker;
-  //l_shape.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
 
   LshapeTracker l_shape_tracker_ukf(closest_corner_point.first, closest_corner_point.second, L1, L2, normalize_angle(thetaL1), dt);
   this->Lshape = l_shape_tracker_ukf;
-  //Lshape.BoxModelUKF(cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, L1_box_ukf, L2_box_ukf, th_ukf, psi_ukf, comega_ukf);
-  Lshape.BoxModelUKF(x_ukf,  y_ukf, vx_ukf,  vy_ukf, omega_ukf, cx, cy, cvx, cvy, th, psi, comega, L1_box, L2_box, length_box, width_box);
+  Lshape.BoxModel(cx, cy, cvx, cvy, th, psi, comega, L1_box, L2_box, length_box, width_box);
   
   populateTrackingMsgs(dt);
 }
@@ -75,29 +68,9 @@ void Cluster::update(const pointList& new_points, const double dt, const tf::Tra
   calcMean(new_points);
   rectangleFitting(new_points);
 
-  //Shape information is only updated if there are a lot of measurements
-  //if(new_points.size()>7){
-    //ROS_INFO_STREAM("pointlist size"<<new_points.size());
-    //l_shape.detectCornerPointSwitch(old_thetaL1, thetaL1);
-    //Lshape.detectCornerPointSwitch(old_thetaL1, thetaL1, dt);
-
-    //double norm = normalize_angle(l_shape.shape_kf.state()(2));
-    //double distance = shortest_angular_distance(norm, thetaL1);
-    //double unwrapped_thetaL1 = distance + l_shape.shape_kf.state()(2) ;
-    
-    //l_shape.update(closest_corner_point, L1, L2, unwrapped_thetaL1, dt);
     Lshape.update(thetaL1, closest_corner_point.first, closest_corner_point.second, L1, L2, dt, new_points.size());
 
-    //old_thetaL1 = thetaL1;
-    //old_thetaL2 = thetaL2;
-
-  //}
-  //else{l_shape.updateDynamic(closest_corner_point, dt);
-  //}
-
-  //l_shape.lshapeToBoxModelConversion(cx, cy, cvx, cvy, L1_box, L2_box, th, comega);
-  //Lshape.BoxModelUKF(cx_ukf, cy_ukf, cvx_ukf, cvy_ukf, th_ukf, psi_ukf, comega_ukf, L1_box_ukf, L2_box_ukf);
-  Lshape.BoxModelUKF(x_ukf,  y_ukf, vx_ukf,  vy_ukf, omega_ukf, cx, cy, cvx, cvy, th, psi, comega, L1_box, L2_box, length_box, width_box);
+  Lshape.BoxModel(cx, cy, cvx, cvy, th, psi, comega, L1_box, L2_box, length_box, width_box);
 
   populateTrackingMsgs(dt);
 
@@ -115,49 +88,10 @@ void Cluster::populateTrackingMsgs(const double& dt){
   msg_track_box_kf.odom.twist.twist.linear.y = cvy;
   msg_track_box_kf.length = length_box;
   msg_track_box_kf.width  = width_box;
-  //bool side;
-  //psi = findOrientation(th, cvx, cvy, side);
 
   quaternion.setRPY(0, 0, psi);
   msg_track_box_kf.odom.pose.pose.orientation = tf2::toMsg(quaternion);
   msg_track_box_kf.odom.twist.twist.angular.z   = comega;
-
-  //if(side){
-  //}
-  //else{
-    //msg_track_box_kf.length = L2_box;
-    //msg_track_box_kf.width  = L1_box;
-  //}
-
-  //quaternion.setRPY(0,0, psi_ukf);
-  msg_track_box_ukf.id = this->id;
-  msg_track_box_ukf.odom.header.stamp = ros::Time::now();
-  msg_track_box_ukf.odom.header.frame_id = frame_name;
-  msg_track_box_ukf.odom.pose.pose.position.x    = x_ukf;
-  msg_track_box_ukf.odom.pose.pose.position.y    = y_ukf;
-  msg_track_box_ukf.odom.pose.pose.orientation = tf2::toMsg(quaternion);
-  msg_track_box_ukf.odom.twist.twist.linear.x    = vx_ukf;
-  msg_track_box_ukf.odom.twist.twist.linear.y    = vy_ukf;
-  //msg_track_box_ukf.odom.twist.twist.angular.z   = omega_ukf;
-  msg_track_box_ukf.odom.twist.twist.angular.z   = comega;
-  msg_track_box_ukf.length = length_box;
-  msg_track_box_ukf.width  = width_box;
-  //bool side2;
-  //psi = findOrientation(psi_ukf, cvx_ukf, cvy_ukf, side2);
-  
-  //if (side2){
-    //msg_track_box_ukf.length = L1_box_ukf;
-    //msg_track_box_ukf.width  = L2_box_ukf;
-
-    //test_color_1 =1.0;
-    //test_color_2 =0.0;
-  //}
-  //else{
-    //msg_track_box_ukf.length = L2_box_ukf;
-    //msg_track_box_ukf.width  = L1_box_ukf;
-    //test_color_1 =0.0;
-    //test_color_2 =1.0;
-  //}
 
 }
 
@@ -344,53 +278,7 @@ visualization_msgs::Marker Cluster::getBoxModelKFVisualisationMessage() {
   return bb_msg;
   
 }
-//visualization_msgs::Marker Cluster::getBoxModelUKFVisualisationMessage() {
-  
-  //visualization_msgs::Marker bb_msg;
 
-  //bb_msg.header.stamp       = ros::Time::now();
-  //bb_msg.header.frame_id    = frame_name;
-  //bb_msg.ns                 = "box_models_ukf";
-  //bb_msg.action             = visualization_msgs::Marker::ADD;
-  //bb_msg.pose.orientation.w = 1.0;
-  //bb_msg.type               = visualization_msgs::Marker::LINE_STRIP;
-  //bb_msg.id                 = this->id;
-  //bb_msg.scale.x            = 0.05; //line width
-  //bb_msg.color.g            = g;
-  //bb_msg.color.b            = b;
-  //bb_msg.color.r            = r;
-  //bb_msg.color.a            = a;
-
-  //geometry_msgs::Point p;
-  //double x = L1_box_ukf/2;
-  //double y = L2_box_ukf/2;
-  //p.x = cx + x*cos(th_ukf) - y*sin(th_ukf);
-  //p.y = cy + x*sin(th_ukf) + y*cos(th_ukf);
-  //bb_msg.points.push_back(p);
-  //x = + L1_box_ukf/2;
-  //y = - L2_box_ukf/2;
-  //p.x = cx + x*cos(th_ukf) - y*sin(th_ukf);
-  //p.y = cy + x*sin(th_ukf) + y*cos(th_ukf);
-  //bb_msg.points.push_back(p);
-  //x = - L1_box_ukf/2;
-  //y = - L2_box_ukf/2;
-  //p.x = cx + x*cos(th_ukf) - y*sin(th_ukf);
-  //p.y = cy + x*sin(th_ukf) + y*cos(th_ukf);
-  //bb_msg.points.push_back(p);
-  //x = - L1_box_ukf/2;
-  //y = + L2_box_ukf/2;
-  //p.x = cx + x*cos(th_ukf) - y*sin(th_ukf);
-  //p.y = cy + x*sin(th_ukf) + y*cos(th_ukf);
-  //bb_msg.points.push_back(p);
-  //x = + L1_box_ukf/2;
-  //y = + L2_box_ukf/2;
-  //p.x = cx + x*cos(th_ukf) - y*sin(th_ukf);
-  //p.y = cy + x*sin(th_ukf) + y*cos(th_ukf);
-  //bb_msg.points.push_back(p);
-  
-  //return bb_msg;
-  
-//}
 visualization_msgs::Marker Cluster::getLShapeVisualisationMessage() {
 
   visualization_msgs::Marker l1l2_msg;

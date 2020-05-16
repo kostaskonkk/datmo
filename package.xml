@@ -10,11 +10,12 @@
   <license>BSD</license>
 
 
-   <url type="repository">https://github.com/kostaskonkk/datmo</url> 
+  <url type="repository">https://github.com/kostaskonkk/datmo</url> 
 
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>tf2_geometry_msgs</build_depend>
+  <build_depend>eigen</build_depend>
   <build_depend>std_msgs</build_depend>
   <build_depend>cmake_modules</build_depend>
   <build_export_depend>roscpp</build_export_depend>
@@ -24,9 +25,4 @@
   <build_depend>message_generation</build_depend>
   <exec_depend>message_runtime</exec_depend>
 
-
-
-  <export>
-
-  </export>
 </package>

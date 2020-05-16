@@ -14,7 +14,6 @@ Datmo::Datmo(){
   n_private.param("pub_markers", p_marker_pub, false);
 
   pub_tracks_box_kf     = n.advertise<datmo::TrackArray>("datmo/box_kf", 10);
-  pub_tracks_box_ukf = n.advertise<datmo::TrackArray>("datmo/box_ukf", 10);
   pub_marker_array   = n.advertise<visualization_msgs::MarkerArray>("datmo/marker_array", 10);
   sub_scan = n.subscribe("/scan", 1, &Datmo::callback, this);
 
@@ -136,11 +135,9 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
     //Visualizations and msg publications
     visualization_msgs::MarkerArray marker_array;
     datmo::TrackArray track_array_box_kf; 
-    datmo::TrackArray track_array_box_ukf; 
     for (unsigned int i =0; i<clusters.size();i++){
 
       track_array_box_kf.tracks.push_back(clusters[i].msg_track_box_kf);
-      track_array_box_ukf.tracks.push_back(clusters[i].msg_track_box_ukf);
      
       if (p_marker_pub){
         marker_array.markers.push_back(clusters[i].getClosestCornerPointVisualisationMessage());
@@ -160,7 +157,6 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
 
     pub_marker_array.publish(marker_array);
     pub_tracks_box_kf.publish(track_array_box_kf);
-    pub_tracks_box_ukf.publish(track_array_box_ukf);
     visualiseGroupedPoints(point_clusters);
     
   }

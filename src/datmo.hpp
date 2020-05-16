@@ -43,7 +43,6 @@ public:
 private:
   ros::Publisher pub_marker_array; 
   ros::Publisher pub_tracks_box_kf;
-  ros::Publisher pub_tracks_box_ukf; 
   ros::Subscriber sub_scan;
   sensor_msgs::LaserScan scan;
   vector<Cluster> clusters;

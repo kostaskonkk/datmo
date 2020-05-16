@@ -1,11 +1,11 @@
 /**
- * Implementation of L-Shape Tracker class with a UKF Filter.
+ * Implementation of L-Shape Tracker class.
 *
 * @author: Kostas Konstantinidis
 * @date: 26.11.2019
 */
 
-#include "l_shape_tracker_ukf.hpp"
+#include "l_shape_tracker.hpp"
 
 static inline double normalize_angle_positive(double angle){
   //Normalizes the angle to be 0 to 2*M_PI.
@@ -112,27 +112,6 @@ LshapeTracker::LshapeTracker(const double& x_corner, const double& y_corner, con
   shape_kf.init(0,x0_shape);
 
 
-  //Initialization of the Unscented Kalman Filter
-  //Arguments are:       alpha, kappa,beta
-  std::vector<double> args{0.0025, 0, 2};
-  RobotLocalization::Ukf ukf_init(args);
-
-
-  int STATE_SIZE = 5;
-  Eigen::MatrixXd initialCovar(STATE_SIZE, STATE_SIZE);
-  initialCovar.setIdentity();
-  initialCovar(2,2) *= 10;
-  initialCovar(3,3) *= 10;
-  initialCovar(4,4) *= 1;
-  ukf_init.setEstimateErrorCovariance(initialCovar);
-
-  Eigen::VectorXd initial_state(5);
-  initial_state<<x_corner, y_corner, 0, 0, 0.000000000001;
-  ukf_init.setState(initial_state);
-
-  this->ukf = ukf_init;
-
-  ukf.predict_ctrm(dt);
   L1_old = L1;
   L2_old = L2;
   old_thetaL1 = theta;
@@ -144,15 +123,10 @@ LshapeTracker::LshapeTracker(const double& x_corner, const double& y_corner, con
 void LshapeTracker::update(const double& thetaL1, const double& x_corner, const double& y_corner, const double& L1, const double& L2, const double& dt, const int cluster_size) {
 
   current_size = cluster_size;
-  //detectCornerPointSwitchMahalanobis(old_thetaL1, thetaL1, L1, L2, x_corner, y_corner);
   detectCornerPointSwitch(old_thetaL1, thetaL1, dt);
-  
-  //if(cluster_size>7){
-  //}
 
   double norm = normalize_angle(shape_kf.state()(2));
   double distance = shortest_angular_distance(norm, thetaL1);
-  //ROS_INFO_STREAM("thetaL1: "<<thetaL1<<",state: "<<shape_kf.state()(2)<<", norm: "<<norm<<", distance: "<<distance);
   double theta = distance + shape_kf.state()(2) ;
   
   // Update Dynamic Kalman Filter
@@ -170,27 +144,6 @@ void LshapeTracker::update(const double& thetaL1, const double& x_corner, const 
                0,      0, 0.5;
   shape_measurements << L1max, L2max, theta;
   shape_kf.update(shape_measurements, dt);
-
-  RobotLocalization::Measurement meas;
-  meas.mahalanobisThresh_ = std::numeric_limits<double>::max();
-  std::vector<int> updateVector(5, false);
-  Eigen::VectorXd measurement(2);
-  measurement[0] = x_corner;
-  measurement[1] = y_corner;
-
-  Eigen::MatrixXd measurementCovariance(2, 2);
-  measurementCovariance.setIdentity();
-  measurementCovariance *= 0.001;
-
-  updateVector[0]=true;
-  updateVector[1]=true;
-
-  meas.measurement_ = measurement;
-  meas.covariance_ = measurementCovariance;
-  meas.updateVector_ = updateVector;
-
-  ukf.correct_ctrm(meas);
-
 
   L1_old = L1;
   L2_old = L2;
@@ -212,28 +165,17 @@ void LshapeTracker::detectCornerPointSwitchMahalanobis(const double& from, const
   double theta_corner = from;
   double x_c = dynamic_kf.state()(0);
   double y_c = dynamic_kf.state()(1);
-  //double x_c = x_old;
-  //double y_c = x_old;
   double L1_box = shape_kf.state()(0);
   double L2_box = shape_kf.state()(1);
-  //double L1_box = L1_old;
-  //double L2_box = L2_old;
-  //double theta_corner = shape_kf.state()(2);
 
   double x_corner_L1= x_c + L1_box*cos(theta_corner);
   double y_corner_L1= y_c + L1_box*sin(theta_corner);
   double theta_corner_L1 = normalize_angle(theta_corner + pi/2);
-  //test1= x_c + L1_box*cos(theta_corner);
-  //test2= y_c + L1_box*sin(theta_corner);
-  //test3= normalize_angle(theta_corner - pi/2);
 
   double x_corner_L2 = x_c + L2_box*sin(theta_corner);
   double y_corner_L2 = y_c - L2_box*cos(theta_corner);
   double theta_corner_L2 = normalize_angle(theta_corner + pi/2);
-  //test1 = x_c + L2_box*sin(theta_corner);
-  //test2 = y_c - L2_box*cos(theta_corner);
-  //test3 = normalize_angle(theta_corner + pi/2);
-   //ROS_INFO_STREAM("simple: "<<theta_corner-theta_new<<", findTurn: "<<findTurn(theta_new,theta_corner));
+  ROS_DEBUG_STREAM("simple: "<<theta_corner-theta_new<<", findTurn: "<<findTurn(theta_new,theta_corner));
 
    Eigen::Matrix<double, 5, 5> C;
    C.setZero();
@@ -278,54 +220,26 @@ void LshapeTracker::detectCornerPointSwitchMahalanobis(const double& from, const
   else if(minElementIndex == 1 && abs(mdistances[0]-mdistances[1])>0.1 && current_size>1){
    this->ClockwisePointSwitch();
   }
-  else{
-  }
-
-   //ROS_INFO_STREAM("results"<<means.transpose() * C.inverse()*means);
 
 
   std::vector<double> distances; 
   double euclidean;
   euclidean = sqrt(pow(x_c-x_new,2) + pow(y_c-y_new,2) + pow(findTurn(theta_new,theta_corner),2) + pow(L1-L1_box,2) + pow(L2-L2_box,2));
-  //euclidean = sqrt(pow(findTurn(theta_new,theta_corner),2));
   distances.push_back(euclidean);
   euclidean = sqrt(pow(x_corner_L1-x_new,2) + pow(y_corner_L1-y_new,2) + pow(findTurn(theta_new,theta_corner_L1),2)+ pow(L1-L2_box,2) + pow(L2-L1_box,2));
-  //euclidean = sqrt( pow(findTurn(theta_new,theta_corner),2));
   distances.push_back(euclidean);
   euclidean = sqrt(pow(x_corner_L2-x_new,2) + pow(y_corner_L2-y_new,2) + pow(findTurn(theta_new,theta_corner_L2),2)+ pow(L1-L2_box,2) + pow(L2-L1_box,2));
-  //euclidean = sqrt(pow(findTurn(theta_new,theta_corner),2));
   distances.push_back(euclidean);
-
-  //int minElementIndex = std::min_element(distances.begin(),distances.end()) - distances.begin();
-
-  //if(minElementIndex == 2 && abs(distances[0]-distances[2])>0.1 && current_size>1){
-   //this->CounterClockwisePointSwitch();
-   //ROS_INFO_STREAM("same: "<<distances[0]<<", clockwise: "<<distances[1]<<", counter: "<<distances[2]);
-  //}
-  //else if(minElementIndex == 1 && abs(distances[0]-distances[1])>0.1 && current_size>1){
-   //this->ClockwisePointSwitch();
-   //ROS_INFO_STREAM("same: "<<distances[0]<<", clockwise: "<<distances[1]<<", counter: "<<distances[2]);
-  //}
-  //else{
-  //}
 
 }
 
-  void LshapeTracker::BoxModelUKF(double& x_ukf, double& y_ukf,double& vx_ukf, double& vy_ukf, double& omega_ukf,double& x, double& y,double& vx, double& vy,double& theta, double& psi, double& omega, double& L1, double& L2, double& length, double& width){
+  void LshapeTracker::BoxModel(double& x, double& y,double& vx, double& vy,double& theta, double& psi, double& omega, double& L1, double& L2, double& length, double& width){
   L1 = shape_kf.state()(0);
   L2 = shape_kf.state()(1);
   theta = shape_kf.state()(2);
-  omega_ukf = ukf.getState()(Vyaw);
   //Equations 30 of "L-Shape Model Switching-Based precise motion tracking of moving vehicles"
   double ex = (L1 * cos(theta) + L2 * sin(theta)) /2;
   double ey = (L1 * sin(theta) - L2 * cos(theta)) /2;
-  x_ukf = ukf.getState()(X) + ex;
-  y_ukf = ukf.getState()(Y) + ey;
-
-  //Equations 31 of "L-Shape Model Switching-Based precise motion tracking of moving vehicles"
-  //TODO test the complete equation also
-  vx_ukf = ukf.getState()(Vx);
-  vy_ukf = ukf.getState()(Vy);
 
   omega = shape_kf.state()(3);
   x = dynamic_kf.state()(0) + ex;
@@ -358,14 +272,9 @@ void LshapeTracker::detectCornerPointSwitch(const double& from, const double& to
   double turn = findTurn(from, to);
     if(turn <-0.8){
      this->CounterClockwisePointSwitch();
-     ukf.predict_ctrm(dt);
     }
     else if(turn > 0.6){
      this->ClockwisePointSwitch();
-     ukf.predict_ctrm(dt);
-    }
-    else{
-     ukf.predict_ctrm(dt);
     }
 }
 
@@ -409,9 +318,7 @@ void LshapeTracker::findOrientation(double& psi, double& length, double& width){
 void LshapeTracker::ClockwisePointSwitch(){
   // Equation 17
 
-  
   Vector6d new_dynamic_states = dynamic_kf.state();
-  VectorXd new_ukf_states = ukf.getState();
   Vector4d new_shape_states = shape_kf.state();
 
   double L1 = shape_kf.state()(0);
@@ -431,15 +338,6 @@ void LshapeTracker::ClockwisePointSwitch(){
   new_dynamic_states(5) -= L1 * pow(shape_kf.state()(3),2) *  sin(shape_kf.state()(2));
 
 
-  //x = x + L1 * cos(theta);
-  new_ukf_states(X)  += L1 * cos(shape_kf.state()(2));
-  //y = y + L1 * sin(theta);
-  new_ukf_states(Y)  += L1 * sin(shape_kf.state()(2));
-  //vx = vx - L1 * omega * sin(theta);
-  new_ukf_states(Vx) -= L1 * shape_kf.state()(3) * sin(shape_kf.state()(2));
-  //vy = vy + L1 * omega * cos(theta);
-  new_ukf_states(Vy) += L1 * shape_kf.state()(3) * cos(shape_kf.state()(2));
-
   //L1 = L2
   new_shape_states(0) = L2;
   //L2 = L1
@@ -448,7 +346,6 @@ void LshapeTracker::ClockwisePointSwitch(){
   new_shape_states(2) = shape_kf.state()(2) - pi / 2;
 
   dynamic_kf.changeStates(new_dynamic_states);
-  ukf.setState(new_ukf_states);
   shape_kf.changeStates(new_shape_states);
 
 }
@@ -457,7 +354,6 @@ void LshapeTracker::CounterClockwisePointSwitch(){
   // Equation 17
 
   Vector6d new_dynamic_states = dynamic_kf.state();
-  VectorXd new_ukf_states = ukf.getState();
   Vector4d new_shape_states = shape_kf.state();
 
   double L1 = shape_kf.state()(0);
@@ -476,17 +372,6 @@ void LshapeTracker::CounterClockwisePointSwitch(){
   //ay = ay - L2 * omega^2 * sin(theta);
   new_dynamic_states(5) = dynamic_kf.state()(5) + L2 * pow(shape_kf.state()(3),2) *  cos(shape_kf.state()(2));
 
-
-  //x = x + L2 * sin(theta);
-  new_ukf_states(X)  += L2 * sin(shape_kf.state()(2));
-  //y = y - L2 * cos(theta);
-  new_ukf_states(Y)  -= L2 * cos(shape_kf.state()(2));
-  //vx = vx + L2 * omega * cos(theta);
-  new_ukf_states(Vx) += L2 * shape_kf.state()(3) * cos(shape_kf.state()(2));
-  //vy = vy + L2 * omega * sin(theta);
-  new_ukf_states(Vy) += L2 * shape_kf.state()(3) * sin(shape_kf.state()(2));
-
-
   //L1 = L2
   new_shape_states(0) = L2;
   //L2 = L1
@@ -494,7 +379,6 @@ void LshapeTracker::CounterClockwisePointSwitch(){
 
   new_shape_states(2) = shape_kf.state()(2) + pi / 2;
 
-  ukf.setState(new_ukf_states);
   dynamic_kf.changeStates(new_dynamic_states);
   shape_kf.changeStates(new_shape_states);
 }
