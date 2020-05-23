@@ -51,5 +51,5 @@ include_directories(
 )
 
 add_executable(datmo src/main.cpp src/l_shape_tracker.cpp src/kalman-cpp/kalman.cpp src/datmo.cpp src/cluster.cpp)
-add_dependencies(datmo ${catkin_EXPORTED_TARGETS})
+add_dependencies(datmo ${catkin_EXPORTED_TARGETS} datmo_generate_messages_cpp)
 target_link_libraries(datmo ${catkin_LIBRARIES})
