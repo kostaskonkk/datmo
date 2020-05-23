@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   nav_msgs
   sensor_msgs
+  visualization_msgs
   cmake_modules REQUIRED
   message_generation
 )
