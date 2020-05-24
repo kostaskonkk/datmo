@@ -2,7 +2,7 @@
 Changelog for package datmo
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-0.1.0 (24/5/2020)
+0.1.1 (24/5/2020)
 -----------
 * fixes message generation bug
 * removes unused rviz configurations
