@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>datmo</name>
-  <version>0.1.0</version>
+  <version>0.1.1</version>
   <description>The LIDAR Detection and Tracking of Moving Objects package</description>
   
   <author email="kostaskonkk@gmail.com">Kostas Konstantinidis</author> 
