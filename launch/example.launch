@@ -8,7 +8,7 @@
   <node type="rviz" name="rviz" pkg="rviz" args="-d $(find datmo)/config/default.rviz" />
   <node pkg="tf2_ros" type="static_transform_publisher" name="link_laser" args="-0.12 0 0 0 0 0 /ego_pose /laser" />
 
-   <node pkg="datmo" type="datmo" name="datmo" >
+   <node pkg="datmo" type="datmo" name="datmo" output="screen">
       <param name="max_cluster_size" value="50" />
       <param name="lidar_frame" value="laser" />
       <param name="world_frame" value="map" />

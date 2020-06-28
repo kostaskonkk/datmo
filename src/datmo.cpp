@@ -38,7 +38,7 @@ Datmo::Datmo(){
 
   n_private.param("lidar_frame", lidar_frame, string("base_link"));
   n_private.param("world_frame", world_frame, string("map"));
-  ROS_INFO_STREAM("The lidar_frame is: "<< lidar_frame<<" and the world_frame is: "<< world_frame<< ".\n");
+  ROS_INFO("The lidar_frame is: %s and the world frame is: %s", lidar_frame.c_str(), world_frame.c_str());
   n_private.param("threshold_distance", dth, 0.2);
   n_private.param("max_cluster_size", max_cluster_size, 360);
   n_private.param("euclidean_distance", euclidean_distance, 0.25);
@@ -192,7 +192,7 @@ void Datmo::callback(const sensor_msgs::LaserScan::ConstPtr& scan_in){
     
   }
   else{ //If the tf is not possible init all states at 0
-    ROS_WARN_STREAM("No transform could be found between "<<lidar_frame<<" and "<<world_frame);
+    ROS_WARN_DELAYED_THROTTLE(1 ,"No transform could be found between %s and %s", lidar_frame.c_str(), world_frame.c_str());
   };
 }
 void Datmo::visualiseGroupedPoints(const vector<pointList>& point_clusters){
