@@ -100,16 +100,16 @@ roslaunch datmo datmo.launch
 ```
 # ROS API
 ## Subscribed Topics
-scan(sensor_msgs/LaserScan) - This topic should be created be your LIDAR sensor.
+scan([sensor_msgs/LaserScan](http://docs.ros.org/en/api/sensor_msgs/html/msg/LaserScan.html)) - This topic should be created be your LIDAR sensor.
 
 ## Published Topics
 
 This node can publish a variety of topics but the final configuration depends on the user. By default the majority of the topics are disabled and they should be enabled through the launch file configuration.
 
-**datmo/marker_array (visualization_msgs/MarkerArray)** - In this topic a variety of Rviz markers are published, which can facilitate in understanding the inner workings of the program.\
+**datmo/marker_array ([visualization_msgs/MarkerArray](http://docs.ros.org/en/api/visualization_msgs/html/msg/MarkerArray.html))** - In this topic a variety of Rviz markers are published, which can facilitate in understanding the inner workings of the program.\
 **datmo/box_kf (datmo/TrackArray)** - In this topic the output of a Kalman Filter with a Constant Velocity model, which tracks the center of the box that surrounds the clusters is published.\
 
-Note: In case that the marker_array topic is published from a robot and visualized in computer, which has a different version of ROS installed (kinetic, melodic, ...), the msgs will not be published and the datmo node will crash with an md5sum error. To mitigate this, you should install on your robot the visualization msgs package of the ROS installation that runs on your computer.
+Note: In case that the marker_array topic is published from a robot and visualized in a computer which has a different version of ROS installed (kinetic, melodic, ...), the msgs will not be published and the datmo node will crash with an md5sum error. To fix this error, you should install on your robot the visualization msgs package of the ROS installation that runs on your computer.
 
 ## Custom Messages
 
