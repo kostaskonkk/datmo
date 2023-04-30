@@ -68,7 +68,7 @@ The first model is a Constant Shape model and it indicates that the shape of the
 The second model is a Constant Turn Rate model that indicates that the turn rate of the detected vehicle remains constant, while its orientation depends on the turn rate.
 ![Kinematic Trackers](https://github.com/kostaskonkk/datmo/raw/master/images/shape.png)
 
-Below you can find a video of a presentation of mine, in which I explain some early features of this package.
+Below you can find a video presentation in which some early features of this package are explained.
 
 [![Midterm presentation](https://img.youtube.com/vi/HfFZcYwsY3I/0.jpg)](https://www.youtube.com/watch?v=HfFZcYwsY3I "Midterm presentation")
 
@@ -139,6 +139,11 @@ In case that the  **pub_markers** flag is set to true, this package publishes vi
 * "threshold_distance" ("double", default: "0.2") - This value sets the distance that is used by the clustering algorithm
 * "euclidean_distance" ("double", default: "0.25") - This value sets the distance that is used by the euclidean distasnce data association algorithm
 * "pub_markers" ("bool", default: "false") - publish of the the vizualization markers
+
+# Used by  
+If you use this package or find it useful in your research feel free to add your project in this list:
+
+1. [Fast and Safe Trajectory Optimization for Autonomous Mobile Robots Using Reachability Analysis. 2021. Vaskov, Sean. PhD Thesis.](https://deepblue.lib.umich.edu/bitstream/handle/2027.42/169729/skvaskov_1.pdf?sequence=1)
 
 # References
 
