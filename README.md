@@ -81,7 +81,7 @@ If you have ROS melodic installed you can install via:
 sudo apt install ros-melodic-datmo
 ```
 
-Installation from source
+##Installation from source
 1. First you should navigate to the source folder of your catkin_ws. For example `cd ~/catkin_ws/src`.
 2. Run 
 ```sh
