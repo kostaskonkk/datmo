@@ -73,7 +73,15 @@ Below you can find a video presentation in which some early features of this pac
 [![Midterm presentation](https://img.youtube.com/vi/HfFZcYwsY3I/0.jpg)](https://www.youtube.com/watch?v=HfFZcYwsY3I "Midterm presentation")
 
 # Installation and use
-This ROS package can be installed in the following way:
+This ROS package can be installed in the following ways:
+
+## Installation from ROS repositories
+If you have ROS melodic installed you can install via:
+```
+sudo apt install ros-melodic-datmo
+```
+
+Installation from source
 1. First you should navigate to the source folder of your catkin_ws. For example `cd ~/catkin_ws/src`.
 2. Run 
 ```sh
